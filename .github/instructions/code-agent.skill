@@ -1,0 +1,48 @@
+---
+applyTo: '**'
+---
+
+# Code-Agent Skill
+
+## Purpose
+Handle any code-related request for the Space Invaders project while preserving existing logic and never performing destructive actions without explicit user approval.
+
+## Trigger
+Activates on prompts that mention code edits, bug fixes, new features, or any change to the repository.
+
+## Workflow
+
+1️⃣ **Create a Todo list**
+   - Top-level ticket summarising the request.
+   - Sub-tasks: locate file(s), propose edit, await approval, apply edit, run tests, review results, repeat if needed, finish.
+
+2️⃣ **Locate target file(s)** (glob + read).
+
+3️⃣ **Propose change** – show a diff-style description and **ask** the user for approval.
+
+4️⃣ **If approved**
+   - Apply the edit (single `edit` or `write`).
+   - Run `pytest`.
+
+5️⃣ **Test outcome**
+   - **Pass** → mark sub-task completed and inform the user that the change is ready to be committed.
+   - **Fail** →
+     a. Increment a **retry counter** (starts at 0).
+     b. If `retry < MAX_RETRIES` (default 3), create a new sub-task “Revise change based on failing test” and go back to step 3.
+     c. If `retry ≥ MAX_RETRIES`, abort the loop, mark the task as `failed`, and report the persistent test failures to the user.
+
+6️⃣ **Finalisation**
+   - Summarise all successful edits.
+   - Remind the human to run `git add … && git commit …`.
+   - **Never** execute any git commit or push commands.
+
+## Safety Guardrails (enforced by the skill)
+
+| Rule | Enforcement |
+|------|--------------|
+| Never delete a file | No delete operation is ever generated. |
+| Ask before modifying | All `edit`/`write` actions are gated behind an explicit “Do you want me to apply this change?” prompt. |
+| Always run tests | Step 4 runs `pytest` after every edit. |
+| Redo on test failure (max 3 attempts) | Retry counter limits the loop; after three failed attempts the skill aborts and reports the problem. |
+| Never commit automatically | The skill ends with a reminder only. |
+| Human does the commit | The user must run git commands manually. |
