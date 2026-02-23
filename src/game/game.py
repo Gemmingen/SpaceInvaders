@@ -1,9 +1,10 @@
 import pygame
 import random
 import sys
-from src.config.config import SCREEN_WIDTH, SCREEN_HEIGHT, FPS, PLAYER_SPEED, ENEMY_SPEED, BULLET_SPEED
+from src.config.config import SCREEN_WIDTH, SCREEN_HEIGHT, FPS, PLAYER_SPEED, ENEMY_SPEED, BULLET_SPEED, UFO_SPAWN_TIME, UFO_SPEED, UFO_SCORE_OPTIONS, UFO_SHOT_THRESHOLD
 from src.game.player import Player
 from src.game.enemy import Enemy
+from src.game.ufo import UFO
 from src.game.bullet import Bullet
 
 from src.game.bunker import Bunker
@@ -27,6 +28,10 @@ class Game:
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
         pygame.display.set_caption("Space Invaders")
         self.clock = pygame.time.Clock()
+        # UFO (Mystery Ship) tracking
+        self.ufo_group = pygame.sprite.Group()
+        self.ufo_timer = int(UFO_SPAWN_TIME * FPS)  # countdown in frames
+        self.player_shots = 0  # shots fired since last UFO spawn
         self.font = pygame.font.SysFont(None, 24)
         self._reset()
         self.running = True
@@ -271,6 +276,12 @@ class Game:
         pygame.display.flip()
 
 
+    def _spawn_ufo(self):
+        """Create a UFO (Mystery Ship) and add it to groups."""
+        ufo = UFO()
+        self.ufo_group.add(ufo)
+        self.all_sprites.add(ufo)
+
     def run(self):
         while True:
             self.clock.tick(FPS)
@@ -296,6 +307,8 @@ class Game:
                         elif event.key == pygame.K_q:
                             pygame.quit()
                             sys.exit()
+                            pygame.quit()
+                            sys.exit()
 
             # State-specific updates and rendering
             if self.state == self.STATE_MENU:
@@ -319,9 +332,21 @@ class Game:
                 # Enemy behavior
                 self._handle_enemy_movement()
                 self._enemy_shooting()
+                # UFO spawn timer
+                self.ufo_timer -= 1
+                if self.ufo_timer <= 0 or self.player_shots >= UFO_SHOT_THRESHOLD:
+                    self._spawn_ufo()
+                    self.ufo_timer = int(UFO_SPAWN_TIME * FPS)
+                    self.player_shots = 0
 
+                self.ufo_group.update()
                 # Collisions
                 self._check_collisions()
+                # UFO hit detection
+                ufo_hits = pygame.sprite.groupcollide(self.ufo_group, self.player_bullets, True, True)
+                if ufo_hits:
+                    bonus = random.choice(UFO_SCORE_OPTIONS)
+                    self.score += bonus
 
                 # Check win/lose conditions
                 if not self.enemies:
