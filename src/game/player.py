@@ -9,7 +9,7 @@ class Player(pygame.sprite.Sprite):
         self.rect = self.image.get_rect(midbottom=(x, y))
         from src.config.config import PLAYER_SPEED
         self.speed = PLAYER_SPEED
-        self.bullets = pygame.sprite.Group()
+        
         self.last_shot_time = 0
         self.shot_cooldown = 300  # milliseconds
         self.lives = 3
@@ -28,11 +28,12 @@ class Player(pygame.sprite.Sprite):
         pass
     
     def shoot(self):
-        # Simple cooldown to prevent spamming
+        """Create a bullet if cooldown elapsed.
+        Returns the ``Bullet`` instance or ``None`` if still on cooldown.
+        """
         current_time = pygame.time.get_ticks()
         if current_time - self.last_shot_time >= self.shot_cooldown:
             bullet = Bullet(self.rect.centerx, self.rect.top, direction=-1)
-            self.bullets.add(bullet)
             self.last_shot_time = current_time
+            return bullet
         return None
-        pass

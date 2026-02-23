@@ -177,8 +177,7 @@ class Game:
         # --------------------
 
         # Variablen für die Spielerposition
-        self.player_x = self.width // 2 - 16
-        self.player_y = self.height - 100
+        # (Removed unused position attributes)
 
 
     def _create_enemies(self):
@@ -285,7 +284,10 @@ class Game:
                         self.state = self.STATE_PLAYING
                 elif self.state == self.STATE_PLAYING:
                     if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-                        self.player.shoot()
+                        bullet = self.player.shoot()
+                        if bullet:
+                            self.player_bullets.add(bullet)
+                            self.all_sprites.add(bullet)
                 elif self.state in (self.STATE_GAME_OVER, self.STATE_VICTORY):
                     if event.type == pygame.KEYDOWN:
                         if event.key == pygame.K_r:
@@ -331,7 +333,7 @@ class Game:
                 self.screen.fill((0, 0, 0))
                 self.bunkers.draw(self.screen) # Draw bunkers first [8]
                 self.all_sprites.draw(self.screen)
-                self.player.bullets.draw(self.screen)
+                self.player_bullets.draw(self.screen)
                 self.enemy_bullets.draw(self.screen)
                 self._draw_hud()
                 pygame.display.flip()
