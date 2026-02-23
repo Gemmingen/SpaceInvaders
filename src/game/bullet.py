@@ -9,6 +9,7 @@ class Bullet(pygame.sprite.Sprite):
         self.rect = self.image.get_rect(center=(x, y))
         self.speed = BULLET_SPEED * direction  # direction: -1 up, 1 down
         self.direction = direction
+        self.mask = pygame.mask.from_surface(self.image)
         pass
     
     def update(self):

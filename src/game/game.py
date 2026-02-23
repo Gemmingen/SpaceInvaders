@@ -1,26 +1,18 @@
 import pygame
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> parent of cdf6ab4 (added sprites)
 import random
 import sys
 from src.config.config import SCREEN_WIDTH, SCREEN_HEIGHT, FPS, PLAYER_SPEED, ENEMY_SPEED, BULLET_SPEED
 from src.game.player import Player
 from src.game.enemy import Enemy
 from src.game.bullet import Bullet
-<<<<<<< HEAD
+
 from src.game.bunker import Bunker
-=======
 
 # Hilfsfunktion einfügen
 def get_image(sheet, x, y, width, height):
     image = pygame.Surface((width, height), pygame.SRCALPHA)
     image.blit(sheet, (0, 0), (x, y, width, height))
     return image
->>>>>>> 61a9340beeaeb01c3e130750244b3af354b1706f
-=======
->>>>>>> parent of cdf6ab4 (added sprites)
 
 class Game:
     # Possible game states
@@ -39,37 +31,31 @@ class Game:
         self._reset()
         self.running = True
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-    def handle_bunker_collision(self, bullet, bunker_group):
-    # Performance Gate: Check Rect collision first [6]
-        hit_bunker = pygame.sprite.spritecollideany(bullet, bunker_group)
 
+    def handle_bunker_collision(self, bullet, bunker_group):
+        """Pixel-perfect collision with coordinate math fixes."""
+        hit_bunker = pygame.sprite.spritecollideany(bullet, bunker_group)
         if hit_bunker:
-            # Calculate offset between bullet and bunker masks 
             offset = (bullet.rect.x - hit_bunker.rect.x, bullet.rect.y - hit_bunker.rect.y)
             overlap_pos = hit_bunker.mask.overlap(bullet.mask, offset)
 
             if overlap_pos:
-                # 1. Erase bits from the logical mask [4]
-                # We center a 6x8 "digger" brush on the point of impact 
+                # FIX: Center the brush using tuple indices
+                erase_x = overlap_pos[0] - 3
+                erase_y = overlap_pos[1] - 3
                 brush = pygame.mask.Mask((6, 8), fill=True)
-                erase_offset = (overlap_pos - 3, overlap_pos[1] - 3)
-                hit_bunker.mask.erase(brush, erase_offset)
+                hit_bunker.mask.erase(brush, (erase_x, erase_y))
 
-                # 2. Erase pixels from the visual surface by setting alpha to 0 
+                # FIX: Iterate and check bounds for visual erasure [3, 4]
                 for x in range(6):
                     for y in range(8):
-                        px = erase_offset + x
-                        py = erase_offset[1] + y
-                        # Bound check before using set_at [7]
-                        if 0 <= px < hit_bunker.image.get_width() and 0 <= py < hit_bunker.image.get_height():
+                        px, py = erase_x + x, erase_y + y
+                        if 0 <= px < hit_bunker.image.get_width() and \
+                           0 <= py < hit_bunker.image.get_height():
                             hit_bunker.image.set_at((px, py), (0, 0, 0, 0))
                 
                 bullet.kill()
 
-=======
->>>>>>> parent of cdf6ab4 (added sprites)
     def _reset(self):
         """Reset game state for a new round"""
         self.score = 0
@@ -77,21 +63,17 @@ class Game:
         self.player = Player(SCREEN_WIDTH // 2, SCREEN_HEIGHT - 30)
         self.all_sprites = pygame.sprite.Group()
         self.enemies = pygame.sprite.Group()
-        self.player_bullets = self.player.bullets
+        self.player_bullets = pygame.sprite.Group()
         self.enemy_bullets = pygame.sprite.Group()
-<<<<<<< HEAD
         self.bunkers = pygame.sprite.Group()
-=======
->>>>>>> parent of cdf6ab4 (added sprites)
         self.all_sprites.add(self.player)
         self._create_enemies()
         self.enemy_direction = 1
         self.enemy_move_down = 10
-<<<<<<< HEAD
+        # Initialize 4 bunkers
         for i in range(4):
-            x_pos = 150 + (i * 200)
-            bunker = Bunker(x_pos, SCREEN_HEIGHT - 150)
-            self.bunkers.add(bunker)
+            x_pos = 100 + (i * 180) # Spacing logic [5]
+            self.bunkers.add(Bunker(x_pos, SCREEN_HEIGHT - 120))
 
     def _create_enemies(self):
         rows = 5
@@ -182,7 +164,7 @@ class Game:
         self.screen.blit(score_surf, (SCREEN_WIDTH // 2 - score_surf.get_width() // 2, SCREEN_HEIGHT // 3 + 40))
         self.screen.blit(instr_surf, (SCREEN_WIDTH // 2 - instr_surf.get_width() // 2, SCREEN_HEIGHT // 2))
         pygame.display.flip()
-=======
+
         # --- ASSETS LADEN ---
         # 1. Das komplette Spritesheet laden
         self.spritesheet = pygame.image.load("assets/pico8_invaders_sprites_LARGE.png").convert_alpha()
@@ -197,8 +179,7 @@ class Game:
         # Variablen für die Spielerposition
         self.player_x = self.width // 2 - 16
         self.player_y = self.height - 100
->>>>>>> 61a9340beeaeb01c3e130750244b3af354b1706f
-=======
+
 
     def _create_enemies(self):
         rows = 3
@@ -289,7 +270,7 @@ class Game:
         self.screen.blit(score_surf, (SCREEN_WIDTH // 2 - score_surf.get_width() // 2, SCREEN_HEIGHT // 3 + 40))
         self.screen.blit(instr_surf, (SCREEN_WIDTH // 2 - instr_surf.get_width() // 2, SCREEN_HEIGHT // 2))
         pygame.display.flip()
->>>>>>> parent of cdf6ab4 (added sprites)
+
 
     def run(self):
         while True:
@@ -327,16 +308,12 @@ class Game:
                 self.player_bullets.update()
                 self.enemy_bullets.update()
 
-<<<<<<< HEAD
-<<<<<<< HEAD
                 for bullet in self.player_bullets:
                     self.handle_bunker_collision(bullet, self.bunkers)
 
                 for bomb in self.enemy_bullets:
                     self.handle_bunker_collision(bomb, self.bunkers)
 
-=======
->>>>>>> parent of cdf6ab4 (added sprites)
                 # Enemy behavior
                 self._handle_enemy_movement()
                 self._enemy_shooting()
@@ -352,12 +329,10 @@ class Game:
 
                 # Rendering
                 self.screen.fill((0, 0, 0))
-<<<<<<< HEAD
-                self.bunkers.draw(self.screen)
-=======
->>>>>>> parent of cdf6ab4 (added sprites)
-                self.all_sprites.add(self.player_bullets)
+                self.bunkers.draw(self.screen) # Draw bunkers first [8]
                 self.all_sprites.draw(self.screen)
+                self.player.bullets.draw(self.screen)
+                self.enemy_bullets.draw(self.screen)
                 self._draw_hud()
                 pygame.display.flip()
                 continue
@@ -376,12 +351,7 @@ class Game:
                                             SCREEN_HEIGHT // 2 + 10))
         pygame.display.flip()
         # Wait for a short period before exiting
-<<<<<<< HEAD
-        pygame.time.wait(3000)
-=======
         # D. Das gezeichnete Bild auf dem Bildschirm anzeigen
-        pygame.display.flip()
->>>>>>> 61a9340beeaeb01c3e130750244b3af354b1706f
-=======
+
         pygame.time.wait(3000)
->>>>>>> parent of cdf6ab4 (added sprites)
+
