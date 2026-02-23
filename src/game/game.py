@@ -1,4 +1,5 @@
 import pygame
+<<<<<<< HEAD
 import random
 import sys
 from src.config.config import SCREEN_WIDTH, SCREEN_HEIGHT, FPS, PLAYER_SPEED, ENEMY_SPEED, BULLET_SPEED
@@ -6,24 +7,27 @@ from src.game.player import Player
 from src.game.enemy import Enemy
 from src.game.bullet import Bullet
 from src.game.bunker import Bunker
+=======
+
+# Hilfsfunktion einfügen
+def get_image(sheet, x, y, width, height):
+    image = pygame.Surface((width, height), pygame.SRCALPHA)
+    image.blit(sheet, (0, 0), (x, y, width, height))
+    return image
+>>>>>>> 61a9340beeaeb01c3e130750244b3af354b1706f
 
 class Game:
-    # Possible game states
-    STATE_MENU = "menu"
-    STATE_PLAYING = "playing"
-    STATE_GAME_OVER = "game_over"
-    STATE_VICTORY = "victory"
     def __init__(self):
-        # Initialize pygame components
-        self.state = self.STATE_MENU
-        self._reset()
-        self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+        # Bildschirm einrichten
+        self.width = 800
+        self.height = 600
+        self.screen = pygame.display.set_mode((self.width, self.height))
         pygame.display.set_caption("Space Invaders")
+        
         self.clock = pygame.time.Clock()
-        self.font = pygame.font.SysFont(None, 24)
-        self._reset()
         self.running = True
 
+<<<<<<< HEAD
     def handle_bunker_collision(self, bullet, bunker_group):
     # Performance Gate: Check Rect collision first [6]
         hit_bunker = pygame.sprite.spritecollideany(bullet, bunker_group)
@@ -159,43 +163,63 @@ class Game:
         self.screen.blit(score_surf, (SCREEN_WIDTH // 2 - score_surf.get_width() // 2, SCREEN_HEIGHT // 3 + 40))
         self.screen.blit(instr_surf, (SCREEN_WIDTH // 2 - instr_surf.get_width() // 2, SCREEN_HEIGHT // 2))
         pygame.display.flip()
+=======
+        # --- ASSETS LADEN ---
+        # 1. Das komplette Spritesheet laden
+        self.spritesheet = pygame.image.load("assets/pico8_invaders_sprites_LARGE.png").convert_alpha()
+        
+        # 2. Das 8x8 Raumschiff aus dem Sheet herausschneiden
+        self.player_image = get_image(self.spritesheet, 0, 0, 8, 8)
+        
+        # 3. Das Sprite vergrößern (auf 32x32)
+        self.player_image = pygame.transform.scale(self.player_image, (32, 32))
+        # --------------------
+
+        # Variablen für die Spielerposition
+        self.player_x = self.width // 2 - 16
+        self.player_y = self.height - 100
+>>>>>>> 61a9340beeaeb01c3e130750244b3af354b1706f
 
     def run(self):
-        while True:
-            self.clock.tick(FPS)
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    sys.exit()
-                # State-specific event handling
-                if self.state == self.STATE_MENU:
-                    if event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
-                        self.state = self.STATE_PLAYING
-                elif self.state == self.STATE_PLAYING:
-                    if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-                        self.player.shoot()
-                elif self.state in (self.STATE_GAME_OVER, self.STATE_VICTORY):
-                    if event.type == pygame.KEYDOWN:
-                        if event.key == pygame.K_r:
-                            self._reset()
-                            self.state = self.STATE_PLAYING
-                        elif event.key == pygame.K_q:
-                            pygame.quit()
-                            sys.exit()
+        while self.running:
+            self.handle_events()
+            self.update()
+            self.draw()
+            self.clock.tick(60)
+            
+        pygame.quit()
 
-            # State-specific updates and rendering
-            if self.state == self.STATE_MENU:
-                self._draw_menu()
-                continue
+    def handle_events(self):
+        # A. Ereignisse abfragen
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                self.running = False
 
-            if self.state == self.STATE_PLAYING:
-                keys = pygame.key.get_pressed()
-                self.player.move(keys, SCREEN_WIDTH)
+    def update(self):
+        # B. Spiellogik updaten (Bewegung des Spielers)
+        keys = pygame.key.get_pressed()
+        speed = 5
+        
+        if keys[pygame.K_LEFT]:
+            self.player_x -= speed
+        if keys[pygame.K_RIGHT]:
+            self.player_x += speed
+            
+        # Verhindern, dass das Raumschiff aus dem Bildschrim fliegt
+        if self.player_x < 0:
+            self.player_x = 0
+        elif self.player_x > self.width - 32: # 32 ist die Breite des Raumschiffs
+            self.player_x = self.width - 32
 
-                # Update bullets
-                self.player_bullets.update()
-                self.enemy_bullets.update()
+    def draw(self):
+        # C. Zeichnen
+        self.screen.fill((0, 0, 0)) # Hintergrund schwarz malen
+        
+        # --- ASSETS ZEICHNEN ---
+        self.screen.blit(self.player_image, (self.player_x, self.player_y))
+        # -----------------------
 
+<<<<<<< HEAD
                 for bullet in self.player_bullets:
                     self.handle_bunker_collision(bullet, self.bunkers)
 
@@ -239,3 +263,7 @@ class Game:
         pygame.display.flip()
         # Wait for a short period before exiting
         pygame.time.wait(3000)
+=======
+        # D. Das gezeichnete Bild auf dem Bildschirm anzeigen
+        pygame.display.flip()
+>>>>>>> 61a9340beeaeb01c3e130750244b3af354b1706f
