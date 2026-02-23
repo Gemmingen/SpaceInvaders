@@ -1,35 +1,38 @@
 import pygame
+from src.game.bullet import Bullet
 
 class Player(pygame.sprite.Sprite):
     def __init__(self, x, y):
         super().__init__()
-
-        spritesheet = pygame.image.load("assets/pico8_invaders_sprites_LARGE.png").convert_alpha()
-
-        rect_idle = pygame.Rect(0, 0, 32, 32)
-        rect_left = pygame.Rect(32, 0, 32, 32)
-        rect_right = pygame.Rect(64, 0, 32, 32)
-        
-        self.image_idle = spritesheet.subsurface(rect_idle)
-        self.image_left = spritesheet.subsurface(rect_left)
-        self.image_right = spritesheet.subsurface(rect_right)
-        
-        self.image = self.image_idle
-        self.rect = self.image.get_rect(center=(x, y))
-        self.speed = 5
-
-    def update(self):
-        keys = pygame.key.get_pressed()
-        self.image = self.image_idle
-        
+        self.image = pygame.Surface((50, 30))
+        self.image.fill((0, 255, 0))  # green player
+        self.rect = self.image.get_rect(midbottom=(x, y))
+        from src.config.config import PLAYER_SPEED
+        self.speed = PLAYER_SPEED
+        self.bullets = pygame.sprite.Group()
+        self.last_shot_time = 0
+        self.shot_cooldown = 300  # milliseconds
+        self.lives = 3
+        pass
+    
+    def move(self, keys, screen_width):
         if keys[pygame.K_LEFT]:
             self.rect.x -= self.speed
-            self.image = self.image_left
-        elif keys[pygame.K_RIGHT]:
+        if keys[pygame.K_RIGHT]:
             self.rect.x += self.speed
-            self.image = self.image_right
-            
-        if keys[pygame.K_UP]:
-            self.rect.y -= self.speed
-        elif keys[pygame.K_DOWN]:
-            self.rect.y += self.speed
+        # Keep within screen bounds
+        if self.rect.left < 0:
+            self.rect.left = 0
+        if self.rect.right > screen_width:
+            self.rect.right = screen_width
+        pass
+    
+    def shoot(self):
+        # Simple cooldown to prevent spamming
+        current_time = pygame.time.get_ticks()
+        if current_time - self.last_shot_time >= self.shot_cooldown:
+            bullet = Bullet(self.rect.centerx, self.rect.top, direction=-1)
+            self.bullets.add(bullet)
+            self.last_shot_time = current_time
+        return None
+        pass
