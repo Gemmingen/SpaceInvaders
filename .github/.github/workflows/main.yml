@@ -1,0 +1,48 @@
+name: CI/CD Vorbereitung
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  # JOB 1: Testen
+  build-und-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Code auschecken
+        uses: actions/checkout@v4
+
+      - name: Syntax Check / Tests
+        run: |
+          echo "Hier werden die Dateien auf Fehler geprüft..."
+          # Beispiel für Web-Projekte (auskommentieren falls nötig):
+          # npm install && npm test
+          echo "Tests erfolgreich bestanden!"
+
+  # JOB 2: Deployment Vorbereitung
+  deploy:
+    name: Deployment (Vorbereitet)
+    runs-on: ubuntu-latest
+    needs: build-und-test # Wartet immer auf die Tests
+    if: github.ref == 'refs/heads/main' # Deployed nur vom Main-Branch
+    
+    steps:
+      - name: Code auschecken
+        uses: actions/checkout@v4
+
+      - name: Info an User
+        run: |
+          echo "Deployment-Logik ist bereit."
+          echo "Sobald du einen Server hast, musst du nur die Secrets (SSH_KEY, HOST, USER) in GitHub hinterlegen."
+
+      - name: SSH Deployment (Platzhalter)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.REMOTE_HOST }}
+          username: ${{ secrets.REMOTE_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            echo "Verbindung zum Server erfolgreich!"
+            echo "Aktueller Pfad auf Server: $(pwd)"
