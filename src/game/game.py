@@ -5,6 +5,7 @@ from src.config.config import SCREEN_WIDTH, SCREEN_HEIGHT, FPS, PLAYER_SPEED, EN
 from src.game.player import Player
 from src.game.enemy import Enemy
 from src.game.bullet import Bullet
+from src.game.bunker import Bunker
 
 class Game:
     # Possible game states
@@ -23,6 +24,33 @@ class Game:
         self._reset()
         self.running = True
 
+    def handle_bunker_collision(self, bullet, bunker_group):
+    # Performance Gate: Check Rect collision first [6]
+        hit_bunker = pygame.sprite.spritecollideany(bullet, bunker_group)
+
+        if hit_bunker:
+            # Calculate offset between bullet and bunker masks 
+            offset = (bullet.rect.x - hit_bunker.rect.x, bullet.rect.y - hit_bunker.rect.y)
+            overlap_pos = hit_bunker.mask.overlap(bullet.mask, offset)
+
+            if overlap_pos:
+                # 1. Erase bits from the logical mask [4]
+                # We center a 6x8 "digger" brush on the point of impact 
+                brush = pygame.mask.Mask((6, 8), fill=True)
+                erase_offset = (overlap_pos - 3, overlap_pos[1] - 3)
+                hit_bunker.mask.erase(brush, erase_offset)
+
+                # 2. Erase pixels from the visual surface by setting alpha to 0 
+                for x in range(6):
+                    for y in range(8):
+                        px = erase_offset + x
+                        py = erase_offset[1] + y
+                        # Bound check before using set_at [7]
+                        if 0 <= px < hit_bunker.image.get_width() and 0 <= py < hit_bunker.image.get_height():
+                            hit_bunker.image.set_at((px, py), (0, 0, 0, 0))
+                
+                bullet.kill()
+
     def _reset(self):
         """Reset game state for a new round"""
         self.score = 0
@@ -32,15 +60,20 @@ class Game:
         self.enemies = pygame.sprite.Group()
         self.player_bullets = self.player.bullets
         self.enemy_bullets = pygame.sprite.Group()
+        self.bunkers = pygame.sprite.Group()
         self.all_sprites.add(self.player)
         self._create_enemies()
         self.enemy_direction = 1
         self.enemy_move_down = 10
+        for i in range(4):
+            x_pos = 150 + (i * 200)
+            bunker = Bunker(x_pos, SCREEN_HEIGHT - 150)
+            self.bunkers.add(bunker)
 
     def _create_enemies(self):
-        rows = 3
-        cols = 7
-        x_margin = 60
+        rows = 5
+        cols = 9
+        x_margin = 50
         y_margin = 60
         spacing_x = 80
         spacing_y = 60
@@ -163,6 +196,12 @@ class Game:
                 self.player_bullets.update()
                 self.enemy_bullets.update()
 
+                for bullet in self.player_bullets:
+                    self.handle_bunker_collision(bullet, self.bunkers)
+
+                for bomb in self.enemy_bullets:
+                    self.handle_bunker_collision(bomb, self.bunkers)
+
                 # Enemy behavior
                 self._handle_enemy_movement()
                 self._enemy_shooting()
@@ -178,6 +217,7 @@ class Game:
 
                 # Rendering
                 self.screen.fill((0, 0, 0))
+                self.bunkers.draw(self.screen)
                 self.all_sprites.add(self.player_bullets)
                 self.all_sprites.draw(self.screen)
                 self._draw_hud()
