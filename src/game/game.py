@@ -39,26 +39,16 @@ class Game:
         
         self.state = self.STATE_MENU
         self.running = True
-        self.SCROLL = SCROLL # Initialer Scroll-Wert
-        self._reset()
 
     def handle_bunker_collision(self, bullet, bunker_group):
-        hit_bunker = pygame.sprite.spritecollideany(bullet, bunker_group)
+        """Nutzt die exakte Maskenkollision und fügt dem Satellit Schaden zu."""
+        hit_bunker = pygame.sprite.spritecollideany(bullet, bunker_group, pygame.sprite.collide_mask)
         if hit_bunker:
-            offset = (bullet.rect.x - hit_bunker.rect.x, bullet.rect.y - hit_bunker.rect.y)
-            overlap_pos = hit_bunker.mask.overlap(bullet.mask, offset)
-            if overlap_pos:
-                erase_x, erase_y = overlap_pos[0] - 3, overlap_pos[1] - 3
-                brush = pygame.mask.Mask((6, 8), fill=True)
-                hit_bunker.mask.erase(brush, (erase_x, erase_y))
-
-                for x in range(6):
-                    for y in range(8):
-                        px, py = erase_x + x, erase_y + y
-                        if 0 <= px < hit_bunker.image.get_width() and \
-                           0 <= py < hit_bunker.image.get_height():
-                            hit_bunker.image.set_at((px, py), (0, 0, 0, 0))
-                bullet.kill()
+            hit_bunker.take_damage()
+            bullet.kill()
+                  
+        self.SCROLL = SCROLL # Initialer Scroll-Wert
+        self._reset()
 
     def _reset(self):
         self.score = 0
@@ -76,12 +66,14 @@ class Game:
         
         self.enemy_direction = 1
         self.enemy_move_down = 10
+        
+        # Initialize 4 Satelliten in unterschiedlichen Winkeln
+        angles = [0, 90, 180, 270]
+        for i in range(4):
+            x_pos = 140 + (i * 170) 
+            self.bunkers.add(Bunker(x_pos, SCREEN_HEIGHT - 120, angle=angles[i]))
         self.ufo_timer = int(UFO_SPAWN_TIME * FPS)
         self.player_shots = 0
-        
-        for i in range(4):
-            x_pos = 100 + (i * 180)
-            self.bunkers.add(Bunker(x_pos, SCREEN_HEIGHT - 120))
 
     def _create_enemies(self):
         rows, cols = 5, 5
@@ -89,29 +81,37 @@ class Game:
         spacing_x, spacing_y = 80, 60
         for row in range(rows):
             for col in range(cols):
-                enemy = Enemy(x_margin + col * spacing_x, y_margin + row * spacing_y)
+                x = x_margin + col * spacing_x
+                y = y_margin + row * spacing_y
+                enemy = Enemy(x, y, row)
                 self.enemies.add(enemy)
                 self.all_sprites.add(enemy)
 
     def _handle_enemy_movement(self):
-        move_down = False
+        # Determine if any enemy hits screen edge
+        move_sideways = True
         for enemy in self.enemies:
-            if (self.enemy_direction == 1 and enemy.rect.right >= SCREEN_WIDTH - 10) or \
-               (self.enemy_direction == -1 and enemy.rect.left <= 10):
-                move_down = True
+            if self.enemy_direction == 1 and enemy.rect.right >= SCREEN_WIDTH - 10:
+                move_sideways = False
                 break
-        
-        if move_down:
+            if self.enemy_direction == -1 and enemy.rect.left <= 10:
+                move_sideways = False
+                break
+                
+        if not move_sideways:
+            # Move down and reverse direction
             for enemy in self.enemies:
                 enemy.rect.y += self.enemy_move_down
             self.enemy_direction *= -1
         else:
+            # Move horizontally
             for enemy in self.enemies:
                 enemy.move(self.enemy_direction)
 
     def _enemy_shooting(self):
+        # Each enemy has a small chance to fire each frame
         for enemy in self.enemies:
-            if random.random() < 0.001:
+            if random.random() < 0.002:  # adjust probability as needed
                 bullet = enemy.shoot()
                 self.enemy_bullets.add(bullet)
                 self.all_sprites.add(bullet)
@@ -202,9 +202,21 @@ class Game:
                 self.player.move(keys, SCREEN_WIDTH)
                 self.player_bullets.update()
                 self.enemy_bullets.update()
-                self.ufo_group.update()
+                self.bunkers.update()  # HINZUGEFÜGT: Startet Animationen/Wackeln der Bunker
+
+                for bullet in self.player_bullets:
+                    self.handle_bunker_collision(bullet, self.bunkers)
+
+                for bomb in self.enemy_bullets:
+                    self.handle_bunker_collision(bomb, self.bunkers)
+
+                # Enemy behavior
+                self.enemies.update()
                 self._handle_enemy_movement()
                 self._enemy_shooting()
+                
+                # UFO spawn timer
+                self.ufo_group.update()
                 
                 self.ufo_timer -= 1
                 if self.ufo_timer <= 0 or self.player_shots >= UFO_SHOT_THRESHOLD:
@@ -215,8 +227,6 @@ class Game:
                 self._check_collisions()
                 
                 # Bullet vs Bunker
-                for b in self.player_bullets: self.handle_bunker_collision(b, self.bunkers)
-                for b in self.enemy_bullets: self.handle_bunker_collision(b, self.bunkers)
 
                 # Sieg/Niederlage Check
                 if not self.enemies: self.state = self.STATE_VICTORY
