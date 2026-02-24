@@ -23,10 +23,10 @@ class Player(pygame.sprite.Sprite):
         # Standardmäßig Idle-Sprite
         self.image = self.image_idle
         
-        if keys[pygame.K_LEFT]:
+        if keys[pygame.K_LEFT] or keys[pygame.K_a]:
             self.rect.x -= self.speed
             self.image = self.image_left
-        if keys[pygame.K_RIGHT]:
+        if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
             self.rect.x += self.speed
             self.image = self.image_right
             
