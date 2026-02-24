@@ -24,6 +24,8 @@ class Game:
     STATE_VICTORY = "victory"
 
     def __init__(self):
+        # Compatibility alias: allow access via Game.Player
+
         pygame.init()
         # 1. Zuerst das Fenster erstellen (Video Mode setzen)
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -39,6 +41,7 @@ class Game:
         
         self.state = self.STATE_MENU
         self.running = True
+        self.SCROLL = SCROLL
 
     def handle_bunker_collision(self, bullet, bunker_group):
         """Nutzt die exakte Maskenkollision und fügt dem Satellit Schaden zu."""
@@ -47,8 +50,7 @@ class Game:
             hit_bunker.take_damage()
             bullet.kill()
                   
-        self.SCROLL = SCROLL # Initialer Scroll-Wert
-        self._reset()
+       
 
     def _reset(self):
         self.score = 0
@@ -60,7 +62,7 @@ class Game:
         self.enemy_bullets = pygame.sprite.Group()
         self.bunkers = pygame.sprite.Group()
         self.ufo_group = pygame.sprite.Group()
-        
+        self.SCROLL = SCROLL # Initialer Scroll-Wert
         self.all_sprites.add(self.player)
         self._create_enemies()
         
@@ -177,6 +179,7 @@ class Game:
                 if self.state == self.STATE_MENU:
                     if event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
                         self.state = self.STATE_PLAYING
+                        self._reset()
                 elif self.state == self.STATE_PLAYING:
                     if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
                         bullet = self.player.shoot()
@@ -249,3 +252,8 @@ class Game:
                 pygame.display.flip()
             else:
                 self._draw_end_screen()
+
+    @property
+    def Player(self):
+        """Compatibility alias for the player sprite (use .player)."""
+        return self.player
