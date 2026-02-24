@@ -16,10 +16,11 @@ class Player(pygame.sprite.Sprite):
         pass
     
     def move(self, keys, screen_width):
-        if keys[pygame.K_LEFT]:
+        if keys[pygame.K_LEFT] or keys[pygame.K_a]:
             self.rect.x -= self.speed
-        if keys[pygame.K_RIGHT]:
+        if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
             self.rect.x += self.speed
+            
         # Keep within screen bounds
         if self.rect.left < 0:
             self.rect.left = 0
