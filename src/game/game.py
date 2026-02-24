@@ -3,13 +3,14 @@ import random
 import sys
 from src.config.config import (SCREEN_WIDTH, SCREEN_HEIGHT, FPS, PLAYER_SPEED, 
                                ENEMY_SPEED, BULLET_SPEED, UFO_SPAWN_TIME, 
-                               UFO_SPEED, UFO_SCORE_OPTIONS, UFO_SHOT_THRESHOLD, 
-                               BACKGROUND_SCROLL_SPEED, SCROLL)
+                                UFO_SCORE_OPTIONS, UFO_SHOT_THRESHOLD, 
+                               BACKGROUND_SCROLL_SPEED, SCROLL, ENEMY_SHOOT_CHANCE)
 from src.game.player import Player
 from src.game.enemy import Enemy
 from src.game.ufo import UFO
 from src.game.bullet import Bullet
 from src.game.bunker import Bunker
+from src.game.headerbar import HeaderBar
 
 # Hilfsfunktion zum Ausschneiden von Sprites
 def get_image(sheet, x, y, width, height):
@@ -62,13 +63,16 @@ class Game:
         self.enemy_bullets = pygame.sprite.Group()
         self.bunkers = pygame.sprite.Group()
         self.ufo_group = pygame.sprite.Group()
+        self.headerbar = pygame.sprite.GroupSingle()  # Für die Anzeige von "SCORE" und "LIVES" und "LEVEL"
         self.SCROLL = SCROLL # Initialer Scroll-Wert
         self.all_sprites.add(self.player)
         self._create_enemies()
         
         self.enemy_direction = 1
         self.enemy_move_down = 10
-        
+
+        # Pass screen and font to HeaderBar so it can render text
+        self.headerbar.add(HeaderBar(self.screen, self.font))
         # Initialize 4 Satelliten in unterschiedlichen Winkeln
         angles = [0, 90, 180, 270]
         for i in range(4):
@@ -113,7 +117,7 @@ class Game:
     def _enemy_shooting(self):
         # Each enemy has a small chance to fire each frame
         for enemy in self.enemies:
-            if random.random() < 0.002:  # adjust probability as needed
+            if random.random() < ENEMY_SHOOT_CHANCE:  # adjust probability as needed
                 bullet = enemy.shoot()
                 self.enemy_bullets.add(bullet)
                 self.all_sprites.add(bullet)
@@ -233,7 +237,8 @@ class Game:
 
                 # Sieg/Niederlage Check
                 if not self.enemies: self.state = self.STATE_VICTORY
-                if self.lives <= 0: self.state = self.STATE_GAME_OVER
+                if self.lives <= 0 or pygame.sprite.spritecollide(self.player, self.enemies, True) or pygame.sprite.groupcollide(self.enemies, self.bunkers, False, False):
+                    self.state = self.STATE_GAME_OVER
 
                 # --- RENDERING (REIHENFOLGE WICHTIG!) ---
                 # A. Hintergrund zuerst (Scrolling)
@@ -247,8 +252,9 @@ class Game:
                 self.player_bullets.draw(self.screen)
                 self.enemy_bullets.draw(self.screen)
 
-                # C. HUD zum Schluss
-                self._draw_hud()
+                # C. HeaderBar (Score/Lives) zum Schluss
+                self.headerbar.update(self.score, self.lives)
+                self.headerbar.draw(self.screen)
                 pygame.display.flip()
             else:
                 self._draw_end_screen()
