@@ -2,6 +2,10 @@ import pygame
 from src.config.config import SCREEN_WIDTH
 
 class HeaderBar(pygame.sprite.Sprite):
+    def set_level(self, lvl):
+        """Public method to update the displayed level."""
+        self.level = lvl
+        self._render_text()
     def __init__(self, screen, font):
         super().__init__()
         # Store reference to screen and font for later drawing
