@@ -38,7 +38,8 @@ class Game:
         
 
         self.clock = pygame.time.Clock()
-        self.font = pygame.font.SysFont(None, 24)
+        self.font = pygame.font.Font("assets/Headerfont /PressStart2P-Regular.ttf",10)
+
         
         self.state = self.STATE_MENU
         self.running = True

@@ -1,7 +1,8 @@
 from logging import warning
-
 import pygame
 from src.config.config import SCREEN_WIDTH
+pygame.font.init()
+
 
 class HeaderBar(pygame.sprite.Sprite):
     def __init__(self, screen, font):
@@ -9,6 +10,7 @@ class HeaderBar(pygame.sprite.Sprite):
         # Store reference to screen and font for later drawing
         self.screen = screen
         self.font = font
+        self.font.set_bold(True )
         # Fixed level (always 1 per specification)
         self.level = 1
         # Load original PNG (126×22)
@@ -50,6 +52,7 @@ class HeaderBar(pygame.sprite.Sprite):
         """
         # Start from a fresh copy of the scaled base image
         self.image = self.base_image.copy()
+        retro_green = (0, 228, 54)
         # Compute vertical center for text within the bar's height
         text_y = (self.rect.height - self.font.get_height()) // 2
 
@@ -58,18 +61,18 @@ class HeaderBar(pygame.sprite.Sprite):
         h = self.rect.height
 
         # Left – Level (10 px margin from bar's left edge)
-        level_surf = self.font.render(f"Level: {self.level}", True, (255, 255, 255))
+        level_surf = self.font.render(f"LVL:{self.level}", True, retro_green)
         level_x = (w // 6) - (level_surf .get_width() // 2 )
         self.image.blit(level_surf, (level_x, text_y))
 
         # Center – Score (centered within the bar's width)
-        score_surf = self.font.render(f"Score: {self.score}", True, (255, 255, 255))
+        score_surf = self.font.render(f"Score: {self.score}", True, retro_green)
         score_x = self.rect.width // 2 - score_surf.get_width() // 2
         self.image.blit(score_surf, (score_x, text_y))
 
         # Right – Lives (10 px margin from bar's right edge)
-        lives_num_surf = self.font.render(f"{self.lives}", True, (255, 255, 255))
-        total_width = self.health_icon.get_width() + 5 + lives_num_surf.get_width()
+        lives_num_surf = self.font.render(f"{self.lives}", True, retro_green)
+        total_width = self.health_icon.get_width() - 15 + lives_num_surf.get_width()
         start_x = (5 * w // 6) - (total_width // 2)
         icon_y = (h - self.health_icon.get_height()) // 2
         self.image.blit(self.health_icon, (start_x, icon_y))

@@ -1,5 +1,5 @@
 SCREEN_WIDTH = 800 #800
-SCREEN_HEIGHT = 1080 #600 
+SCREEN_HEIGHT = 1080#600 
 FPS = 60
 # Bonus UFO (Mystery Ship) configuration
 UFO_SPAWN_HEIGHT_OPTIONS = [80, 300, 800] # possible vertical spawn positions for the UFO (in pixels from top)
