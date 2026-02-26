@@ -255,6 +255,12 @@ class Game:
                 # C. HeaderBar (Score/Lives) zum Schluss
                 self.headerbar.update(self.score, self.lives)
                 self.headerbar.draw(self.screen)
+                if self.lives == 1:
+                    if (pygame.time.get_ticks() // 400) % 2 == 0:
+                        for bar in self.headerbar:
+                            warning_x = bar.rect.right + 15
+                            warning_y = bar.rect.centery - (bar.warning_icon.get_height() // 2)
+                            self.screen.blit(bar.warning_icon, (warning_x, warning_y))
                 pygame.display.flip()
             else:
                 self._draw_end_screen()
