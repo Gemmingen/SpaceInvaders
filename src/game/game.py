@@ -11,7 +11,11 @@ from src.config.config import (
 from src.game.player import Player
 from src.game.enemy import Enemy
 from src.game.ufo import UFO
-from src.game.miniboss import MiniBoss
+from src.game.Boss_small_1 import BossSmall1
+from src.game.boss_small_2 import BossSmall2
+from src.game.boss_small_3 import BossSmall3
+from src.game.boss_small_4 import BossSmall4
+from src.game.endboss import EndBoss
 from src.game.bullet import Bullet
 from src.game.bunker import Bunker
 from src.game.headerbar import HeaderBar
@@ -51,10 +55,15 @@ class Game:
         self.miniboss_group = pygame.sprite.Group()
 
     def handle_bunker_collision(self, bullet, bunker_group):
-        """Exact mask collision and damage to bunker."""
-        hit_bunker = pygame.sprite.spritecollideany(bullet, bunker_group, pygame.sprite.collide_mask)
+        """Exact mask collision – apply bullet‑specific damage to a bunker."""
+        hit_bunker = pygame.sprite.spritecollideany(
+            bullet, bunker_group, pygame.sprite.collide_mask
+        )
         if hit_bunker:
-            hit_bunker.take_damage()
+            # bullets may carry a custom damage attribute (default = 1)
+            damage = getattr(bullet, "damage", 1)
+            for _ in range(damage):
+                hit_bunker.take_damage()
             bullet.kill()
 
     def _reset(self):
@@ -190,11 +199,26 @@ class Game:
         self.all_sprites.add(ufo)
 
     def _spawn_miniboss(self):
-        # Debug: announce spawning (can be removed later)
-        boss = MiniBoss()
+        # Spawn the appropriate miniboss for the current level
+        boss_map = {
+            1: BossSmall1,
+            2: BossSmall2,
+            3: BossSmall3,
+            4: BossSmall4,
+            5: EndBoss,
+        }
+        boss_cls = boss_map.get(self.level, BossSmall1)
         settings = MINIBOSS_SETTINGS.get(self.level, MINIBOSS_SETTINGS[1])
-        boss.health = settings.get("health", 3)
-        boss.speed = settings.get("speed", 2)
+        boss = boss_cls(health=settings.get("health", 3), speed=settings.get("speed", 2))
+        # Some bosses (e.g., BossSmall3, BossSmall4, BossFist) may need extra config – fetch if present
+        extra = getattr(boss, "extra_settings", None)
+        if isinstance(extra, dict):
+            for k, v in extra.items():
+                setattr(boss, k, v)
+        # If the boss has a visual fist group, add those sprites **before** the boss itself
+        # so they are rendered underneath the boss.
+        if hasattr(boss, "fist_group"):
+            self.all_sprites.add(boss.fist_group)
         self.miniboss_group.add(boss)
         self.all_sprites.add(boss)
 
@@ -251,7 +275,7 @@ class Game:
                 self.enemy_bullets.update()
                 self.bunkers.update()
                 # Update minibosses so they move / animate
-                self.miniboss_group.update()
+                self.miniboss_group.update(self.player, all_sprites=self.all_sprites, enemy_bullets=self.enemy_bullets, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
                 for bullet in self.player_bullets:
                     self.handle_bunker_collision(bullet, self.bunkers)
                 for bomb in self.enemy_bullets:
