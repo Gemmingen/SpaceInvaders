@@ -3,13 +3,38 @@ import random
 from src.utils.helpers import load_image
 
 class Bunker(pygame.sprite.Sprite):
-    def __init__(self, x, y, angle=0):
+    def __init__(self, x, y, variant="satellite", angle=0):
+        """Create a bunker (satellite) sprite.
+
+        Parameters
+        ----------
+        x, y: int
+            Position of the bunker centre.
+        variant: str, optional
+            Prefix of the asset files to use. Accepted values are
+            ``"satellite"``, ``"satellit2"``, ``"satellit3"`` and ``"satellit4"``.
+            The function will attempt to load ``assets/<variant>-default.png``
+            and the corresponding ``dmg1``/``dmg2`` images. If a file is missing
+            it gracefully falls back to the original ``satellite`` set.
+        angle: int, optional
+            Rotation angle in degrees (default 0). Used to orient the bunkers
+            around the screen.
+        """
         super().__init__()
         
-        # 1. Lade die Satelliten-Sprites
-        base_default = load_image("assets/satellite-default.png").convert_alpha()
-        base_dmg1 = load_image("assets/satellite-dmg1.png").convert_alpha()
-        base_dmg2 = load_image("assets/satellite-dmg2.png").convert_alpha()
+        # 1. Determine which sprite set to load (default satellite or variants)
+        prefix = variant  # e.g. "satellite", "satellit2", "satellit3", "satellit4"
+        def load_variant_image(name):
+            """Load a variant image, falling back to the default satellite set if missing."""
+            try:
+                return load_image(f"assets/{prefix}-{name}.png").convert_alpha()
+            except Exception:
+                # fallback to original satellite images (always present)
+                return load_image(f"assets/satellite-{name}.png").convert_alpha()
+        
+        base_default = load_variant_image("default")
+        base_dmg1 = load_variant_image("dmg1")
+        base_dmg2 = load_variant_image("dmg2")
         
         # 2. Skaliere sie etwas größer (z. B. auf 64x64)
         size = (96, 96)
