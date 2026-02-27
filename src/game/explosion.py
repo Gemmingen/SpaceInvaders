@@ -14,7 +14,7 @@ class Explosion(pygame.sprite.Sprite):
     # size.
     _original_frames = None
 
-    def __init__(self, x: int, y: int, size: int = 32):
+    def __init__(self, x: int, y: int, size: int = 32, velocity: tuple[int, int] = (0, 0)):
         super().__init__()
         if Explosion._original_frames is None:
             # Load raw frames once (no scaling yet)
@@ -29,11 +29,16 @@ class Explosion(pygame.sprite.Sprite):
         self.image = self.frames[self.current_frame]
         # Position the explosion at the centre of the dead entity
         self.rect = self.image.get_rect(center=(x, y))
+        # Velocity for a short drifting trail (default upward)
+        self.velocity = velocity
         # Animation timing – advance every few ticks (adjustable)
         self.animation_timer = 0
-        self.animation_delay = 5  # ticks per frame
+        self.animation_delay = 2  # faster animation
 
     def update(self):
+        # Apply drifting movement each tick
+        self.rect.x += self.velocity[0]
+        self.rect.y += self.velocity[1]
         # Increment timer and advance frame when delay is reached
         self.animation_timer += 1
         if self.animation_timer >= self.animation_delay:

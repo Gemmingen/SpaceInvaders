@@ -92,19 +92,23 @@ class Game:
                 
                 # 2. Zusätzliche kleine Explosion mit garantiertem Abstand
                 min_distance_sq = 40 ** 2  # Mindestabstand zum Quadrat (40 Pixel)
+                # Initialize fallback position
+                sec_x, sec_y = impact_x, impact_y
                 
                 # Wir suchen eine Position, die weit genug von der Haupt-Explosion entfernt ist
+                found = False
                 for _ in range(10):  # max 10 Versuche, um das Spiel nicht zu blockieren
                     offset_x = random.randint(-45, 45)
                     offset_y = random.randint(-45, 45)
                     sec_x = hit_bunker.rect.centerx + offset_x
                     sec_y = hit_bunker.rect.centery + offset_y
-                    
                     # Abstandsprüfung (Satz des Pythagoras)
                     dist_sq = (sec_x - impact_x)**2 + (sec_y - impact_y)**2
                     if dist_sq >= min_distance_sq:
+                        found = True
                         break  # Position ist weit genug entfernt -> Schleife abbrechen!
-                
+                if not found:
+                    sec_x, sec_y = impact_x, impact_y
                 secondary_explosion = Explosion(sec_x, sec_y, size=32)
                 
                 self.explosions.add(secondary_explosion)
@@ -227,6 +231,7 @@ class Game:
         if hits:
             # Spawn an explosion at each enemy's position
             for enemy in hits.keys():
+                # Static explosion (no drift) – faster animation handled in Explosion class
                 explosion = Explosion(enemy.rect.centerx, enemy.rect.centery)
                 self.explosions.add(explosion)
                 self.all_sprites.add(explosion)
