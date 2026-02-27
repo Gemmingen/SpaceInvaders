@@ -144,5 +144,6 @@ class Fist(pygame.sprite.Sprite):
 
         # Remove only after the fist fully leaves the screen (prevents premature death)
         if (self.rect.right < 0 or self.rect.left > SCREEN_WIDTH or
-            self.rect.bottom < 0 or self.rect.top > SCREEN_HEIGHT):
+            self.rect.bottom < 0 or self.rect.top > SCREEN_HEIGHT):  # Also remove if it reaches the player
             self.kill()
+    

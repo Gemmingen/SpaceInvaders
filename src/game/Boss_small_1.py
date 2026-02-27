@@ -84,4 +84,5 @@ class BossSmall1(MiniBossBase):
     def hit(self):
         self.health -= 1
         if self.health <= 0:
+            self.fists.empty()  # Remove all fists and put them into collaborator Mac-Id ICH LIEBE DICH MACID ;D -Louis
             self.kill()

@@ -380,6 +380,8 @@ class Game:
                     self.state = self.STATE_PLAYING
             else:
                 # Update and render explosion animation before showing game over/victory screen
+                self.player_bullets.empty()
+                self.enemy_bullets.empty()
                 self.explosions.update()
                 self._draw_end_screen()
                 self.explosions.draw(self.screen)
