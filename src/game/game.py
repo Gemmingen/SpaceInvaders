@@ -42,8 +42,8 @@ class Game:
         # Assets
         self.background_image = pygame.image.load("assets/background/background.png").convert()
         self.background_height = self.background_image.get_height()
+        self.font = pygame.font.Font("assets/headerbar/PressStart2P-Regular.ttf", 10)
         self.clock = pygame.time.Clock()
-        self.font = pygame.font.SysFont(None, 24)
         self.state = self.STATE_MENU
         self.running = True
         self.SCROLL = SCROLL
@@ -85,7 +85,7 @@ class Game:
         self.enemy_move_down = 10
         # Header bar
         self.headerbar.add(HeaderBar(self.screen, self.font))
-        self.headerbar.sprite.set_level(self.level)
+        #self.headerbar.sprite.set_level(self.level)
         # Bunkers (satellites)
         angles = [0, 90, 180, 270]
         for i in range(4):
@@ -308,6 +308,12 @@ class Game:
                 self.enemy_bullets.draw(self.screen)
                 self.headerbar.update(self.score, self.lives)
                 self.headerbar.draw(self.screen)
+                if self.lives == 1:
+                    if (pygame.time.get_ticks() // 400) % 2 == 0:
+                        for bar in self.headerbar:
+                            warning_x = bar.rect.right + 15
+                            warning_y = bar.rect.centery - (bar.warning_icon.get_height() // 2)
+                            self.screen.blit(bar.warning_icon, (warning_x, warning_y))
                 pygame.display.flip()
             elif self.state == self.STATE_LEVEL_CLEARED:
                 # Show cooldown overlay
