@@ -43,7 +43,9 @@ class Game:
         info = pygame.display.Info()
         self.full_w, self.full_h = info.current_w, info.current_h
         # Create a true full‑screen window
-        self.display = pygame.display.set_mode((self.full_w, self.full_h), pygame.FULLSCREEN)
+        self.display = pygame.display.set_mode((0, 0), pygame.FULLSCREEN | pygame.HWSURFACE | pygame.DOUBLEBUF)
+        # Update stored dimensions after setting mode
+        self.full_w, self.full_h = self.display.get_width(), self.display.get_height()
         # Create an off‑screen surface for the actual game (1080×1080)
         self.game_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
         # Keep a legacy alias for existing code that expects self.screen
