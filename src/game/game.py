@@ -368,7 +368,13 @@ class Game:
                             self.player_bullets.add(bullet)
                             self.all_sprites.add(bullet)
                             self.player_shots += 1
-                   
+                    if event.type == pygame.KEYDOWN:
+                        if event.key == pygame.K_r:
+                            self._reset()
+                            self.state = self.STATE_PLAYING
+                        elif event.key == pygame.K_q:
+                            pygame.quit()
+                            sys.exit()
                 elif self.state in (self.STATE_GAME_OVER, self.STATE_VICTORY, self.STATE_LEVEL_CLEARED):
                     if event.type == pygame.KEYDOWN:
                         if event.key == pygame.K_r:
