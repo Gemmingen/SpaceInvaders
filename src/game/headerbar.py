@@ -1,11 +1,9 @@
+from logging import warning
+
 import pygame
 from src.config.config import SCREEN_WIDTH
 
 class HeaderBar(pygame.sprite.Sprite):
-    def set_level(self, lvl):
-        """Public method to update the displayed level."""
-        self.level = lvl
-        self._render_text()
     def __init__(self, screen, font):
         super().__init__()
         # Store reference to screen and font for later drawing
@@ -28,10 +26,18 @@ class HeaderBar(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.topleft = ((SCREEN_WIDTH - target_w) // 2, 0)
         # Initialize score/lives values
+        self.health_icon = pygame.image.load("assets/HP.png").convert_alpha()
+        h_icon_h = int(self.rect.height * 0.4)
+        h_icon_w = h_icon_h
+        self.health_icon = pygame.transform.scale(self.health_icon, (h_icon_h, h_icon_w))
         self.score = 0
         self.lives = 0
         # Render initial text
         self._render_text()
+        raw_warning_img = pygame.image.load("assets/warning.png").convert_alpha()
+        new_width = 180
+        new_height = 30
+        self.warning_icon = pygame.transform.scale(raw_warning_img, (new_width, new_height))
 
     def _render_text(self):
         """Render Level, Score and Lives onto the header image.
@@ -47,9 +53,14 @@ class HeaderBar(pygame.sprite.Sprite):
         # Compute vertical center for text within the bar's height
         text_y = (self.rect.height - self.font.get_height()) // 2
 
+        w = self.rect.width
+
+        h = self.rect.height
+
         # Left – Level (10 px margin from bar's left edge)
         level_surf = self.font.render(f"Level: {self.level}", True, (255, 255, 255))
-        self.image.blit(level_surf, (10, text_y))
+        level_x = (w // 6) - (level_surf .get_width() // 2 )
+        self.image.blit(level_surf, (level_x, text_y))
 
         # Center – Score (centered within the bar's width)
         score_surf = self.font.render(f"Score: {self.score}", True, (255, 255, 255))
@@ -57,9 +68,13 @@ class HeaderBar(pygame.sprite.Sprite):
         self.image.blit(score_surf, (score_x, text_y))
 
         # Right – Lives (10 px margin from bar's right edge)
-        lives_surf = self.font.render(f"Lives: {self.lives}", True, (255, 255, 255))
-        lives_x = self.rect.width - lives_surf.get_width() - 10
-        self.image.blit(lives_surf, (lives_x, text_y))
+        lives_num_surf = self.font.render(f"{self.lives}", True, (255, 255, 255))
+        total_width = self.health_icon.get_width() + 5 + lives_num_surf.get_width()
+        start_x = (5 * w // 6) - (total_width // 2)
+        icon_y = (h - self.health_icon.get_height()) // 2
+        self.image.blit(self.health_icon, (start_x, icon_y))
+        self.image.blit(lives_num_surf, (start_x + self.health_icon.get_width() + 5, text_y))
+    
 
     def update(self, score, lives):  # Later can be extended for LEVEL
         """Update internal score/lives and redraw the header image."""
@@ -68,5 +83,8 @@ class HeaderBar(pygame.sprite.Sprite):
         self._render_text()
 
     # The SpriteGroup's draw method handles blitting, so no explicit draw needed
-    def draw(self, *args, **kwargs):
-        pass
+    def draw(self, screen):
+        screen.blit(self.image, self.rect)
+        warning_x = self.rect.right + 15
+        warning_y = self.rect.centery - (self.warning_icon.get_height()// 2)
+        screen.blit(self.warning_icon,(warning_x, warning_y))
