@@ -83,6 +83,16 @@ class HeaderBar(pygame.sprite.Sprite):
         self.lives = lives
         self._render_text()
 
+    def set_level(self, level: int):
+        """Set the current level displayed in the header bar and redraw.
+
+        Args:
+            level: The new level number to display.
+        """
+        self.level = level
+        self._render_text()
+
+
     # The SpriteGroup's draw method handles blitting, so no explicit draw needed
     def draw(self, screen):
         screen.blit(self.image, self.rect)
