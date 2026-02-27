@@ -21,7 +21,7 @@ ENEMY_SHOOT_CHANCE = 0.001                           # Chance per frame that an 
 BULLET_SPEED = 10
 
 # Enemy wave per level – can be tweaked later
-TEST_AMOUNT = 1
+TEST_AMOUNT = 5
 
 ENEMY_WAVE_SETTINGS = {
     1: dict(rows=TEST_AMOUNT, cols=TEST_AMOUNT, speed=ENEMY_SPEED, shoot_chance=ENEMY_SHOOT_CHANCE),
