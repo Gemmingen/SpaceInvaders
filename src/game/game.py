@@ -10,6 +10,7 @@ from src.config.config import (
 )
 from src.game.player import Player
 from src.game.enemy import Enemy
+from src.game.explosion import Explosion
 from src.game.ufo import UFO
 from src.game.Boss_small_1 import BossSmall1
 from src.game.boss_small_2 import BossSmall2
@@ -64,6 +65,14 @@ class Game:
             damage = getattr(bullet, "damage", 1)
             for _ in range(damage):
                 hit_bunker.take_damage()
+            # If the bunker was destroyed, spawn a large explosion (size 64)
+            if not hit_bunker.alive():
+                from src.game.explosion import Explosion
+                explosion = Explosion(hit_bunker.rect.centerx,
+                                      hit_bunker.rect.centery,
+                                      size=64)
+                self.explosions.add(explosion)
+                self.all_sprites.add(explosion)
             bullet.kill()
 
     def _reset(self):
@@ -72,6 +81,7 @@ class Game:
         self.lives = 3
         self.player = Player(SCREEN_WIDTH // 2, SCREEN_HEIGHT - 30)
         self.all_sprites = pygame.sprite.Group()
+        self.explosions = pygame.sprite.Group()
         self.enemies = pygame.sprite.Group()
         self.player_bullets = pygame.sprite.Group()
         self.enemy_bullets = pygame.sprite.Group()
@@ -88,9 +98,18 @@ class Game:
         self.headerbar.sprite.set_level(self.level)
         # Bunkers (satellites)
         angles = [0, 90, 180, 270]
-        for i in range(4):
+        # Order of bunker variants – one of each type
+        variants = ["satellite", "satellit2", "satellit3", "satellit4"]
+        for i, variant in enumerate(variants):
             x_pos = 140 + (i * 170)
-            self.bunkers.add(Bunker(x_pos, SCREEN_HEIGHT - 120, angle=angles[i]))
+            self.bunkers.add(
+                Bunker(
+                    x_pos,
+                    SCREEN_HEIGHT - 120,
+                    variant=variant,
+                    angle=angles[i],
+                )
+            )
         self.ufo_timer = int(UFO_SPAWN_TIME * FPS)
         self.player_shots = 0
         # Mini‑boss flags reset
@@ -142,19 +161,50 @@ class Game:
                 self.all_sprites.add(bullet)
 
     def _check_collisions(self):
+        # Enemy vs player bullet collisions (enemy dies)
         hits = pygame.sprite.groupcollide(self.enemies, self.player_bullets, True, True)
         if hits:
+            # Spawn an explosion at each enemy's position
+            for enemy in hits.keys():
+                explosion = Explosion(enemy.rect.centerx, enemy.rect.centery)
+                self.explosions.add(explosion)
+                self.all_sprites.add(explosion)
             self.score += len(hits) * 100
+        # UFO vs player bullet collisions
         bonushits = pygame.sprite.groupcollide(self.ufo_group, self.player_bullets, True, True)
         if bonushits:
             self.score += random.choice(UFO_SCORE_OPTIONS)
+            # Spawn a medium explosion for each destroyed UFO (size 48)
+            for ufo in bonushits.keys():
+                explosion = Explosion(ufo.rect.centerx, ufo.rect.centery, size=48)
+                self.explosions.add(explosion)
+                self.all_sprites.add(explosion)        # Player vs enemy bullet collisions
         if pygame.sprite.spritecollide(self.player, self.enemy_bullets, True):
             self.lives -= 1
-        # Mini‑boss collisions
-        for boss in self.miniboss_group:
+            # If lives have run out, trigger player explosion and end game
+            if self.lives <= 0:
+                # Create explosion at player's current location
+                explosion = Explosion(self.player.rect.centerx, self.player.rect.centery)
+                self.explosions.add(explosion)
+                self.all_sprites.add(explosion)
+                # Remove player sprite
+                self.player.kill()
+                # Transition to game over state
+                self.state = self.STATE_GAME_OVER
+        # Mini‑boss collisions (hit feedback & death explosion)
+        for boss in list(self.miniboss_group):
             hits = pygame.sprite.spritecollide(boss, self.player_bullets, True)
             for _ in hits:
+                # Small hit explosion (size 48) to give player feedback
+                hit_explosion = Explosion(boss.rect.centerx, boss.rect.centery, size=48)
+                self.explosions.add(hit_explosion)
+                self.all_sprites.add(hit_explosion)
                 boss.hit()
+            # If the boss was killed this frame, spawn a larger death explosion (size 96)
+            if not boss.alive():
+                death_explosion = Explosion(boss.rect.centerx, boss.rect.centery, size=96)
+                self.explosions.add(death_explosion)
+                self.all_sprites.add(death_explosion)
         # Enemy reaching player
         for enemy in self.enemies:
             if enemy.rect.bottom >= self.player.rect.top:
@@ -276,6 +326,8 @@ class Game:
                 self.bunkers.update()
                 # Update minibosses so they move / animate
                 self.miniboss_group.update(self.player, all_sprites=self.all_sprites, enemy_bullets=self.enemy_bullets, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
+                # Update explosions (play animation)
+                self.explosions.update()
                 for bullet in self.player_bullets:
                     self.handle_bunker_collision(bullet, self.bunkers)
                 for bomb in self.enemy_bullets:
@@ -293,7 +345,7 @@ class Game:
                     self.player_shots = 0
                 self._check_collisions()
                 # Level progression
-                if not self.enemies and not self.mini_boss_spawned:
+                if not self.enemies and not self.mini_boss_spawned and not self.explosions:
                     self.state = self.STATE_LEVEL_CLEARED
                     self.level_cleared_timer = 5 * FPS
                 elif self.mini_boss_spawned and not self.miniboss_group:
@@ -321,7 +373,11 @@ class Game:
                     self.mini_boss_spawned = True
                     self.state = self.STATE_PLAYING
             else:
+                # Update and render explosion animation before showing game over/victory screen
+                self.explosions.update()
                 self._draw_end_screen()
+                self.explosions.draw(self.screen)
+                pygame.display.flip()
 
     @property
     def Player(self):
