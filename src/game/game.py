@@ -39,7 +39,15 @@ class Game:
         # Compatibility alias: allow access via Game.Player
         pygame.init()
         # Window
-        self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+                # Determine desktop resolution for full‑screen
+        info = pygame.display.Info()
+        self.full_w, self.full_h = info.current_w, info.current_h
+        # Create a true full‑screen window
+        self.display = pygame.display.set_mode((self.full_w, self.full_h), pygame.FULLSCREEN)
+        # Create an off‑screen surface for the actual game (1080×1080)
+        self.game_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+        # Keep a legacy alias for existing code that expects self.screen
+        self.screen = self.game_surface
         pygame.display.set_caption("Space Invaders")
         # Assets
         self.background_image = pygame.image.load("assets/background/background.png").convert()
@@ -155,12 +163,22 @@ class Game:
         self.miniboss_group.empty()
         self.level_cleared_timer = 0
 
+    def _present(self):
+        """Blit the game surface onto the full‑screen display with black borders and flip."""
+        # Fill the full‑screen window with black (the borders)
+        self.display.fill((0, 0, 0))
+        # Center the 1080×1080 game surface
+        x = (self.full_w - SCREEN_WIDTH) // 2
+        y = (self.full_h - SCREEN_HEIGHT) // 2
+        self.display.blit(self.game_surface, (x, y))
+        pygame.display.flip()
+
     def create_enemy_wave(self):
         """Create normal enemy wave based on current level settings."""
         settings = ENEMY_WAVE_SETTINGS.get(self.level, ENEMY_WAVE_SETTINGS[1])
         rows = settings["rows"]
         cols = settings["cols"]
-        x_margin, y_margin = 50, 60
+        x_margin, y_margin = 50, 100
         spacing_x, spacing_y = 80, 60
         for row in range(rows):
             for col in range(cols):
@@ -260,7 +278,7 @@ class Game:
         prompt = self.font.render("Press Enter to Start", True, (255, 255, 255))
         self.screen.blit(title, (SCREEN_WIDTH // 2 - title.get_width() // 2, SCREEN_HEIGHT // 3))
         self.screen.blit(prompt, (SCREEN_WIDTH // 2 - prompt.get_width() // 2, SCREEN_HEIGHT // 2))
-        pygame.display.flip()
+        self._present()
 
     def _draw_end_screen(self):
         self.screen.fill((0, 0, 0))
@@ -279,7 +297,7 @@ class Game:
         self.screen.blit(msg_surf, (SCREEN_WIDTH // 2 - msg_surf.get_width() // 2, SCREEN_HEIGHT // 3))
         self.screen.blit(score_surf, (SCREEN_WIDTH // 2 - score_surf.get_width() // 2, SCREEN_HEIGHT // 3 + 40))
         self.screen.blit(instr_surf, (SCREEN_WIDTH // 2 - instr_surf.get_width() // 2, SCREEN_HEIGHT // 2))
-        pygame.display.flip()
+        self._present()
 
     def _spawn_ufo(self):
         ufo = UFO()
@@ -345,6 +363,7 @@ class Game:
                             self.player_bullets.add(bullet)
                             self.all_sprites.add(bullet)
                             self.player_shots += 1
+                   
                 elif self.state in (self.STATE_GAME_OVER, self.STATE_VICTORY, self.STATE_LEVEL_CLEARED):
                     if event.type == pygame.KEYDOWN:
                         if event.key == pygame.K_r:
@@ -404,13 +423,13 @@ class Game:
                             warning_x = bar.rect.right + 15
                             warning_y = bar.rect.centery - (bar.warning_icon.get_height() // 2)
                             self.screen.blit(bar.warning_icon, (warning_x, warning_y))
-                pygame.display.flip()
+                self._present()
             elif self.state == self.STATE_LEVEL_CLEARED:
                 # Show cooldown overlay
                 self._draw_hud()
                 overlay = self.font.render("Level cleared! New wave approaching", True, (255, 255, 0))
                 self.screen.blit(overlay, (SCREEN_WIDTH // 2 - overlay.get_width() // 2, SCREEN_HEIGHT // 2))
-                pygame.display.flip()
+                self._present()
                 self.level_cleared_timer -= 1
                 if self.level_cleared_timer <= 0:
                     self._spawn_miniboss()
@@ -418,12 +437,10 @@ class Game:
                     self.state = self.STATE_PLAYING
             else:
                 # Update and render explosion animation before showing game over/victory screen
-                self.player_bullets.empty()
-                self.enemy_bullets.empty()
                 self.explosions.update()
                 self._draw_end_screen()
                 self.explosions.draw(self.screen)
-                pygame.display.flip()
+                self._present()
 
     @property
     def Player(self):
