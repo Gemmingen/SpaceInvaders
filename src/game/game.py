@@ -38,6 +38,22 @@ class Game:
     def __init__(self):
         # Compatibility alias: allow access via Game.Player
         pygame.init()
+        pygame.mixer.init()
+        #music/sounds
+        self.music_intro = ("assets/music/intro.mp3")
+        self.music_level = ("assets/music/02 Pluto.mp3")
+        self.music_boss = ("assets/music/03 Pluto Boss.mp3")
+        
+
+        self.laser_sound = pygame.mixer.Sound("assets/music/lasershot.mp3")
+        self.enemy_explosion = pygame.mixer.Sound("assets/music/enemyexplosion.mp3")
+        self.ufo_damage = pygame.mixer.Sound("assets/music/ufodamage.mp3")
+        self.warning_sound = pygame.mixer.Sound("assets/music/warning.mp3")
+        self.game_over = pygame.mixer.Sound("assets/music/gameover.mp3")
+        self.warning_sound.set_volume(0.4)
+        self.current_track = None
+        self.music_playing = False
+        self.warning_played = False 
         # Window
                 # Determine desktop resolution for full‑screen
         info = pygame.display.Info()
@@ -182,6 +198,13 @@ class Game:
         self.display.blit(self.game_surface, (x, y))
         pygame.display.flip()
 
+    def _play_music(self, trak_path, volume = 0.2):
+        if self.current_track != trak_path:
+            pygame.mixer.music.load(trak_path)
+            pygame.mixer.music.set_volume(volume)
+            pygame.mixer.music.play(-1)
+            self.current_track = trak_path
+
     def create_enemy_wave(self):
         """Create normal enemy wave based on current level settings."""
         settings = ENEMY_WAVE_SETTINGS.get(self.level, ENEMY_WAVE_SETTINGS[1])
@@ -229,6 +252,7 @@ class Game:
         # Enemy vs player bullet collisions (enemy dies)
         hits = pygame.sprite.groupcollide(self.enemies, self.player_bullets, True, True)
         if hits:
+            self.enemy_explosion.play()
             # Spawn an explosion at each enemy's position
             for enemy in hits.keys():
                 # Static explosion (no drift) – faster animation handled in Explosion class
@@ -247,10 +271,12 @@ class Game:
                 self.all_sprites.add(explosion)        
         # Player vs enemy bullet collisions
         if pygame.sprite.spritecollide(self.player, self.enemy_bullets, True):
+            self.ufo_damage.play()
             self.lives -= 1
             # If lives have run out, trigger player explosion and end game
             if self.lives <= 0:
                 # Create explosion at player's current location
+                self.game_over.play()
                 explosion = Explosion(self.player.rect.centerx, self.player.rect.centery)
                 self.explosions.add(explosion)
                 self.all_sprites.add(explosion)
@@ -365,13 +391,19 @@ class Game:
                     pygame.quit()
                     sys.exit()
                 if self.state == self.STATE_MENU:
+                    self._play_music(self.music_intro, 0.7)
                     if event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
                         self.state = self.STATE_PLAYING
                         self._reset()
                 elif self.state == self.STATE_PLAYING:
+                    if self.mini_boss_spawned:
+                        self._play_music(self.music_boss, 0.7)
+                    else:
+                        self._play_music(self.music_level, 0.7)
                     if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
                         bullet = self.player.shoot()
                         if bullet:
+                            self.laser_sound.play()
                             self.player_bullets.add(bullet)
                             self.all_sprites.add(bullet)
                             self.player_shots += 1
@@ -438,11 +470,17 @@ class Game:
                 self.headerbar.update(self.score, self.lives)
                 self.headerbar.draw(self.screen)
                 if self.lives == 1:
-                    if (pygame.time.get_ticks() // 400) % 2 == 0:
+                    is_visible = (pygame.time.get_ticks() // 400) % 2 == 0
+                    if is_visible:
+                        if not self.warning_played:
+                            self.warning_sound.play()
+                            self.warning_played = True
                         for bar in self.headerbar:
                             warning_x = bar.rect.right + 15
                             warning_y = bar.rect.centery - (bar.warning_icon.get_height() // 2)
                             self.screen.blit(bar.warning_icon, (warning_x, warning_y))
+                    else:
+                        self.warning_sound = False
                 self._present()
             elif self.state == self.STATE_LEVEL_CLEARED:
                 # Show cooldown overlay
