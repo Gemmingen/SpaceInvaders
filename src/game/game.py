@@ -8,7 +8,7 @@ from src.config.config import (
     BACKGROUND_SCROLL_SPEED, SCROLL, ENEMY_SHOOT_CHANCE,
     ENEMY_WAVE_SETTINGS, MINIBOSS_SETTINGS,
 )
-from src.game.player import Player
+from src.game.player import Player, PlayerBoost
 from src.game.enemy import Enemy
 from src.game.explosion import Explosion
 from src.game.ufo import UFO
@@ -67,8 +67,6 @@ class Game:
             for _ in range(damage):
                 hit_bunker.take_damage()
                 
-           # --- NEUER CODE: Explosion bei Faust-Treffer auf dem Bunker ---
-            # --- NEUER CODE: Explosion bei Faust-Treffer auf dem Bunker ---
             # --- NEUER CODE: Explosion bei Faust-Treffer auf dem Bunker ---
             if isinstance(bullet, Fist):
                 from src.game.explosion import Explosion
@@ -127,13 +125,18 @@ class Game:
         self.ufo_group = pygame.sprite.Group()
         self.headerbar = pygame.sprite.GroupSingle()
         self.SCROLL = SCROLL  # reset scroll
+        
         self.all_sprites.add(self.player)
+        
+        # Player Boost erzeugen
+        self.player_boost = PlayerBoost(self.player)
+        self.all_sprites.add(self.player_boost)
+        
         self.create_enemy_wave()
         self.enemy_direction = 1
         self.enemy_move_down = 10
         # Header bar
         self.headerbar.add(HeaderBar(self.screen, self.font))
-        #self.headerbar.sprite.set_level(self.level)
         # Bunkers (satellites)
         angles = [0, 90, 180, 270]
         # Order of bunker variants – one of each type
@@ -216,7 +219,8 @@ class Game:
             for ufo in bonushits.keys():
                 explosion = Explosion(ufo.rect.centerx, ufo.rect.centery, size=48)
                 self.explosions.add(explosion)
-                self.all_sprites.add(explosion)        # Player vs enemy bullet collisions
+                self.all_sprites.add(explosion)        
+        # Player vs enemy bullet collisions
         if pygame.sprite.spritecollide(self.player, self.enemy_bullets, True):
             self.lives -= 1
             # If lives have run out, trigger player explosion and end game
@@ -225,8 +229,9 @@ class Game:
                 explosion = Explosion(self.player.rect.centerx, self.player.rect.centery)
                 self.explosions.add(explosion)
                 self.all_sprites.add(explosion)
-                # Remove player sprite
+                # Remove player sprite & boost
                 self.player.kill()
+                self.player_boost.kill()  # <-- NEUER CODE: Boost zerstören!
                 # Transition to game over state
                 self.state = self.STATE_GAME_OVER
         # Mini‑boss collisions (hit feedback & death explosion)
@@ -353,12 +358,14 @@ class Game:
                         elif event.key == pygame.K_q:
                             pygame.quit()
                             sys.exit()
+            
             # Update & render
             if self.state == self.STATE_MENU:
                 self._draw_menu()
             elif self.state == self.STATE_PLAYING:
                 keys = pygame.key.get_pressed()
                 self.player.move(keys, SCREEN_WIDTH)
+                self.player_boost.update()  # <-- Boost updaten
                 self.player_bullets.update()
                 self.enemy_bullets.update()
                 self.bunkers.update()
