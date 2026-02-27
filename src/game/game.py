@@ -16,6 +16,7 @@ from src.game.Boss_small_1 import BossSmall1
 from src.game.boss_small_2 import BossSmall2
 from src.game.boss_small_3 import BossSmall3
 from src.game.boss_small_4 import BossSmall4
+from src.game.fist import Fist
 from src.game.endboss import EndBoss
 from src.game.bullet import Bullet
 from src.game.bunker import Bunker
@@ -65,6 +66,43 @@ class Game:
             damage = getattr(bullet, "damage", 1)
             for _ in range(damage):
                 hit_bunker.take_damage()
+                
+           # --- NEUER CODE: Explosion bei Faust-Treffer auf dem Bunker ---
+            # --- NEUER CODE: Explosion bei Faust-Treffer auf dem Bunker ---
+            # --- NEUER CODE: Explosion bei Faust-Treffer auf dem Bunker ---
+            if isinstance(bullet, Fist):
+                from src.game.explosion import Explosion
+                import random
+                
+                # 1. Haupt-Explosion (groß, genau am Einschlagspunkt)
+                impact_x = (bullet.rect.centerx + hit_bunker.rect.centerx) // 2
+                impact_y = (bullet.rect.centery + hit_bunker.rect.centery) // 2
+                
+                main_explosion = Explosion(impact_x, impact_y, size=64)
+                self.explosions.add(main_explosion)
+                self.all_sprites.add(main_explosion)
+                
+                # 2. Zusätzliche kleine Explosion mit garantiertem Abstand
+                min_distance_sq = 40 ** 2  # Mindestabstand zum Quadrat (40 Pixel)
+                
+                # Wir suchen eine Position, die weit genug von der Haupt-Explosion entfernt ist
+                for _ in range(10):  # max 10 Versuche, um das Spiel nicht zu blockieren
+                    offset_x = random.randint(-45, 45)
+                    offset_y = random.randint(-45, 45)
+                    sec_x = hit_bunker.rect.centerx + offset_x
+                    sec_y = hit_bunker.rect.centery + offset_y
+                    
+                    # Abstandsprüfung (Satz des Pythagoras)
+                    dist_sq = (sec_x - impact_x)**2 + (sec_y - impact_y)**2
+                    if dist_sq >= min_distance_sq:
+                        break  # Position ist weit genug entfernt -> Schleife abbrechen!
+                
+                secondary_explosion = Explosion(sec_x, sec_y, size=32)
+                
+                self.explosions.add(secondary_explosion)
+                self.all_sprites.add(secondary_explosion)
+            # --------------------------------------------------------------
+
             # If the bunker was destroyed, spawn a large explosion (size 64)
             if not hit_bunker.alive():
                 from src.game.explosion import Explosion
