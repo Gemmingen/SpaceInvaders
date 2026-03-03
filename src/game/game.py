@@ -25,6 +25,7 @@ from src.game.bullet import Bullet
 from src.game.bunker import Bunker
 from src.game.headerbar import HeaderBar
 from src.game.powerup import PowerUp, Comet
+from src.game.mainmenue import MainMenu
 
 # Helper function to slice sprites
 def get_image(sheet, x, y, width, height):
@@ -76,6 +77,7 @@ class Game:
         self.background_height = self.background_image.get_height()
         self.font = pygame.font.Font("assets/headerbar/PressStart2P-Regular.ttf", 10)
         self.clock = pygame.time.Clock()
+        self.main_menu = MainMenu(self.font, self.background_image)
         self.state = self.STATE_MENU
         self.running = True
         self.SCROLL = SCROLL
@@ -402,14 +404,6 @@ class Game:
         self.screen.blit(score_surf, (10, 10))
         self.screen.blit(lives_surf, (SCREEN_WIDTH - lives_surf.get_width() - 10, 10))
 
-    def _draw_menu(self):
-        self.screen.fill((0, 0, 0))
-        title = self.font.render("Space Invaders", True, (255, 255, 255))
-        prompt = self.font.render("Press Enter to Start", True, (255, 255, 255))
-        self.screen.blit(title, (SCREEN_WIDTH // 2 - title.get_width() // 2, SCREEN_HEIGHT // 3))
-        self.screen.blit(prompt, (SCREEN_WIDTH // 2 - prompt.get_width() // 2, SCREEN_HEIGHT // 2))
-        self._present()
-
     def _draw_end_screen(self):
         self.screen.fill((0, 0, 0))
         if self.state == self.STATE_GAME_OVER:
@@ -472,34 +466,34 @@ class Game:
     def run(self):
         while True:
             self.clock.tick(FPS)
+            
+            # --- 1. EVENT HANDLING (NUR EINGABEN) ---
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit()
+                
                 if self.state == self.STATE_MENU:
                     self._play_music(self.music_intro, 0.7)
                     if event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
+                        self._reset() # Zuerst resetten
                         self.state = self.STATE_PLAYING
-                        self._reset()
+                
                 elif self.state == self.STATE_PLAYING:
-                    if self.mini_boss_spawned:
-                        self._play_music(self.music_boss, 0.7)
-                    else:
-                        self._play_music(self.music_level, 0.7)
-                    if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-                        bullet = self.player.shoot()
-                        if bullet:
-                            self.laser_sound.play()
-                            self.player_bullets.add(bullet)
-                            self.all_sprites.add(bullet)
-                            self.player_shots += 1
                     if event.type == pygame.KEYDOWN:
-                        if event.key == pygame.K_r:
+                        if event.key == pygame.K_SPACE:
+                            bullet = self.player.shoot()
+                            if bullet:
+                                self.laser_sound.play()
+                                self.player_bullets.add(bullet)
+                                self.all_sprites.add(bullet)
+                                self.player_shots += 1
+                        elif event.key == pygame.K_r:
                             self._reset()
-                            self.state = self.STATE_PLAYING
                         elif event.key == pygame.K_q:
                             pygame.quit()
                             sys.exit()
+                
                 elif self.state in (self.STATE_GAME_OVER, self.STATE_VICTORY, self.STATE_LEVEL_CLEARED):
                     if event.type == pygame.KEYDOWN:
                         if event.key == pygame.K_r:
@@ -508,11 +502,22 @@ class Game:
                         elif event.key == pygame.K_q:
                             pygame.quit()
                             sys.exit()
+
+            # --- 2. UPDATES & RENDERING (AUSSERHALB DER EVENT-SCHLEIFE) ---
             
-            # Update & render
             if self.state == self.STATE_MENU:
-                self._draw_menu()
+                # Das zeichnet jetzt 60x pro Sekunde, egal was du tust
+                self.main_menu.draw(self.screen)
+                self._present()
+
             elif self.state == self.STATE_PLAYING:
+                # Musik Update
+                if self.mini_boss_spawned:
+                    self._play_music(self.music_boss, 0.7)
+                else:
+                    self._play_music(self.music_level, 0.7)
+
+                # Spiellogik Updates
                 keys = pygame.key.get_pressed()
                 self.player.move(keys, SCREEN_WIDTH)
                 self.player.update_buffs()      # <-- HIER: Aktualisiert Speed- & Schuss-Timer
@@ -530,33 +535,45 @@ class Game:
                 for bomb in self.enemy_bullets:
                     self.handle_bunker_collision(bomb, self.bunkers)
                 # Enemy behavior
+                self.player_boost.update()
+                self.player_bullets.update()
+                self.enemy_bullets.update()
+                self.bunkers.update()
+                self.miniboss_group.update(self.player, all_sprites=self.all_sprites, 
+                                         enemy_bullets=self.enemy_bullets, 
+                                         screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
+                self.explosions.update()
                 self.enemies.update()
+                self.ufo_group.update()
+                
+                # Timer & Logik
                 self._handle_enemy_movement()
                 self._enemy_shooting()
-                # UFO handling
-                self.ufo_group.update()
                 self.ufo_timer -= 1
                 if self.ufo_timer <= 0 or self.player_shots >= UFO_SHOT_THRESHOLD:
                     self._spawn_ufo()
                     self.ufo_timer = int(UFO_SPAWN_TIME * FPS)
                     self.player_shots = 0
+                
                 self._check_collisions()
-                # Level progression
+                
+                # Level Progress Check
                 if not self.enemies and not self.mini_boss_spawned and not self.explosions:
                     self.state = self.STATE_LEVEL_CLEARED
                     self.level_cleared_timer = 5 * FPS
                 elif self.mini_boss_spawned and not self.miniboss_group:
                     self.advance_level()
-                # Rendering
+
+                # Zeichnen
                 self.SCROLL = (self.SCROLL + BACKGROUND_SCROLL_SPEED) % self.background_height
                 self.screen.blit(self.background_image, (0, self.SCROLL))
                 self.screen.blit(self.background_image, (0, self.SCROLL - self.background_height))
                 self.bunkers.draw(self.screen)
                 self.all_sprites.draw(self.screen)
-                self.player_bullets.draw(self.screen)
-                self.enemy_bullets.draw(self.screen)
                 self.headerbar.update(self.score, self.lives)
                 self.headerbar.draw(self.screen)
+                
+                # Warning Icon Logik
                 if self.lives == 1:
                     is_visible = (pygame.time.get_ticks() // 400) % 2 == 0
                     if is_visible:
@@ -569,7 +586,27 @@ class Game:
                             self.screen.blit(bar.warning_icon, (warning_x, warning_y))
                     else:
                         self.warning_played = False
+                    if not self.warning_played:
+                        self.warning_sound.play()
+                        self.warning_played = True
+
+                else:
+                        self.warning_played = False
+                if self.lives == 1:
+                    is_visible = (pygame.time.get_ticks() // 400) % 2 == 0
+                    if is_visible:
+                        if (pygame.time.get_ticks() // 400) % 2 == 0:
+
+                            for bar in self.headerbar:
+                                warning_x = bar.rect.right + 15
+                                warning_y = bar.rect.centery - (bar.warning_icon.get_height() // 2)
+                                self.screen.blit(bar.warning_icon, (warning_x, warning_y))
+                else:
+                    self.warning_played = False
+                
+
                 self._present()
+
             elif self.state == self.STATE_LEVEL_CLEARED:
                 self._draw_hud()
                 overlay = self.font.render("Level cleared! New wave approaching", True, (255, 255, 0))
@@ -580,13 +617,9 @@ class Game:
                     self._spawn_miniboss()
                     self.mini_boss_spawned = True
                     self.state = self.STATE_PLAYING
-            else:
+           
+            else: # GAME_OVER / VICTORY
                 self.explosions.update()
                 self._draw_end_screen()
                 self.explosions.draw(self.screen)
                 self._present()
-
-    @property
-    def Player(self):
-        """Compatibility alias for the player sprite (use .player)."""
-        return self.player
