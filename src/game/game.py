@@ -7,10 +7,13 @@ from src.config.config import (
     UFO_SCORE_OPTIONS, UFO_SHOT_THRESHOLD,
     BACKGROUND_SCROLL_SPEED, SCROLL, ENEMY_SHOOT_CHANCE,
     ENEMY_WAVE_SETTINGS, MINIBOSS_SETTINGS,
+    POWERUP_DROP_CHANCES, POWERUP_FALL_SPEED, COMET_SPEED, COMET_ROTATION_SPEED,
+    POWERUP_SPEED_DURATION, POWERUP_DOUBLESHOT_DURATION, POWERUP_TRIPLESHOT_DURATION,
+    POWERUP_SPEED_MULTIPLIER, TIE_FIGHTER_SPEED, TIE_FIGHTER_SIZE, TIE_FIGHTER_ROTATION_SPEED
 )
 from src.game.player import Player, PlayerBoost
 from src.game.enemy import Enemy
-from src.game.explosion import Explosion
+from src.game.explosion import Explosion, BunkerRespawnEffect
 from src.game.ufo import UFO
 from src.game.Boss_small_1 import BossSmall1
 from src.game.boss_small_2 import BossSmall2
@@ -21,9 +24,10 @@ from src.game.endboss import EndBoss
 from src.game.bullet import Bullet
 from src.game.bunker import Bunker
 from src.game.headerbar import HeaderBar
+from src.game.powerup import PowerUp, Comet
 from src.game.mainmenue import MainMenu
 
-# Helper function to slice sprites (unchanged)
+# Helper function to slice sprites
 def get_image(sheet, x, y, width, height):
     image = pygame.Surface((width, height), pygame.SRCALPHA)
     image.blit(sheet, (0, 0), (x, y, width, height))
@@ -45,7 +49,6 @@ class Game:
         self.music_level = ("assets/music/02 Pluto.mp3")
         self.music_boss = ("assets/music/03 Pluto Boss.mp3")
         
-
         self.laser_sound = pygame.mixer.Sound("assets/music/lasershot.mp3")
         self.enemy_explosion = pygame.mixer.Sound("assets/music/enemyexplosion.mp3")
         self.ufo_damage = pygame.mixer.Sound("assets/music/ufodamage.mp3")
@@ -55,8 +58,9 @@ class Game:
         self.current_track = None
         self.music_playing = False
         self.warning_played = False 
+        
         # Window
-                # Determine desktop resolution for full‑screen
+        # Determine desktop resolution for full‑screen
         info = pygame.display.Info()
         self.full_w, self.full_h = info.current_w, info.current_h
         # Create a true full‑screen window
@@ -95,7 +99,7 @@ class Game:
             for _ in range(damage):
                 hit_bunker.take_damage()
                 
-            # --- NEUER CODE: Explosion bei Faust-Treffer auf dem Bunker ---
+            # Explosion bei Faust-Treffer auf dem Bunker
             if isinstance(bullet, Fist):
                 from src.game.explosion import Explosion
                 import random
@@ -110,28 +114,24 @@ class Game:
                 
                 # 2. Zusätzliche kleine Explosion mit garantiertem Abstand
                 min_distance_sq = 40 ** 2  # Mindestabstand zum Quadrat (40 Pixel)
-                # Initialize fallback position
                 sec_x, sec_y = impact_x, impact_y
                 
-                # Wir suchen eine Position, die weit genug von der Haupt-Explosion entfernt ist
                 found = False
-                for _ in range(10):  # max 10 Versuche, um das Spiel nicht zu blockieren
+                for _ in range(10):
                     offset_x = random.randint(-45, 45)
                     offset_y = random.randint(-45, 45)
                     sec_x = hit_bunker.rect.centerx + offset_x
                     sec_y = hit_bunker.rect.centery + offset_y
-                    # Abstandsprüfung (Satz des Pythagoras)
                     dist_sq = (sec_x - impact_x)**2 + (sec_y - impact_y)**2
                     if dist_sq >= min_distance_sq:
                         found = True
-                        break  # Position ist weit genug entfernt -> Schleife abbrechen!
+                        break
                 if not found:
                     sec_x, sec_y = impact_x, impact_y
                 secondary_explosion = Explosion(sec_x, sec_y, size=32)
                 
                 self.explosions.add(secondary_explosion)
                 self.all_sprites.add(secondary_explosion)
-            # --------------------------------------------------------------
 
             # If the bunker was destroyed, spawn a large explosion (size 64)
             if not hit_bunker.alive():
@@ -141,7 +141,40 @@ class Game:
                                       size=64)
                 self.explosions.add(explosion)
                 self.all_sprites.add(explosion)
-            bullet.kill()
+                
+            # Pierce System für Bullets berücksichtigen
+            if hasattr(bullet, "pierce"):
+                bullet.pierce -= 1
+                if bullet.pierce <= 0:
+                    bullet.kill()
+            else:
+                bullet.kill()
+
+    def rebuild_bunkers(self):
+        # Alte Reste der Bunker zerstören
+        for b in self.bunkers:
+            explosion = Explosion(b.rect.centerx, b.rect.centery, size=96)
+            self.explosions.add(explosion)
+            self.all_sprites.add(explosion)
+            b.kill()
+        
+        # Neue, makellose Bunker spawnen
+        angles = [0, 90, 180, 270]
+        variants = ["satellite", "satellit2", "satellit3", "satellit4"]
+        for i, variant in enumerate(variants):
+            x_pos = 140 + (i * 170)
+            
+            # Bunker-Objekt erstellen
+            new_bunker = Bunker(x_pos, SCREEN_HEIGHT - 120, variant=variant, angle=angles[i])
+            self.bunkers.add(new_bunker)
+            self.all_sprites.add(new_bunker)
+            
+            # NEU: Coole Blitz-Animation (lighting_skill6) darüber legen
+            # Da die Effekt-Klasse update() nutzt, können wir sie einfach in "explosions" packen,
+            # die Gruppe wird im Spiel-Loop ohnehin jeden Frame geupdated.
+            respawn_effect = BunkerRespawnEffect(x_pos, SCREEN_HEIGHT - 120, size=128)
+            self.explosions.add(respawn_effect)
+            self.all_sprites.add(respawn_effect)
 
     def _reset(self):
         # Reset for a fresh game (menu start or full restart)
@@ -155,6 +188,10 @@ class Game:
         self.enemy_bullets = pygame.sprite.Group()
         self.bunkers = pygame.sprite.Group()
         self.ufo_group = pygame.sprite.Group()
+        
+        self.powerups = pygame.sprite.Group()
+        self.comets = pygame.sprite.Group()
+        
         self.headerbar = pygame.sprite.GroupSingle()
         self.SCROLL = SCROLL  # reset scroll
         
@@ -171,7 +208,6 @@ class Game:
         self.headerbar.add(HeaderBar(self.screen, self.font))
         # Bunkers (satellites)
         angles = [0, 90, 180, 270]
-        # Order of bunker variants – one of each type
         variants = ["satellite", "satellit2", "satellit3", "satellit4"]
         for i, variant in enumerate(variants):
             x_pos = 140 + (i * 170)
@@ -192,9 +228,7 @@ class Game:
 
     def _present(self):
         """Blit the game surface onto the full‑screen display with black borders and flip."""
-        # Fill the full‑screen window with black (the borders)
         self.display.fill((0, 0, 0))
-        # Center the 1080×1080 game surface
         x = (self.full_w - SCREEN_WIDTH) // 2
         y = (self.full_h - SCREEN_HEIGHT) // 2
         self.display.blit(self.game_surface, (x, y))
@@ -221,12 +255,10 @@ class Game:
                 enemy = Enemy(x, y, row)
                 self.enemies.add(enemy)
                 self.all_sprites.add(enemy)
-        # Store speed/shoot chance for possible future scaling
         self.enemy_speed = settings.get("speed", ENEMY_SPEED)
         self.enemy_shoot_chance = settings.get("shoot_chance", ENEMY_SHOOT_CHANCE)
 
     def _handle_enemy_movement(self):
-        # Determine if any enemy hits screen edge
         move_sideways = True
         for enemy in self.enemies:
             if self.enemy_direction == 1 and enemy.rect.right >= SCREEN_WIDTH - 10:
@@ -251,60 +283,120 @@ class Game:
                 self.all_sprites.add(bullet)
 
     def _check_collisions(self):
-        # Enemy vs player bullet collisions (enemy dies)
-        hits = pygame.sprite.groupcollide(self.enemies, self.player_bullets, True, True)
+        # Enemy vs player bullet (WICHTIG: dokill2=False für Pierce-Mechanik)
+        hits = pygame.sprite.groupcollide(self.enemies, self.player_bullets, True, False)
         if hits:
             self.enemy_explosion.play()
-            # Spawn an explosion at each enemy's position
-            for enemy in hits.keys():
-                # Static explosion (no drift) – faster animation handled in Explosion class
+            for enemy, bullets in hits.items():
                 explosion = Explosion(enemy.rect.centerx, enemy.rect.centery)
                 self.explosions.add(explosion)
                 self.all_sprites.add(explosion)
+                
+                # Pierce von beteiligten Kugeln abziehen
+                for b in bullets:
+                    b.pierce -= 1
+                    if b.pierce <= 0:
+                        b.kill()
+                
+                # Neues PowerUp Drop-System:
+                if not self.mini_boss_spawned:
+                    roll = random.random()
+                    cumulative = 0.0
+                    for p_type, chance in POWERUP_DROP_CHANCES.items():
+                        cumulative += chance
+                        if roll < cumulative:
+                            powerup = PowerUp(enemy.rect.centerx, enemy.rect.centery, POWERUP_FALL_SPEED, p_type)
+                            self.powerups.add(powerup)
+                            self.all_sprites.add(powerup)
+                            break # Verhindert, dass ein Gegner 2 Items droppt
+                        
             self.score += len(hits) * 100
-        # UFO vs player bullet collisions
-        bonushits = pygame.sprite.groupcollide(self.ufo_group, self.player_bullets, True, True)
+
+        # UFO vs player bullet
+        bonushits = pygame.sprite.groupcollide(self.ufo_group, self.player_bullets, True, False)
         if bonushits:
-            self.score += random.choice(UFO_SCORE_OPTIONS)
-            # Spawn a medium explosion for each destroyed UFO (size 48)
-            for ufo in bonushits.keys():
+            for ufo, bullets in bonushits.items():
+                self.score += random.choice(UFO_SCORE_OPTIONS)
                 explosion = Explosion(ufo.rect.centerx, ufo.rect.centery, size=48)
                 self.explosions.add(explosion)
-                self.all_sprites.add(explosion)        
+                self.all_sprites.add(explosion)
+                for b in bullets:
+                    b.pierce -= 1
+                    if b.pierce <= 0:
+                        b.kill()
+
         # Player vs enemy bullet collisions
         if pygame.sprite.spritecollide(self.player, self.enemy_bullets, True):
             self.ufo_damage.play()
             self.lives -= 1
-            # If lives have run out, trigger player explosion and end game
             if self.lives <= 0:
-                # Create explosion at player's current location
                 self.game_over.play()
                 explosion = Explosion(self.player.rect.centerx, self.player.rect.centery)
                 self.explosions.add(explosion)
                 self.all_sprites.add(explosion)
-                # Remove player sprite & boost
                 self.player.kill()
-                self.player_boost.kill()  # <-- NEUER CODE: Boost zerstören!
-                # Transition to game over state
+                self.player_boost.kill()
                 self.state = self.STATE_GAME_OVER
-        # Mini‑boss collisions (hit feedback & death explosion)
+                
+        # Mini‑boss collisions
         for boss in list(self.miniboss_group):
-            hits = pygame.sprite.spritecollide(boss, self.player_bullets, True)
-            for _ in hits:
-                # Small hit explosion (size 48) to give player feedback
+            hits = pygame.sprite.spritecollide(boss, self.player_bullets, False)
+            for b in hits:
                 hit_explosion = Explosion(boss.rect.centerx, boss.rect.centery, size=48)
                 self.explosions.add(hit_explosion)
                 self.all_sprites.add(hit_explosion)
                 boss.hit()
-            # If the boss was killed this frame, spawn a larger death explosion (size 96)
-            if not boss.alive():
-                death_explosion = Explosion(boss.rect.centerx, boss.rect.centery, size=96)
-                self.explosions.add(death_explosion)
-                self.all_sprites.add(death_explosion)
+                b.pierce -= 1
+                if b.pierce <= 0:
+                    b.kill()
+                    
         # Enemy reaching player
         for enemy in self.enemies:
             if enemy.rect.bottom >= self.player.rect.top:
                 self.state = self.STATE_GAME_OVER
+
+        # POWERUP SAMMELN
+        powerup_hits = pygame.sprite.spritecollide(self.player, self.powerups, True)
+        if powerup_hits:
+            for pu in powerup_hits:
+                if pu.type == "comet":
+                    comet = Comet(SCREEN_WIDTH, COMET_SPEED, COMET_ROTATION_SPEED, TIE_FIGHTER_SPEED, TIE_FIGHTER_ROTATION_SPEED, TIE_FIGHTER_SIZE)
+                    self.comets.add(comet)
+                    self.all_sprites.add(comet)
+                elif pu.type == "bunker":
+                    self.rebuild_bunkers()
+                elif pu.type == "hp":
+                    self.lives += 1
+                elif pu.type == "speed":
+                    self.player.speed = self.player.base_speed * POWERUP_SPEED_MULTIPLIER
+                    self.player.speed_timer = FPS * POWERUP_SPEED_DURATION
+                elif pu.type == "doubleshot":
+                    self.player.weapon_type = "double"
+                    self.player.weapon_timer = FPS * POWERUP_DOUBLESHOT_DURATION
+                elif pu.type == "trippleshot":
+                    self.player.weapon_type = "triple"
+                    self.player.weapon_timer = FPS * POWERUP_TRIPLESHOT_DURATION
+
+        # Komet trifft Gegner
+        for comet in self.comets:
+            comet_enemy_hits = pygame.sprite.spritecollide(comet, self.enemies, True)
+            if comet_enemy_hits:
+                self.enemy_explosion.play()
+                for enemy in comet_enemy_hits:
+                    explosion = Explosion(enemy.rect.centerx, enemy.rect.centery)
+                    self.explosions.add(explosion)
+                    self.all_sprites.add(explosion)
+                    self.score += 100
+                    
+        # Komet trifft auf Boss
+        for boss in list(self.miniboss_group):
+            comet_boss_hits = pygame.sprite.spritecollide(boss, self.comets, True)
+            if comet_boss_hits:
+                self.enemy_explosion.play()
+                for comet in comet_boss_hits:
+                    explosion = Explosion(comet.rect.centerx, comet.rect.centery, size=128)
+                    self.explosions.add(explosion)
+                    self.all_sprites.add(explosion)
 
     def _draw_hud(self):
         score_surf = self.font.render(f"Score: {self.score}", True, (255, 255, 255))
@@ -337,7 +429,6 @@ class Game:
         self.all_sprites.add(ufo)
 
     def _spawn_miniboss(self):
-        # Spawn the appropriate miniboss for the current level
         boss_map = {
             1: BossSmall1,
             2: BossSmall2,
@@ -348,13 +439,10 @@ class Game:
         boss_cls = boss_map.get(self.level, BossSmall1)
         settings = MINIBOSS_SETTINGS.get(self.level, MINIBOSS_SETTINGS[1])
         boss = boss_cls(health=settings.get("health", 3), speed=settings.get("speed", 2))
-        # Some bosses (e.g., BossSmall3, BossSmall4, BossFist) may need extra config – fetch if present
         extra = getattr(boss, "extra_settings", None)
         if isinstance(extra, dict):
             for k, v in extra.items():
                 setattr(boss, k, v)
-        # If the boss has a visual fist group, add those sprites **before** the boss itself
-        # so they are rendered underneath the boss.
         if hasattr(boss, "fist_group"):
             self.all_sprites.add(boss.fist_group)
         self.miniboss_group.add(boss)
@@ -365,9 +453,7 @@ class Game:
         if self.level > self.MAX_LEVEL:
             self.state = self.STATE_VICTORY
             return
-        # Update header bar
         self.headerbar.sprite.set_level(self.level)
-        # Reset for next wave
         self.mini_boss_spawned = False
         self.miniboss_group.empty()
         self.enemies.empty()
@@ -434,6 +520,21 @@ class Game:
                 # Spiellogik Updates
                 keys = pygame.key.get_pressed()
                 self.player.move(keys, SCREEN_WIDTH)
+                self.player.update_buffs()      # <-- HIER: Aktualisiert Speed- & Schuss-Timer
+                self.player_boost.update()  
+                self.player_bullets.update()
+                self.enemy_bullets.update()
+                self.bunkers.update()
+                self.miniboss_group.update(self.player, all_sprites=self.all_sprites, enemy_bullets=self.enemy_bullets, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
+                self.explosions.update()
+                self.powerups.update(SCREEN_HEIGHT)
+                self.comets.update(SCREEN_WIDTH, SCREEN_HEIGHT)
+                
+                for bullet in self.player_bullets:
+                    self.handle_bunker_collision(bullet, self.bunkers)
+                for bomb in self.enemy_bullets:
+                    self.handle_bunker_collision(bomb, self.bunkers)
+                # Enemy behavior
                 self.player_boost.update()
                 self.player_bullets.update()
                 self.enemy_bullets.update()
@@ -474,6 +575,17 @@ class Game:
                 
                 # Warning Icon Logik
                 if self.lives == 1:
+                    is_visible = (pygame.time.get_ticks() // 400) % 2 == 0
+                    if is_visible:
+                        if not self.warning_played:
+                            self.warning_sound.play()
+                            self.warning_played = True
+                        for bar in self.headerbar:
+                            warning_x = bar.rect.right + 15
+                            warning_y = bar.rect.centery - (bar.warning_icon.get_height() // 2)
+                            self.screen.blit(bar.warning_icon, (warning_x, warning_y))
+                    else:
+                        self.warning_played = False
                     if not self.warning_played:
                         self.warning_sound.play()
                         self.warning_played = True
@@ -505,7 +617,7 @@ class Game:
                     self._spawn_miniboss()
                     self.mini_boss_spawned = True
                     self.state = self.STATE_PLAYING
-            
+           
             else: # GAME_OVER / VICTORY
                 self.explosions.update()
                 self._draw_end_screen()

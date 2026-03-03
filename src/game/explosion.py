@@ -49,3 +49,38 @@ class Explosion(pygame.sprite.Sprite):
                 self.kill()
                 return
             self.image = self.frames[self.current_frame]
+
+class BunkerRespawnEffect(pygame.sprite.Sprite):
+    """Spezielle Animation für das Respawnen der Bunker."""
+    
+    _frames = None
+
+    def __init__(self, x: int, y: int, size: int = 128):
+        super().__init__()
+        if BunkerRespawnEffect._frames is None:
+            frames = []
+            for i in range(1, 9): # Lädt frame1 bis frame8
+                img = load_image(f"assets/lightning_skill6_frame{i}.png").convert_alpha()
+                frames.append(img)
+            BunkerRespawnEffect._frames = frames
+            
+        # Skaliere die Animationsframes (z.B. auf 128x128, damit der Blitz den Bunker schön umschließt)
+        self.frames = [pygame.transform.scale(img, (size, size)) for img in BunkerRespawnEffect._frames]
+        
+        self.current_frame = 0
+        self.image = self.frames[self.current_frame]
+        self.rect = self.image.get_rect(center=(x, y))
+        
+        # Etwas langsamere Animation, damit man den Blitz gut sieht
+        self.animation_timer = 0
+        self.animation_delay = 3 
+
+    def update(self):
+        self.animation_timer += 1
+        if self.animation_timer >= self.animation_delay:
+            self.animation_timer = 0
+            self.current_frame += 1
+            if self.current_frame >= len(self.frames):
+                self.kill() # Animation beendet -> Sprite löschen
+                return
+            self.image = self.frames[self.current_frame]
