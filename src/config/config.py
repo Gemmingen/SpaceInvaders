@@ -54,3 +54,27 @@ MINIBOSS_SETTINGS = {
 # Background settings
 SCROLL = 1                                           # Initial scroll position for background
 BACKGROUND_SCROLL_SPEED = 2                          # pixels per frame for background scrolling
+
+# --- PowerUp & Comet Settings ---
+# Gesamte Drop-Wahrscheinlichkeit liegt bei ca. 22% pro normalem Gegner
+POWERUP_DROP_CHANCES = {
+    "comet": 0.02,        # 5%
+    "bunker": 0.02,       # 2%
+    "hp": 0.01,           # 2%
+    "speed": 0.03,        # 5%
+    "doubleshot": 0.03,   # 5%
+    "trippleshot": 0.03   # 3%
+}
+POWERUP_FALL_SPEED = 4
+
+COMET_SPEED = 8
+COMET_ROTATION_SPEED = 2
+TIE_FIGHTER_SPEED = 14
+TIE_FIGHTER_ROTATION_SPEED = 0.5
+TIE_FIGHTER_SIZE = 128
+
+# Dauer und Stärke der Spieler-Buffs
+POWERUP_SPEED_MULTIPLIER = 1.5   # 50% schneller
+POWERUP_SPEED_DURATION = 5       # in Sekunden
+POWERUP_DOUBLESHOT_DURATION = 5  # in Sekunden
+POWERUP_TRIPLESHOT_DURATION = 5  # in Sekunden
