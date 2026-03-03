@@ -470,17 +470,18 @@ class Game:
                 self.headerbar.update(self.score, self.lives)
                 self.headerbar.draw(self.screen)
                 if self.lives == 1:
+                    if not self.warning_played:
+                        self.warning_sound.play()
+                        self.warning_played = True
+                else:
+                        self.warning_played = False
+                if self.lives == 1:
                     is_visible = (pygame.time.get_ticks() // 400) % 2 == 0
                     if is_visible:
-                        if not self.warning_played:
-                            self.warning_sound.play()
-                            self.warning_played = True
                         for bar in self.headerbar:
                             warning_x = bar.rect.right + 15
                             warning_y = bar.rect.centery - (bar.warning_icon.get_height() // 2)
                             self.screen.blit(bar.warning_icon, (warning_x, warning_y))
-                    else:
-                        self.warning_played = False
                 self._present()
             elif self.state == self.STATE_LEVEL_CLEARED:
                 # Show cooldown overlay
