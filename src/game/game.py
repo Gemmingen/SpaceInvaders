@@ -480,7 +480,7 @@ class Game:
                             warning_y = bar.rect.centery - (bar.warning_icon.get_height() // 2)
                             self.screen.blit(bar.warning_icon, (warning_x, warning_y))
                     else:
-                        self.warning_sound = False
+                        self.warning_played = False
                 self._present()
             elif self.state == self.STATE_LEVEL_CLEARED:
                 # Show cooldown overlay
