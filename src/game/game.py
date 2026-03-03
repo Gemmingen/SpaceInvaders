@@ -517,11 +517,13 @@ class Game:
                 else:
                     self._play_music(self.music_level, 0.7)
 
-                # Spiellogik Updates
+                # --- 1. Spieler-Logik & Buffs ---
                 keys = pygame.key.get_pressed()
                 self.player.move(keys, SCREEN_WIDTH)
-                self.player.update_buffs()      # <-- HIER: Aktualisiert Speed- & Schuss-Timer
+                self.player.update_buffs()      
                 self.player_boost.update()  
+
+                # --- 2. ALLE GRUPPEN UPDATEN (Jede strikt nur 1x!) ---
                 self.player_bullets.update()
                 self.enemy_bullets.update()
                 self.bunkers.update()
@@ -529,26 +531,19 @@ class Game:
                 self.explosions.update()
                 self.powerups.update(SCREEN_HEIGHT)
                 self.comets.update(SCREEN_WIDTH, SCREEN_HEIGHT)
+                self.enemies.update()
+                self.ufo_group.update()
                 
+                # --- 3. Kollisionen mit Bunkern prüfen ---
                 for bullet in self.player_bullets:
                     self.handle_bunker_collision(bullet, self.bunkers)
                 for bomb in self.enemy_bullets:
                     self.handle_bunker_collision(bomb, self.bunkers)
-                # Enemy behavior
-                self.player_boost.update()
-                self.player_bullets.update()
-                self.enemy_bullets.update()
-                self.bunkers.update()
-                self.miniboss_group.update(self.player, all_sprites=self.all_sprites, 
-                                         enemy_bullets=self.enemy_bullets, 
-                                         screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
-                self.explosions.update()
-                self.enemies.update()
-                self.ufo_group.update()
-                
-                # Timer & Logik
+
+                # --- 4. Timer, Gegner-Logik & generelle Kollisionen ---
                 self._handle_enemy_movement()
                 self._enemy_shooting()
+                
                 self.ufo_timer -= 1
                 if self.ufo_timer <= 0 or self.player_shots >= UFO_SHOT_THRESHOLD:
                     self._spawn_ufo()
@@ -557,17 +552,18 @@ class Game:
                 
                 self._check_collisions()
                 
-                # Level Progress Check
+                # --- 5. Level Progress Check ---
                 if not self.enemies and not self.mini_boss_spawned and not self.explosions:
                     self.state = self.STATE_LEVEL_CLEARED
                     self.level_cleared_timer = 5 * FPS
                 elif self.mini_boss_spawned and not self.miniboss_group:
                     self.advance_level()
 
-                # Zeichnen
+                # --- 6. Zeichnen ---
                 self.SCROLL = (self.SCROLL + BACKGROUND_SCROLL_SPEED) % self.background_height
                 self.screen.blit(self.background_image, (0, self.SCROLL))
                 self.screen.blit(self.background_image, (0, self.SCROLL - self.background_height))
+                
                 self.bunkers.draw(self.screen)
                 self.all_sprites.draw(self.screen)
                 self.headerbar.update(self.score, self.lives)
@@ -586,25 +582,9 @@ class Game:
                             self.screen.blit(bar.warning_icon, (warning_x, warning_y))
                     else:
                         self.warning_played = False
-                    if not self.warning_played:
-                        self.warning_sound.play()
-                        self.warning_played = True
-
-                else:
-                        self.warning_played = False
-                if self.lives == 1:
-                    is_visible = (pygame.time.get_ticks() // 400) % 2 == 0
-                    if is_visible:
-                        if (pygame.time.get_ticks() // 400) % 2 == 0:
-
-                            for bar in self.headerbar:
-                                warning_x = bar.rect.right + 15
-                                warning_y = bar.rect.centery - (bar.warning_icon.get_height() // 2)
-                                self.screen.blit(bar.warning_icon, (warning_x, warning_y))
                 else:
                     self.warning_played = False
                 
-
                 self._present()
 
             elif self.state == self.STATE_LEVEL_CLEARED:
