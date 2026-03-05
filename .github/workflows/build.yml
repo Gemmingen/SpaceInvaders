@@ -1,6 +1,5 @@
-name: Build Launcher (Cross-Platform)
+name: Build Python Game (Cross-Platform)
 
-# Wann soll das Script laufen? Bei jedem Push auf den "main" Branch.
 on:
   push:
     branches: [ main ]
@@ -10,36 +9,43 @@ on:
 jobs:
   build:
     name: Build auf ${{ matrix.os }}
-    # HIER PASSIERT DIE MAGIE: Die Matrix-Strategie
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        # GitHub startet für jedes dieser Systeme parallel einen eigenen Job!
+        # Wir bauen für Windows, Mac und Linux gleichzeitig
         os: [windows-latest, macos-latest, ubuntu-latest]
 
     steps:
-      - name: 1. Code auschecken (Code von GitHub laden)
+      - name: 1. Code auschecken
         uses: actions/checkout@v4
 
       - name: 2. Python installieren
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11' # Eine stabile Python-Version
+          python-version: '3.11'
 
       - name: 3. Bibliotheken installieren (Pygame & PyInstaller)
         run: |
           python -m pip install --upgrade pip
           pip install pygame pyinstaller
 
-      - name: 4. Launcher verpacken (PyInstaller ausführen)
-        # Auf jedem System wird jetzt PyInstaller ausgeführt
+      - name: 4. Spiel verpacken (PyInstaller)
+        # HIER ANPASSEN: Ändere 'main.py', falls deine Hauptdatei anders heißt!
         run: |
-          pyinstaller --noconsole launcher.py
+          pyinstaller --noconsole main.py
 
-      - name: 5. Fertige Dateien als Download (Artefakt) bereitstellen
+      - name: 5. Assets in den fertigen Ordner kopieren
+        # Wir nutzen 'bash', damit der Kopierbefehl auf Windows, Mac und Linux gleich funktioniert
+        shell: bash 
+        run: |
+          # HIER ANPASSEN: 'assets' ist euer Bilder/Sound-Ordner. 
+          # 'main' ist der Name eurer Python-Datei ohne '.py'.
+          echo "Kopiere Assets..."
+          cp -r assets dist/main/
+
+      - name: 6. Fertiges Spiel als Download (Artefakt) bereitstellen
         uses: actions/upload-artifact@v4
         with:
-          # Der Name des Downloads ändert sich je nach Betriebssystem dynamisch
-          name: Arcade-Launcher-${{ matrix.os }}
-          # Er lädt den kompletten dist-Ordner hoch, in dem eure fertige Datei liegt
-          path: dist/
+          name: PythonGame-${{ matrix.os }}
+          # Er lädt den kompletten Ordner hoch, in dem jetzt die .exe UND die Assets liegen
+          path: dist/main/
