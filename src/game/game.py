@@ -210,7 +210,7 @@ class Game:
         angles = [0, 90, 180, 270]
         variants = ["satellite", "satellit2", "satellit3", "satellit4"]
         for i, variant in enumerate(variants):
-            x_pos = 140 + (i * 170)
+            x_pos = 250 + (i * 190)
             self.bunkers.add(
                 Bunker(
                     x_pos,
@@ -554,6 +554,7 @@ class Game:
                 
                 # --- 5. Level Progress Check ---
                 if not self.enemies and not self.mini_boss_spawned and not self.explosions:
+ 
                     self.state = self.STATE_LEVEL_CLEARED
                     self.level_cleared_timer = 5 * FPS
                 elif self.mini_boss_spawned and not self.miniboss_group:
@@ -588,9 +589,13 @@ class Game:
                 self._present()
 
             elif self.state == self.STATE_LEVEL_CLEARED:
+
+                self.all_sprites.draw(self.screen)
+                self.bunkers.draw(self.screen)
+                self.headerbar.update(self.score, self.lives)
+                self.headerbar.draw(self.screen)
                 self._draw_hud()
-                overlay = self.font.render("Level cleared! New wave approaching", True, (255, 255, 0))
-                self.screen.blit(overlay, (SCREEN_WIDTH // 2 - overlay.get_width() // 2, SCREEN_HEIGHT // 2))
+                
                 self._present()
                 self.level_cleared_timer -= 1
                 if self.level_cleared_timer <= 0:

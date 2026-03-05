@@ -2,7 +2,7 @@
 # Game configuration settings
 
 
-SCREEN_WIDTH = 800                                  #800 Original size, not for Arcade Version
+SCREEN_WIDTH = 1080                                  #800 Original size, not for Arcade Version
 SCREEN_HEIGHT = 1080 #1080                           #600 Original size, not for Arcade Version
 FPS = 60
 # Bonus UFO (Mystery Ship) configuration
@@ -21,7 +21,7 @@ ENEMY_SHOOT_CHANCE = 0.001                           # Chance per frame that an 
 BULLET_SPEED = 10
 
 # Enemy wave per level – can be tweaked later
-TEST_AMOUNT = 5
+TEST_AMOUNT = 1
 
 ENEMY_WAVE_SETTINGS = {
     1: dict(rows=TEST_AMOUNT, cols=TEST_AMOUNT, speed=ENEMY_SPEED, shoot_chance=ENEMY_SHOOT_CHANCE),
