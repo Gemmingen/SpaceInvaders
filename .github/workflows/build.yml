@@ -13,8 +13,7 @@ jobs:
     strategy:
       matrix:
         # Wir bauen für Windows, Mac und Linux gleichzeitig
-        os: [windows-latest, macos-latest, ubuntu-latest]
-
+        os: [windows-latest, ubuntu-latest, macos-13, macos-latest]
     steps:
       - name: 1. Code auschecken
         uses: actions/checkout@v4
