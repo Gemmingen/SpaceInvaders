@@ -5,12 +5,16 @@ from src.config.config import (
     SCREEN_WIDTH, SCREEN_HEIGHT, FPS, PLAYER_SPEED,
     ENEMY_SPEED, BULLET_SPEED, UFO_SPAWN_TIME,
     UFO_SCORE_OPTIONS, UFO_SHOT_THRESHOLD,
-    BACKGROUND_SCROLL_SPEED, SCROLL, ENEMY_SHOOT_CHANCE,
+    BASE_SCROLL_SPEED, INITIAL_SCROLL, PARALLAX_LAYERS, PARALLAX_SPEED_FACTORS,
+    LEVEL_BACKGROUND_PATTERN, TRANSITION_BACKGROUND_PATTERN,
+    ENEMY_SHOOT_CHANCE,
     ENEMY_WAVE_SETTINGS, MINIBOSS_SETTINGS,
     POWERUP_DROP_CHANCES, POWERUP_FALL_SPEED, COMET_SPEED, COMET_ROTATION_SPEED,
     POWERUP_SPEED_DURATION, POWERUP_DOUBLESHOT_DURATION, POWERUP_TRIPLESHOT_DURATION,
-    POWERUP_SPEED_MULTIPLIER, TIE_FIGHTER_SPEED, TIE_FIGHTER_SIZE, TIE_FIGHTER_ROTATION_SPEED
-)
+        POWERUP_SPEED_MULTIPLIER, TIE_FIGHTER_SPEED, TIE_FIGHTER_SIZE, TIE_FIGHTER_ROTATION_SPEED,
+        AMPLIFY_STEP, DECEL_STEP, AMPLIFY_MAX_FACTOR, THRESHOLD_FACTOR, TRANSITION_HOLD_FRAMES,
+        PLANET_SCROLL_FACTOR
+    )
 from src.game.player import Player, PlayerBoost
 from src.game.enemy import Enemy
 from src.game.explosion import Explosion, BunkerRespawnEffect
@@ -72,21 +76,88 @@ class Game:
         # Keep a legacy alias for existing code that expects self.screen
         self.screen = self.game_surface
         pygame.display.set_caption("Space Invaders")
+        # Initial level (needed before loading backgrounds)
+        self.level = 1
+        self.planet_index = 0  # reset planet sequence for a fresh game (planet_0 visible)
         # Assets
-        self.background_image = pygame.image.load("assets/background/background.png").convert()
-        self.background_height = self.background_image.get_height()
+        # Load parallax background layers for each level
+        self.level_backgrounds = {}
+        for lvl in range(1, 6):
+            layers = []
+            for layer in range(PARALLAX_LAYERS):
+                path = LEVEL_BACKGROUND_PATTERN.format(level=lvl, layer=layer)
+                try:
+                    img = pygame.image.load(path).convert()
+                except Exception:
+                    # Fallback placeholder surface (black) if image not found
+                    img = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+                    img.fill((0, 0, 0))
+                layers.append(img)
+            self.level_backgrounds[lvl] = layers
+        # Load transition background layers (4 layers)
+        self.transition_background = []
+        for layer in range(PARALLAX_LAYERS):
+            path = TRANSITION_BACKGROUND_PATTERN.format(layer=layer)
+            try:
+                img = pygame.image.load(path).convert()
+            except Exception:
+                # Fallback placeholder surface (black) if transition image missing
+                img = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+                img.fill((0, 0, 0))
+            self.transition_background.append(img)
+        # Set current background layers for the starting level
+        self.current_background_layers = self.level_backgrounds[self.level]
+        # Offsets for each parallax layer
+        self.layer_offsets = [INITIAL_SCROLL] * PARALLAX_LAYERS
+        # Font and clock (unchanged)
         self.font = pygame.font.Font("assets/headerbar/PressStart2P-Regular.ttf", 10)
         self.clock = pygame.time.Clock()
-        self.main_menu = MainMenu(self.font, self.background_image)
+        # Main menu still needs a background image – reuse the first layer of level 1 as fallback
+        self.main_menu = MainMenu(self.font, self.level_backgrounds[1][0])
         self.state = self.STATE_MENU
         self.running = True
-        self.SCROLL = SCROLL
+        self.SCROLL = INITIAL_SCROLL
         # Level management
-        self.level = 1
         self.MAX_LEVEL = 5
+        # Load planet images for each level (static props displayed behind sprites)
+        self.planets = {}
+        # Load planet images indexed by transition count (planet_0.png, planet_1.png, ...)
+        from src.config.config import PLANET_PATTERN, PLANET_SCALE
+        self.planets = {}
+        self.planet_index = 0  # start with planet_0 shown before any transition
+        # Initialize planet animation state
+        self.planet_y = 0
+        self.planet_sliding = False
+        for idx in range(self.MAX_LEVEL):  # loads planet_0 .. planet_{MAX_LEVEL-1}
+            path = PLANET_PATTERN.format(idx=idx)
+            try:
+                img = pygame.image.load(path).convert_alpha()
+            except Exception:
+                # Fallback transparent placeholder if image missing
+                img = pygame.Surface((200, 200), pygame.SRCALPHA)
+            # Apply global scaling factor to the planet image
+            if PLANET_SCALE != 1.0:
+                width = int(img.get_width() * PLANET_SCALE)
+                height = int(img.get_height() * PLANET_SCALE)
+                img = pygame.transform.smoothscale(img, (width, height))
+            self.planets[idx] = img
+
+        # After loading all planets, initialize animation for the first planet
+        if 0 in self.planets:
+            self.planet_y = -self.planets[0].get_height()
+        else:
+            self.planet_y = 0
+        self.planet_sliding = True
+
         self.mini_boss_spawned = False
         self.level_cleared_timer = 0
         self.miniboss_group = pygame.sprite.Group()
+        # Transition related flags
+        self.is_transition_active = False
+        self.transition_state = None
+        self.transition_timer = 0
+        # Mutable speed factors used during transition phases
+        self.current_speed_factors = list(PARALLAX_SPEED_FACTORS)
 
     def handle_bunker_collision(self, bullet, bunker_group):
         """Exact mask collision – apply bullet‑specific damage to a bunker."""
@@ -179,6 +250,8 @@ class Game:
     def _reset(self):
         # Reset for a fresh game (menu start or full restart)
         self.score = 0
+        self.level = 1
+        self.planet_index = 0  # reset planet sequence for a fresh game (planet_0 visible)
         self.lives = 3
         self.player = Player(SCREEN_WIDTH // 2, SCREEN_HEIGHT - 30)
         self.all_sprites = pygame.sprite.Group()
@@ -193,7 +266,10 @@ class Game:
         self.comets = pygame.sprite.Group()
         
         self.headerbar = pygame.sprite.GroupSingle()
-        self.SCROLL = SCROLL  # reset scroll
+        self.SCROLL = INITIAL_SCROLL  # reset scroll
+        # Reset background to level 1 (or current level after reset)
+        self.current_background_layers = self.level_backgrounds[self.level]
+        self.layer_offsets = [INITIAL_SCROLL] * PARALLAX_LAYERS
         
         self.all_sprites.add(self.player)
         
@@ -225,6 +301,11 @@ class Game:
         self.mini_boss_spawned = False
         self.miniboss_group.empty()
         self.level_cleared_timer = 0
+        # Reset transition flags for a fresh start
+        self.is_transition_active = False
+        self.transition_state = None
+        self.transition_timer = 0
+        self.current_speed_factors = list(PARALLAX_SPEED_FACTORS)
 
     def _present(self):
         """Blit the game surface onto the full‑screen display with black borders and flip."""
@@ -233,6 +314,113 @@ class Game:
         y = (self.full_h - SCREEN_HEIGHT) // 2
         self.display.blit(self.game_surface, (x, y))
         pygame.display.flip()
+
+    def _run_transition(self):
+        """Handle the multi‑stage transition background when a level is cleared.
+        This method is called every frame while self.state == self.STATE_LEVEL_CLEARED.
+        It manipulates self.current_speed_factors, swaps backgrounds, and
+        advances the internal sub‑state machine.
+        """
+        # -----------------------------------------------------------------
+        # Initialise the transition on the first call after entering the state
+        # -----------------------------------------------------------------
+        if not self.is_transition_active:
+            self.is_transition_active = True
+            self.transition_state = "amplify"
+            # start from the normal per‑layer factors
+            self.current_speed_factors = list(PARALLAX_SPEED_FACTORS)
+            return
+
+        # Helper lambdas for ramping up/down
+        def _ramp_up(factors, step, max_factor):
+            return [min(f + step, max_factor) for f in factors]
+
+        def _ramp_down(factors, step, target):
+            return [max(f - step, target) for f in factors]
+
+        # ---------------------------------------------------------------
+        # A – Amplify phase: increase speed until the peak factor is hit
+        # ---------------------------------------------------------------
+        if self.transition_state == "amplify":
+            self.current_speed_factors = _ramp_up(
+                self.current_speed_factors, AMPLIFY_STEP, AMPLIFY_MAX_FACTOR
+            )
+            # When every layer has reached the max, swap to the transition bg
+            if all(abs(f - AMPLIFY_MAX_FACTOR) < 1e-5 for f in self.current_speed_factors):
+                self.current_background_layers = self.transition_background
+                self.transition_state = "hold"
+                self.transition_timer = TRANSITION_HOLD_FRAMES
+            return
+
+        # ---------------------------------------------------------------
+        # B – Hold phase: keep the transition background for a fixed time
+        # ---------------------------------------------------------------
+        if self.transition_state == "hold":
+            self.transition_timer -= 1
+            if self.transition_timer <= 0:
+                self.transition_state = "decel_to_thresh"
+            return
+
+        # ---------------------------------------------------------------
+        # C – Decelerate to the threshold factor while still on transition bg
+        # ---------------------------------------------------------------
+        if self.transition_state == "decel_to_thresh":
+            self.current_speed_factors = _ramp_down(
+                self.current_speed_factors, DECEL_STEP, THRESHOLD_FACTOR
+            )
+            if all(abs(f - THRESHOLD_FACTOR) < 1e-5 for f in self.current_speed_factors):
+                self.transition_state = "decel_to_normal"
+            return
+
+        # ---------------------------------------------------------------
+        # E – Decelerate back to the original per‑layer factors
+        # ---------------------------------------------------------------
+        if self.transition_state == "decel_to_normal":
+            # 1. Sicherstellen, dass die neuen Layer gesetzt sind
+            # self.level_backgrounds[self.level] MUSS eine Liste von z.B. 4 Images sein
+            if self.current_background_layers != self.level_backgrounds[self.level]:
+                self.current_background_layers = self.level_backgrounds[self.level]
+
+            if self.transition_timer > 0:
+                self.transition_timer -= 1
+                return
+
+            # 2. Sanftes Abbremsen auf die Ziel-Faktoren der einzelnen Layer
+            # Wir nutzen hier direkt PARALLAX_SPEED_FACTORS als Zielwerte
+            new_factors = []
+            all_reached = True
+            for i, current_f in enumerate(self.current_speed_factors):
+                target_f = PARALLAX_SPEED_FACTORS[i]
+                if current_f > target_f:
+                    next_f = max(current_f - DECEL_STEP, target_f)
+                else:
+                    next_f = target_f # Falls er schon drunter war
+                
+                new_factors.append(next_f)
+                if abs(next_f - target_f) > 1e-5:
+                    all_reached = False
+                    
+            self.current_speed_factors = new_factors
+
+            # 3. Wenn alle Layer ihre Normalgeschwindigkeit erreicht haben
+            if all_reached:
+                self._spawn_miniboss()
+                self.mini_boss_spawned = True
+                self.is_transition_active = False
+                self.transition_state = None
+                self.state = self.STATE_PLAYING
+                # Advance planet index after each completed transition
+                self.planet_index += 1
+                # Reset planet animation for the new planet
+                if self.planet_index in self.planets:
+                    self.planet_y = -self.planets[self.planet_index].get_height()
+                else:
+                    self.planet_y = 0
+                self.planet_sliding = True
+                # WICHTIG: Faktoren final festschreiben
+                self.current_speed_factors = list(PARALLAX_SPEED_FACTORS)
+            return
+
 
     def _play_music(self, trak_path, volume = 0.2):
         if self.current_track != trak_path:
@@ -248,8 +436,8 @@ class Game:
         cols = settings["cols"]
         x_margin, y_margin = 50, 100
         spacing_x, spacing_y = 80, 60
-        for row in range(rows):
-            for col in range(cols):
+        for row in range(int(rows)):
+            for col in range(int(cols)):
                 x = x_margin + col * spacing_x
                 y = y_margin + row * spacing_y
                 enemy = Enemy(x, y, row)
@@ -368,7 +556,7 @@ class Game:
                 elif pu.type == "hp":
                     self.lives += 1
                 elif pu.type == "speed":
-                    self.player.speed = self.player.base_speed * POWERUP_SPEED_MULTIPLIER
+                    self.player.speed = int(self.player.base_speed * POWERUP_SPEED_MULTIPLIER)
                     self.player.speed_timer = FPS * POWERUP_SPEED_DURATION
                 elif pu.type == "doubleshot":
                     self.player.weapon_type = "double"
@@ -399,10 +587,43 @@ class Game:
                     self.all_sprites.add(explosion)
 
     def _draw_hud(self):
+        """Draw score and lives HUD."""
         score_surf = self.font.render(f"Score: {self.score}", True, (255, 255, 255))
         lives_surf = self.font.render(f"Lives: {self.lives}", True, (255, 255, 255))
         self.screen.blit(score_surf, (10, 10))
         self.screen.blit(lives_surf, (SCREEN_WIDTH - lives_surf.get_width() - 10, 10))
+
+    def _draw_planet(self):
+        """Draw the planet that corresponds to the current post‑transition index.
+        Called only while self.state == STATE_PLAYING.
+        """
+        # Planet index is always >= 0 (planet_0 shown at start)
+        planet_img = self.planets.get(self.planet_index)
+        if not planet_img:
+            return
+        rect = planet_img.get_rect()
+        rect.centerx = SCREEN_WIDTH // 3
+        # Base vertical target position (middle‑lower part of screen) with background scroll offset
+        base_target_y = SCREEN_HEIGHT
+        try:
+            scroll_offset = self.layer_offsets[0] * PLANET_SCROLL_FACTOR
+        except Exception:
+            scroll_offset = 0
+        target_y = int(base_target_y + scroll_offset)
+        # If the planet is sliding, move it toward the target position
+        if getattr(self, "planet_sliding", False):
+            # Move down at a constant speed (e.g., 5 pixels per frame)
+            slide_speed = 0.4
+            if self.planet_y < target_y:
+                self.planet_y = min(self.planet_y + slide_speed, target_y)
+            if self.planet_y >= target_y:
+                self.planet_sliding = False
+        else:
+            # Ensure planet stays at target when not sliding
+            self.planet_y = target_y
+        # Position the planet using its top coordinate
+        rect.top = int(self.planet_y)
+        self.screen.blit(planet_img, rect)
 
     def _draw_end_screen(self):
         self.screen.fill((0, 0, 0))
@@ -457,11 +678,24 @@ class Game:
         self.mini_boss_spawned = False
         self.miniboss_group.empty()
         self.enemies.empty()
+        # Update background for the new level
+        self.current_background_layers = self.level_backgrounds[self.level]
+        self.layer_offsets = [INITIAL_SCROLL] * PARALLAX_LAYERS
         self.create_enemy_wave()
         self.ufo_timer = int(UFO_SPAWN_TIME * FPS)
         self.player_shots = 0
         self.level_cleared_timer = 0
         self.state = self.STATE_PLAYING
+
+    def increase_level(self):
+        if self.mini_boss_spawned:
+            self.level += 1
+            if self.level > self.MAX_LEVEL:
+                self.state = self.STATE_VICTORY
+                return
+            self.headerbar.sprite.set_level(self.level)
+            self.current_background_layers = self.level_backgrounds[self.level]
+            self.layer_offsets = [INITIAL_SCROLL] * PARALLAX_LAYERS
 
     def run(self):
         while True:
@@ -506,7 +740,9 @@ class Game:
             # --- 2. UPDATES & RENDERING (AUSSERHALB DER EVENT-SCHLEIFE) ---
             
             if self.state == self.STATE_MENU:
-                # Das zeichnet jetzt 60x pro Sekunde, egal was du tust
+                # Draw the background planet (planet_0) behind the menu
+                self._draw_planet()
+                # Draw the main menu UI on top
                 self.main_menu.draw(self.screen)
                 self._present()
 
@@ -561,9 +797,15 @@ class Game:
                     self.advance_level()
 
                 # --- 6. Zeichnen ---
-                self.SCROLL = (self.SCROLL + BACKGROUND_SCROLL_SPEED) % self.background_height
-                self.screen.blit(self.background_image, (0, self.SCROLL))
-                self.screen.blit(self.background_image, (0, self.SCROLL - self.background_height))
+                # Parallax background drawing (all layers)
+                for idx, layer_img in enumerate(self.current_background_layers):
+                    offset = self.layer_offsets[idx]
+                    layer_h = layer_img.get_height()
+                    self.screen.blit(layer_img, (0, offset))
+                    self.screen.blit(layer_img, (0, offset - layer_h))
+                    self.layer_offsets[idx] = (offset + BASE_SCROLL_SPEED * self.current_speed_factors[idx]) % layer_h
+                # Draw the planet after all background layers but before any sprites (enemies, bunkers, etc.)
+                self._draw_planet()
                 
                 self.bunkers.draw(self.screen)
                 self.all_sprites.draw(self.screen)
@@ -588,20 +830,26 @@ class Game:
                 self._present()
 
             elif self.state == self.STATE_LEVEL_CLEARED:
+                # Run transition logic (amplify, hold, decelerate, load next level)
+                self._run_transition()
+                # Draw the current background (could be level background or transition)
+                for idx, layer_img in enumerate(self.current_background_layers):
+                    offset = self.layer_offsets[idx]
+                    layer_h = layer_img.get_height()
+                    self.screen.blit(layer_img, (0, offset))
+                    self.screen.blit(layer_img, (0, offset - layer_h))
+                    # advance offset using the (potentially modified) speed factors
+                    self.layer_offsets[idx] = (offset + BASE_SCROLL_SPEED * self.current_speed_factors[idx]) % layer_h
+                # Draw the static planet for the current level
 
+                # Draw regular game elements on top of the background
                 self.all_sprites.draw(self.screen)
                 self.bunkers.draw(self.screen)
                 self.headerbar.update(self.score, self.lives)
                 self.headerbar.draw(self.screen)
                 self._draw_hud()
-                
                 self._present()
-                self.level_cleared_timer -= 1
-                if self.level_cleared_timer <= 0:
-                    self._spawn_miniboss()
-                    self.mini_boss_spawned = True
-                    self.state = self.STATE_PLAYING
-           
+            
             else: # GAME_OVER / VICTORY
                 self.explosions.update()
                 self._draw_end_screen()
