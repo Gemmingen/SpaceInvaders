@@ -13,7 +13,7 @@ jobs:
     strategy:
       matrix:
         # Wir bauen für Windows, Mac und Linux gleichzeitig
-        os: [windows-latest, ubuntu-latest, macos-latest]
+        os: [windows-latest, macos-15-intel, ubuntu-latest, macos-latest]
     steps:
       - name: 1. Code auschecken
         uses: actions/checkout@v4
@@ -31,7 +31,7 @@ jobs:
       - name: 4. Spiel verpacken (PyInstaller)
         # HIER ANPASSEN: Ändere 'main.py', falls deine Hauptdatei anders heißt!
         run: |
-          pyinstaller --noconsole --target-architecture universal2 main.py
+          pyinstaller --noconsole main.py
       - name: 5. Assets in den fertigen Ordner kopieren
         # Wir nutzen 'bash', damit der Kopierbefehl auf Windows, Mac und Linux gleich funktioniert
         shell: bash 
