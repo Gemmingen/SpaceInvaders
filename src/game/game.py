@@ -571,17 +571,16 @@ class Game:
                 
                 # Warning Icon Logik
                 if self.lives == 1:
-                    is_visible = (pygame.time.get_ticks() // 400) % 2 == 0
-                    if is_visible:
                         if not self.warning_played:
                             self.warning_sound.play()
                             self.warning_played = True
-                        for bar in self.headerbar:
-                            warning_x = bar.rect.right + 15
-                            warning_y = bar.rect.centery - (bar.warning_icon.get_height() // 2)
-                            self.screen.blit(bar.warning_icon, (warning_x, warning_y))
-                    else:
-                        self.warning_played = False
+
+                        is_visible = (pygame.time.get_ticks() // 400) % 2 == 0
+                        if is_visible:
+                            for bar in self.headerbar:
+                                warning_x = bar.rect.right + 15
+                                warning_y = bar.rect.centery - (bar.warning_icon.get_height() // 2)
+                                self.screen.blit(bar.warning_icon, (warning_x, warning_y))
                 else:
                     self.warning_played = False
                 
