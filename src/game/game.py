@@ -68,6 +68,8 @@ class Game:
         self.music_playing = False
         self.warning_played = False 
         
+        self.game_mode = "story"
+        self.wave_number = 1
         # Window
         # Determine desktop resolution for full‑screen
         info = pygame.display.Info()
@@ -439,9 +441,19 @@ class Game:
 
     def create_enemy_wave(self):
         """Create normal enemy wave based on current level settings."""
-        settings = ENEMY_WAVE_SETTINGS.get(self.level, ENEMY_WAVE_SETTINGS[1])
-        rows = settings["rows"]
-        cols = settings["cols"]
+        if self.game_mode == "story":
+            settings = ENEMY_WAVE_SETTINGS.get(self.level, ENEMY_WAVE_SETTINGS[1])
+            rows = settings["rows"]
+            cols = settings["cols"]
+            self.enemy_speed = settings.get("speed", ENEMY_SPEED)
+            self.enemy_shoot_chance = settings.get("shoot_chance", ENEMY_SHOOT_CHANCE)
+        else:
+        # ENDLESS LOGIK: Schwierigkeit steigt mit self.wave_number
+            rows = min(6, 3 + (self.wave_number // 5)) # Alle 5 Wellen eine Reihe mehr
+            cols = 8
+            self.enemy_speed = ENEMY_SPEED + (self.wave_number * 0.2)
+            self.enemy_shoot_chance = ENEMY_SHOOT_CHANCE + (self.wave_number * 0.005)
+        
         x_margin, y_margin = 50, 100
         spacing_x, spacing_y = 80, 60
         for row in range(int(rows)):
@@ -449,10 +461,9 @@ class Game:
                 x = x_margin + col * spacing_x
                 y = y_margin + row * spacing_y
                 enemy = Enemy(x, y, row)
+                enemy.speed = self.enemy_speed
                 self.enemies.add(enemy)
                 self.all_sprites.add(enemy)
-        self.enemy_speed = settings.get("speed", ENEMY_SPEED)
-        self.enemy_shoot_chance = settings.get("shoot_chance", ENEMY_SHOOT_CHANCE)
 
     def _handle_enemy_movement(self):
         move_sideways = True
@@ -713,11 +724,19 @@ class Game:
                 
                 if self.state == self.STATE_MENU:
                     self._play_music(self.music_intro, 0.7)
-                    if event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
-                        self._reset() # Zuerst resetten
-                        self.state = self.STATE_PLAYING
+                    if event.type == pygame.KEYDOWN:
+                        if event.key == pygame.K_1:
+                            self.game_mode = "story"
+                            self._reset()
+                            self.state = self.STATE_PLAYING
+                        elif event.key == pygame.K_2:
+                            self.game_mode = "endless"
+                            self.wave_number = 1
+                            self._reset()
+                            self.state = self.STATE_PLAYING
+                        
                 
-                elif self.state == self.STATE_PLAYING:
+                elif self.state == self.STATE_PLAYING: 
                     if event.type == pygame.KEYDOWN:
                         if event.key == pygame.K_SPACE:
                             bullet = self.player.shoot()
@@ -826,12 +845,19 @@ class Game:
                 self._check_collisions()
                 
                 # --- 5. Level Progress Check ---
-                if not self.enemies and not self.mini_boss_spawned and not self.explosions:
- 
-                    self.state = self.STATE_LEVEL_CLEARED
-                    self.level_cleared_timer = 5 * FPS
-                elif self.mini_boss_spawned and not self.miniboss_group:
-                    self.advance_level()
+                if not self.enemies and not self.explosions:
+                    if self.game_mode == "story":
+                        if not self.mini_boss_spawned:
+                            self.state = self.STATE_LEVEL_CLEARED
+                            self.level_cleared_timer = 5 * FPS
+                        elif self.mini_boss_spawned and not self.miniboss_group:
+                            self.advance_level()
+                else:
+                    # ENDLESS MODUS: Keine Bosse, direkt nächste Welle
+                    self.wave_number += 1
+                    self.create_enemy_wave()
+                    # Optional: Kleiner Bonus-Score pro Welle
+                    self.score += 500
 
                 # --- 6. Zeichnen ---
                 # Parallax background drawing (all layers)
