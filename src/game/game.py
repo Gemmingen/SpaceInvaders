@@ -1,6 +1,8 @@
 import pygame
 import random
 import sys
+import json
+import os
 from src.config.config import (
     SCREEN_WIDTH, SCREEN_HEIGHT, FPS, PLAYER_SPEED,
     ENEMY_SPEED, BULLET_SPEED, UFO_SPAWN_TIME,
@@ -30,7 +32,7 @@ from src.game.bunker import Bunker
 from src.game.headerbar import HeaderBar
 from src.game.powerup import PowerUp, Comet
 from src.game.mainmenue import MainMenu
-
+from src.game.endscreen import EndScreen
 # Helper function to slice sprites
 def get_image(sheet, x, y, width, height):
     image = pygame.Surface((width, height), pygame.SRCALPHA)
@@ -48,6 +50,9 @@ class Game:
         # Compatibility alias: allow access via Game.Player
         pygame.init()
         pygame.mixer.init()
+        #Leaderboard
+        self.player_name = ""
+        self.selected_key_coords = [0, 0]
         #music/sounds
         self.music_intro = ("assets/music/intro.mp3")
         self.music_level = ("assets/music/02 Pluto.mp3")
@@ -113,7 +118,10 @@ class Game:
         self.font = pygame.font.Font("assets/headerbar/PressStart2P-Regular.ttf", 10)
         self.clock = pygame.time.Clock()
         # Main menu still needs a background image – reuse the first layer of level 1 as fallback
-        self.main_menu = MainMenu(self.font, self.level_backgrounds[1][0])
+        self.main_menu = MainMenu(self.font)
+        self.main_menu = MainMenu(self.font)
+        self.end_screen = EndScreen(self.font)
+
         self.state = self.STATE_MENU
         self.running = True
         self.SCROLL = INITIAL_SCROLL
@@ -626,23 +634,19 @@ class Game:
         self.screen.blit(planet_img, rect)
 
     def _draw_end_screen(self):
-        self.screen.fill((0, 0, 0))
-        if self.state == self.STATE_GAME_OVER:
-            msg = "Game Over"
-            color = (255, 0, 0)
-        else:
-            if self.level > self.MAX_LEVEL:
-                msg = "You beat all 5 levels!"
-            else:
-                msg = "You Win!"
-            color = (0, 255, 0)
-        msg_surf = self.font.render(msg, True, color)
-        score_surf = self.font.render(f"Score: {self.score}", True, (255, 255, 255))
-        instr_surf = self.font.render("Press R to Restart or Q to Quit", True, (255, 255, 255))
-        self.screen.blit(msg_surf, (SCREEN_WIDTH // 2 - msg_surf.get_width() // 2, SCREEN_HEIGHT // 3))
-        self.screen.blit(score_surf, (SCREEN_WIDTH // 2 - score_surf.get_width() // 2, SCREEN_HEIGHT // 3 + 40))
-        self.screen.blit(instr_surf, (SCREEN_WIDTH // 2 - instr_surf.get_width() // 2, SCREEN_HEIGHT // 2))
-        self._present()
+        """Ruft die externe EndScreen-Klasse auf, um Sieg oder Niederlage anzuzeigen."""
+        # Bestimme, ob es ein Sieg ist (True) oder Game Over (False)
+        is_victory = (self.state == self.STATE_VICTORY)
+        
+        # Zeichne das Overlay und den Text über die aktuelle game_surface
+        self.end_screen.draw(
+            self.screen, 
+            self.state, 
+            self.score, 
+            self.player_name,
+            self.selected_key_coords,
+            is_victory=is_victory
+        )    
 
     def _spawn_ufo(self):
         ufo = UFO()
@@ -731,11 +735,44 @@ class Game:
                 elif self.state in (self.STATE_GAME_OVER, self.STATE_VICTORY, self.STATE_LEVEL_CLEARED):
                     if event.type == pygame.KEYDOWN:
                         if event.key == pygame.K_r:
+                            self.player_name = ""
                             self._reset()
                             self.state = self.STATE_PLAYING
                         elif event.key == pygame.K_q:
                             pygame.quit()
                             sys.exit()
+
+                        # 1. Navigation auf der Tastatur
+                        elif event.key == pygame.K_LEFT:
+                            self.selected_key_coords[0] = (self.selected_key_coords[0] - 1) % 7
+                        elif event.key == pygame.K_RIGHT:
+                            self.selected_key_coords[0] = (self.selected_key_coords[0] + 1) % 7
+                        elif event.key == pygame.K_UP:
+                            self.selected_key_coords[1] = (self.selected_key_coords[1] - 1) % 4
+                        elif event.key == pygame.K_DOWN:
+                            self.selected_key_coords[1] = (self.selected_key_coords[1] + 1) % 4
+
+                        # 2. Buchstabe auswählen mit SPACE oder ENTER
+                        elif event.key in (pygame.K_SPACE, pygame.K_RETURN):
+                            col, row = self.selected_key_coords
+                            char = self.end_screen.keys[row][col]
+                            
+                            if char == 'OK':
+                                if len(self.player_name) > 0:
+                                    self.save_highscore()
+                                    self.state = self.STATE_MENU
+                            elif char == '<':
+                                self.player_name = self.player_name[:-1]
+                            else:
+                                if len(self.player_name) < 20:
+                                    self.player_name += char
+                        
+                        # R zum schnellen Neustart bleibt erhalten
+                        elif event.key == pygame.K_r:
+                            self.player_name = ""
+                            self._reset()
+                            self.state = self.STATE_PLAYING
+                        
 
             # --- 2. UPDATES & RENDERING (AUSSERHALB DER EVENT-SCHLEIFE) ---
             
@@ -854,4 +891,40 @@ class Game:
                 self.explosions.update()
                 self._draw_end_screen()
                 self.explosions.draw(self.screen)
-                self._present()
+                self._present() 
+    def save_highscore(self):
+        # Pfad-Logik: Findet den Hauptordner deines Projekts
+        base_path = os.path.dirname(os.path.abspath(__file__))
+        # Da game.py in src/game/ liegt, gehen wir zwei Ebenen hoch
+        root_path = os.path.dirname(os.path.dirname(base_path))
+        filename = os.path.join(root_path, "highsscores.json")
+        
+        data = []
+        
+        # 1. Bestehende Scores laden
+        if os.path.exists(filename):
+            with open(filename, "r") as f:
+                try: 
+                    data = json.load(f)
+                    # Sicherstellen, dass es eine Liste ist
+                    if not isinstance(data, list):
+                        data = []
+                except:
+                    # Falls die Datei korrupt oder leer ist
+                    data = []
+        
+        # 2. Aktuellen Versuch hinzufügen
+        data.append({"name": self.player_name, "score": self.score})
+        
+        # 3. Sortieren (höchster Score oben)
+        data.sort(key=lambda x: x["score"], reverse=True)
+        
+        # 4. Nur die Top 5 behalten
+        data = data[:5]
+        
+        # 5. Speichern
+        with open(filename, "w") as f:
+            json.dump(data, f, indent=4)
+        
+        # Kleine Hilfe für dich im Terminal:
+        print(f"Erfolg! Gespeichert in: {filename}")
