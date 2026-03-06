@@ -241,7 +241,7 @@ class Game:
         angles = [0, 90, 180, 270]
         variants = ["satellite", "satellit2", "satellit3", "satellit4"]
         for i, variant in enumerate(variants):
-            x_pos = 140 + (i * 170)
+            x_pos = 250 + (i * 190)
             
             # Bunker-Objekt erstellen
             new_bunker = Bunker(x_pos, SCREEN_HEIGHT - 120, variant=variant, angle=angles[i])
@@ -610,25 +610,41 @@ class Game:
         if not planet_img:
             return
         rect = planet_img.get_rect()
-        rect.centerx = SCREEN_WIDTH // 3
+        rect.centerx = SCREEN_WIDTH // 2.5
         # Base vertical target position (middle‑lower part of screen) with background scroll offset
         base_target_y = SCREEN_HEIGHT
         try:
-            scroll_offset = self.layer_offsets[0] * PLANET_SCROLL_FACTOR
+            scroll_offset = self.layer_offsets[1] * PLANET_SCROLL_FACTOR
         except Exception:
-            scroll_offset = 0
+            scroll_offset = 1
         target_y = int(base_target_y + scroll_offset)
-        # If the planet is sliding, move it toward the target position
+        # Calculate the normal target Y (used when not in a transition)
+        normal_target_y = int(base_target_y + scroll_offset)
+
+        # If the planet is sliding, move it toward the (normal) target position.
+        # During a transition we accelerate the slide speed, but we *do not* stop sliding
+        # until the transition is over and the normal target has been reached.
         if getattr(self, "planet_sliding", False):
-            # Move down at a constant speed (e.g., 5 pixels per frame)
-            slide_speed = 0.4
-            if self.planet_y < target_y:
-                self.planet_y = min(self.planet_y + slide_speed, target_y)
-            if self.planet_y >= target_y:
+            # Choose slide speed based on whether a transition is active
+            if self.is_transition_active:
+                slide_speed = BASE_SCROLL_SPEED * self.current_speed_factors[0]
+            else:
+                slide_speed = 0.35
+            self.planet_y += slide_speed
+            # When not in a transition, stop sliding once we reach the normal target
+            if not self.is_transition_active and self.planet_y >= normal_target_y:
+                self.planet_y = normal_target_y
                 self.planet_sliding = False
         else:
-            # Ensure planet stays at target when not sliding
-            self.planet_y = target_y
+            # When not sliding and not in a transition, keep the planet anchored to the normal target
+            if not self.is_transition_active:
+                self.planet_y = normal_target_y
+            # If we are in a transition and not sliding, we keep the current planet_y so it continues moving off‑screen
+
+        # Safe despawn – hide the planet once it has fully moved below the visible area
+        if self.planet_y > SCREEN_HEIGHT + planet_img.get_height():
+            return
+
         # Position the planet using its top coordinate
         rect.top = int(self.planet_y)
         self.screen.blit(planet_img, rect)
@@ -878,7 +894,7 @@ class Game:
                     # advance offset using the (potentially modified) speed factors
                     self.layer_offsets[idx] = (offset + BASE_SCROLL_SPEED * self.current_speed_factors[idx]) % layer_h
                 # Draw the static planet for the current level
-
+                self._draw_planet()
                 # Draw regular game elements on top of the background
                 self.all_sprites.draw(self.screen)
                 self.bunkers.draw(self.screen)
