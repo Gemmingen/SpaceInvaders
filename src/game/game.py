@@ -1,6 +1,8 @@
 import pygame
 import random
 import sys
+import json
+import os
 from src.config.config import (
     SCREEN_WIDTH, SCREEN_HEIGHT, FPS, PLAYER_SPEED,
     ENEMY_SPEED, BULLET_SPEED, UFO_SPAWN_TIME,
@@ -521,7 +523,7 @@ class Game:
                             
                             if char == 'OK':
                                 if len(self.player_name) > 0:
-                                    print(f"Highscore gespeichert: {self.player_name}")
+                                    self.save_highscore()
                                     self.state = self.STATE_MENU
                             elif char == '<':
                                 self.player_name = self.player_name[:-1]
@@ -640,3 +642,39 @@ class Game:
                 self._draw_end_screen()
                 self.explosions.draw(self.screen)
                 self._present() 
+    def save_highscore(self):
+        # Pfad-Logik: Findet den Hauptordner deines Projekts
+        base_path = os.path.dirname(os.path.abspath(__file__))
+        # Da game.py in src/game/ liegt, gehen wir zwei Ebenen hoch
+        root_path = os.path.dirname(os.path.dirname(base_path))
+        filename = os.path.join(root_path, "highsscores.json")
+        
+        data = []
+        
+        # 1. Bestehende Scores laden
+        if os.path.exists(filename):
+            with open(filename, "r") as f:
+                try: 
+                    data = json.load(f)
+                    # Sicherstellen, dass es eine Liste ist
+                    if not isinstance(data, list):
+                        data = []
+                except:
+                    # Falls die Datei korrupt oder leer ist
+                    data = []
+        
+        # 2. Aktuellen Versuch hinzufügen
+        data.append({"name": self.player_name, "score": self.score})
+        
+        # 3. Sortieren (höchster Score oben)
+        data.sort(key=lambda x: x["score"], reverse=True)
+        
+        # 4. Nur die Top 5 behalten
+        data = data[:5]
+        
+        # 5. Speichern
+        with open(filename, "w") as f:
+            json.dump(data, f, indent=4)
+        
+        # Kleine Hilfe für dich im Terminal:
+        print(f"Erfolg! Gespeichert in: {filename}")
