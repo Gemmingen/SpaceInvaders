@@ -56,9 +56,9 @@ MINIBOSS_SETTINGS = {
 # Planet assets – indexed by transition count (planet_0.png, planet_1.png, ...)
 PLANET_PATTERN = "assets/planets/planet_{idx}.png"
 # Scroll factor for planets (relative to background layer 0 scroll)
-PLANET_SCROLL_FACTOR = 0.05  # slower planet scroll relative to background layer 0
+PLANET_SCROLL_FACTOR = 1  # slower planet scroll relative to background layer 0
 # Global size scaling factor for all planets (1.0 = original size)
-PLANET_SCALE = 2
+PLANET_SCALE = 1
 
 # Parallax background configuration
 # Naming pattern for per‑level layers (four layers per level)
@@ -70,7 +70,7 @@ TRANSITION_BACKGROUND_PATTERN = "assets/background/transition_layer_{layer}.png"
 # Number of layers per background
 PARALLAX_LAYERS = 4
 # Speed multipliers for each layer (0 = foreground, highest speed)
-PARALLAX_SPEED_FACTORS = [0, 0.05, 0.06, 0.07]
+PARALLAX_SPEED_FACTORS = [0, 0.05, 0.06, 0.07] #[Layer0, Layer1, ...]
 # Initial vertical offset for scrolling
 INITIAL_SCROLL = 0
 # Base scroll speed – multiplied by each layer's factor
