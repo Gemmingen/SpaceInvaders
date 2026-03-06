@@ -21,7 +21,7 @@ ENEMY_SHOOT_CHANCE = 0.001                           # Chance per frame that an 
 BULLET_SPEED = 10
 
 # Enemy wave per level – can be tweaked later
-TEST_AMOUNT = 5
+TEST_AMOUNT = 1
 
 ENEMY_WAVE_SETTINGS = {
     1: dict(rows=TEST_AMOUNT, cols=TEST_AMOUNT, speed=ENEMY_SPEED, shoot_chance=ENEMY_SHOOT_CHANCE),
@@ -79,7 +79,7 @@ BASE_SCROLL_SPEED = 2
 TRANSITION_FRAMES = 8 * FPS
 # New transition‑speed configuration
 AMPLIFY_STEP = 0.4               # per‑frame increase while amplifying
-DECEL_STEP = 0.1             # per‑frame decrease while decelerating
+DECEL_STEP = 0.1            # per‑frame decrease while decelerating
 AMPLIFY_MAX_FACTOR = 50          # peak speed factor during amplify phase
 THRESHOLD_FACTOR = 40            # speed factor used during the hold phase
 TRANSITION_HOLD_FRAMES = 3 * FPS  # hold transition background for 3 seconds

@@ -158,6 +158,11 @@ class Game:
         else:
             self.planet_y = 0
         self.planet_sliding = True
+        # Next planet tracking for transition slide-in
+        self.next_planet_index = None
+        self.next_planet_y = 0
+        self.next_planet_sliding = False
+        self.decel_normal_frames = 0
 
         self.mini_boss_spawned = False
         self.level_cleared_timer = 0
@@ -318,6 +323,10 @@ class Game:
         self.transition_state = None
         self.transition_timer = 0
         self.current_speed_factors = list(PARALLAX_SPEED_FACTORS)
+        self.next_planet_index = None
+        self.next_planet_y = 0
+        self.next_planet_sliding = False
+        self.decel_normal_frames = 0
 
     def _present(self):
         """Blit the game surface onto the full‑screen display with black borders and flip."""
@@ -341,6 +350,7 @@ class Game:
             self.transition_state = "amplify"
             # start from the normal per‑layer factors
             self.current_speed_factors = list(PARALLAX_SPEED_FACTORS)
+            self.decel_normal_frames = 0
             return
 
         # Helper lambdas for ramping up/down
@@ -388,6 +398,18 @@ class Game:
         # E – Decelerate back to the original per‑layer factors
         # ---------------------------------------------------------------
         if self.transition_state == "decel_to_normal":
+            # Track frames in decel_to_normal phase
+            self.decel_normal_frames += 1
+            
+            # Total frames in this phase: (40 - 0) / 0.1 = 400 frames
+            # Initialize next planet 60 frames (1 second) before end
+            if self.decel_normal_frames == 340 and not self.next_planet_sliding:
+                next_idx = self.planet_index + 1
+                if next_idx in self.planets:
+                    self.next_planet_index = next_idx
+                    self.next_planet_y = -self.planets[next_idx].get_height()
+                    self.next_planet_sliding = True
+            
             # 1. Sicherstellen, dass die neuen Layer gesetzt sind
             # self.level_backgrounds[self.level] MUSS eine Liste von z.B. 4 Images sein
             if self.current_background_layers != self.level_backgrounds[self.level]:
@@ -421,14 +443,21 @@ class Game:
                 self.is_transition_active = False
                 self.transition_state = None
                 self.state = self.STATE_PLAYING
-                # Advance planet index after each completed transition
-                self.planet_index += 1
-                # Reset planet animation for the new planet
-                if self.planet_index in self.planets:
-                    self.planet_y = -self.planets[self.planet_index].get_height()
+                # Promote the next planet that was sliding in during transition
+                if self.next_planet_sliding and self.next_planet_index is not None:
+                    self.planet_index = self.next_planet_index
+                    self.planet_y = self.next_planet_y
+                    self.planet_sliding = self.next_planet_sliding
                 else:
-                    self.planet_y = 0
-                self.planet_sliding = True
+                    self.planet_index += 1
+                    if self.planet_index in self.planets:
+                        self.planet_y = -self.planets[self.planet_index].get_height()
+                    else:
+                        self.planet_y = 0
+                    self.planet_sliding = True
+                # Reset next planet tracking
+                self.next_planet_index = None
+                self.next_planet_sliding = False
                 # WICHTIG: Faktoren final festschreiben
                 self.current_speed_factors = list(PARALLAX_SPEED_FACTORS)
             return
@@ -656,11 +685,41 @@ class Game:
 
         # Safe despawn – hide the planet once it has fully moved below the visible area
         if self.planet_y > SCREEN_HEIGHT + planet_img.get_height():
-            return
+            pass  # Don't return, may still need to draw next planet
 
         # Position the planet using its top coordinate
         rect.top = int(self.planet_y)
         self.screen.blit(planet_img, rect)
+        
+        # Draw the next planet if it's sliding in during transition
+        if getattr(self, "next_planet_sliding", False) and self.next_planet_index is not None:
+            next_planet_img = self.planets.get(self.next_planet_index)
+            if next_planet_img:
+                next_rect = next_planet_img.get_rect()
+                next_rect.centerx = SCREEN_WIDTH // 2.5
+                
+                # Use background scroll speed (layer 0 speed factor) during transition
+                if self.is_transition_active:
+                    next_slide_speed = BASE_SCROLL_SPEED * self.current_speed_factors[0]
+                else:
+                    next_slide_speed = 0.35
+                
+                self.next_planet_y += next_slide_speed
+                
+                # After transition ends, behave like normal planet
+                if not self.is_transition_active:
+                    try:
+                        next_scroll_offset = self.layer_offsets[1] * PLANET_SCROLL_FACTOR
+                    except Exception:
+                        next_scroll_offset = 1
+                    next_normal_target_y = int(base_target_y + next_scroll_offset)
+                    if self.next_planet_y >= next_normal_target_y:
+                        self.next_planet_y = next_normal_target_y
+                
+                # Don't draw if fully off-screen below
+                if self.next_planet_y <= SCREEN_HEIGHT + next_planet_img.get_height():
+                    next_rect.top = int(self.next_planet_y)
+                    self.screen.blit(next_planet_img, next_rect)
 
     def _draw_end_screen(self):
         """Ruft die externe EndScreen-Klasse auf, um Sieg oder Niederlage anzuzeigen."""
