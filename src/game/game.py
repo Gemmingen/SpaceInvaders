@@ -263,6 +263,8 @@ class Game:
         self.level = 1
         self.planet_index = 0  # reset planet sequence for a fresh game (planet_0 visible)
         self.lives = 3
+        self.wave_number = 1
+        self._endless_wave_spawned = True  # First wave already spawned in create_enemy_wave()
         self.player = Player(SCREEN_WIDTH // 2, SCREEN_HEIGHT - 30)
         self.all_sprites = pygame.sprite.Group()
         self.explosions = pygame.sprite.Group()
@@ -656,8 +658,10 @@ class Game:
             self.score, 
             self.player_name,
             self.selected_key_coords,
-            is_victory=is_victory
-        )    
+            is_victory=is_victory,
+            game_mode=self.game_mode,
+            wave_number=self.wave_number
+        )
 
     def _spawn_ufo(self):
         ufo = UFO()
@@ -778,7 +782,7 @@ class Game:
                             
                             if char == 'OK':
                                 if len(self.player_name) > 0:
-                                    self.save_highscore()
+                                    self.save_highscore(self.game_mode)
                                     self.state = self.STATE_MENU
                             elif char == '<':
                                 self.player_name = self.player_name[:-1]
@@ -852,12 +856,25 @@ class Game:
                             self.level_cleared_timer = 5 * FPS
                         elif self.mini_boss_spawned and not self.miniboss_group:
                             self.advance_level()
+                    elif self.game_mode == "endless":
+                        # ENDLESS MODUS: Nächste Welle sofort spawnen
+                        if not getattr(self, '_endless_wave_spawned', False):
+                            self.wave_number += 1
+                            self.create_enemy_wave()
+                            self.score += 500
+                            self._endless_wave_spawned = True
+                            # Cycle background/planet every 5 waves
+                            if self.wave_number % 5 == 0:
+                                self.planet_index = (self.planet_index + 1) % self.MAX_LEVEL
+                                if self.planet_index in self.planets:
+                                    self.planet_y = -self.planets[self.planet_index].get_height()
+                                    self.planet_sliding = True
+                                self.current_background_layers = self.level_backgrounds[(self.planet_index % self.MAX_LEVEL) + 1]
+                                self.layer_offsets = [INITIAL_SCROLL] * PARALLAX_LAYERS
                 else:
-                    # ENDLESS MODUS: Keine Bosse, direkt nächste Welle
-                    self.wave_number += 1
-                    self.create_enemy_wave()
-                    # Optional: Kleiner Bonus-Score pro Welle
-                    self.score += 500
+                    # Reset the flag when enemies are present
+                    if self.game_mode == "endless":
+                        self._endless_wave_spawned = False
 
                 # --- 6. Zeichnen ---
                 # Parallax background drawing (all layers)
@@ -918,35 +935,44 @@ class Game:
                 self._draw_end_screen()
                 self.explosions.draw(self.screen)
                 self._present() 
-    def save_highscore(self):
+    def save_highscore(self, game_mode="story"):
         # Pfad-Logik: Findet den Hauptordner deines Projekts
         base_path = os.path.dirname(os.path.abspath(__file__))
         # Da game.py in src/game/ liegt, gehen wir zwei Ebenen hoch
         root_path = os.path.dirname(os.path.dirname(base_path))
         filename = os.path.join(root_path, "highsscores.json")
         
-        data = []
+        data = {}
         
         # 1. Bestehende Scores laden
         if os.path.exists(filename):
             with open(filename, "r") as f:
                 try: 
                     data = json.load(f)
-                    # Sicherstellen, dass es eine Liste ist
-                    if not isinstance(data, list):
-                        data = []
+                    # Sicherstellen, dass es ein Dict ist
+                    if not isinstance(data, dict):
+                        data = {"story": [], "endless": []}
                 except:
-                    # Falls die Datei korrupt oder leer ist
-                    data = []
+                    data = {"story": [], "endless": []}
+        
+        # Ensure both keys exist
+        if "story" not in data:
+            data["story"] = []
+        if "endless" not in data:
+            data["endless"] = []
         
         # 2. Aktuellen Versuch hinzufügen
-        data.append({"name": self.player_name, "score": self.score})
+        entry = {"name": self.player_name, "score": self.score}
+        if self.game_mode == "endless":
+            entry["wave"] = self.wave_number
+        
+        data[game_mode].append(entry)
         
         # 3. Sortieren (höchster Score oben)
-        data.sort(key=lambda x: x["score"], reverse=True)
+        data[game_mode].sort(key=lambda x: x["score"], reverse=True)
         
         # 4. Nur die Top 5 behalten
-        data = data[:5]
+        data[game_mode] = data[game_mode][:5]
         
         # 5. Speichern
         with open(filename, "w") as f:

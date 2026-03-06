@@ -24,7 +24,7 @@ class EndScreen:
         self.overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
         self.overlay.fill((0, 0, 0, 220))
 
-    def draw(self, surface, state, score, player_name, selected_key_coords, is_victory=False):
+    def draw(self, surface, state, score, player_name, selected_key_coords, is_victory=False, game_mode="story", wave_number=1):
         """
         Zeichnet den kompletten Endbildschirm inkl. asynchronem Blinken.
         """
@@ -50,7 +50,10 @@ class EndScreen:
             surface.blit(title_surf, title_rect)
 
         # 3. Score anzeigen (Immer sichtbar)
-        score_surf = self.key_font.render(f"SCORE:{score}", True, (255, 215, 0))
+        if game_mode == "endless":
+            score_surf = self.key_font.render(f"WAVE:{wave_number}  SCORE:{score}", True, (255, 215, 0))
+        else:
+            score_surf = self.key_font.render(f"SCORE:{score}", True, (255, 215, 0))
         score_rect = score_surf.get_rect(center=(SCREEN_WIDTH // 2, 200))
         surface.blit(score_surf, score_rect)
 

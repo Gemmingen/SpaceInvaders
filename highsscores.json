@@ -1,14 +1,20 @@
-[
-    {
-        "name": "MACID",
-        "score": 3812
-    },
-    {
-        "name": "A",
-        "score": 100
-    },
-    {
-        "name": "AAAAAAAAA",
-        "score": 100
-    }
-]
+{
+    "story": [
+        {
+            "name": "ADOLFMMMMMMIIIII",
+            "score": 2500
+        }
+    ],
+    "endless": [
+        {
+            "name": "ADOLF",
+            "score": 700,
+            "wave": 1
+        },
+        {
+            "name": "ADOLFMMMMMM",
+            "score": 0,
+            "wave": 1
+        }
+    ]
+}
