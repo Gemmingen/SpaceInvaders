@@ -178,16 +178,24 @@ class Game:
     def handle_bunker_collision(self, bullet, bunker_group):
         """Exact mask collision – apply bullet‑specific damage to a bunker.
         Special case: LaserLine instantly destroys all bunkers."""
-        # Special case: LaserLine destroys all bunkers instantly
+        # Special case: LaserLine – destroy bunkers only on real contact
         if isinstance(bullet, LaserLine):
-            # Create a large explosion for each bunker and remove it
+            # Get the laser's current hitboxes (segments)
+            laser_hitboxes = bullet.get_hitboxes()
+            # Check each bunker for overlap with any segment
             for b in list(bunker_group):
-                from src.game.explosion import Explosion
-                explosion = Explosion(b.rect.centerx, b.rect.centery, size=64)
-                self.explosions.add(explosion)
-                self.all_sprites.add(explosion)
-                b.kill()
-            # Laser continues moving
+                if any(laser_rect.colliderect(b.rect) for laser_rect in laser_hitboxes):
+                    # Hit detected – explode all bunkers
+                    from src.game.explosion import Explosion
+                    for bomb in list(bunker_group):
+                        exp = Explosion(bomb.rect.centerx, bomb.rect.centery, size=64)
+                        self.explosions.add(exp)
+                        self.all_sprites.add(exp)
+                        bomb.kill()
+                    # Remove the laser as well (it disappears after hitting)
+                    bullet.kill()
+                    break
+            # Whether we hit or not, we do not process this bullet further
             return
 
         # Normal collision handling
