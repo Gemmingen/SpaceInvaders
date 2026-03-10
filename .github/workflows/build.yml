@@ -1,59 +1,78 @@
-name: Build Launcher (Cross-Platform)
+name: Build-Space-Invaders-Release
 
 on:
   push:
     branches:
       - main
     tags:
-      - 'v*' 
-  workflow_dispatch: 
+      - 'v*' # Triggert bei Versionstags wie v1.0.0
+  workflow_dispatch: # Ermöglicht manuelles Starten zum Testen
 
 permissions:
   contents: write
 
 jobs:
   build:
-    name: Build auf ${{ matrix.os }}
+    name: Build auf ${{ matrix.artifact_name }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, macos-latest, ubuntu-latest]
+        include:
+          - os: windows-latest
+            artifact_name: Windows
+          - os: macos-latest
+            artifact_name: Mac_Silicon
+          - os: macos-latest
+            artifact_name: Mac_Intel
+          - os: ubuntu-latest
+            artifact_name: Linux
 
     steps:
-      - name: 1. Code auschecken
+      - name: Code auschecken
         uses: actions/checkout@v4
 
-      - name: 2. Python installieren
+      - name: Python installieren
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.10' # Stabilste Version für Cross-Builds
 
-      - name: 3. Bibliotheken installieren
+      - name: Abhängigkeiten installieren
         run: |
           python -m pip install --upgrade pip
-          pip install pygame pyinstaller
+          # Fix für den NullProvider-Fehler bei PyInstaller/Setuptools
+          pip install "setuptools<69.0.0" pygame pyinstaller
 
-      - name: 4. Launcher verpacken
-        run: |
-          pyinstaller --noconsole launcher.py
-
-      - name: 5. Artefakt hochladen
-        uses: actions/upload-artifact@v4
-        with:
-          name: Arcade-Launcher-${{ matrix.os }}
-          path: dist/
-
-      - name: 6. Zippen (Nur bei Tag)
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: PyInstaller Build
         shell: bash
         run: |
-          python -c "import shutil; shutil.make_archive('Launcher-${{ matrix.os }}', 'zip', 'dist')"
+          if [[ "${{ matrix.artifact_name }}" == "Mac_Intel" ]]; then
+            # Erzwingt Intel-Architektur (x86_64) für das MacBook Pro
+            arch -x86_64 python -m pip install --upgrade pip
+            arch -x86_64 pip install "setuptools<69.0.0" pygame pyinstaller --force-reinstall
+            arch -x86_64 pyinstaller --noconsole main.py
+          else
+            # Standard-Build für alle anderen Systeme
+            pyinstaller --noconsole main.py
+          fi
+          # Kopiere wichtige Spieldaten in den dist-Ordner
+          cp -r assets dist/main/ || true
+          cp highsscores.json dist/main/ || true
 
-      - name: 7. Release erstellen (Nur bei Tag)
+      - name: Archivieren (ZIP erstellen)
+        shell: bash
+        run: python -c "import shutil; shutil.make_archive('SpaceInvaders-${{ matrix.artifact_name }}', 'zip', 'dist/main')"
+
+      - name: Test-Artifact hochladen (Immer)
+        uses: actions/upload-artifact@v4
+        with:
+          name: SpaceInvaders-${{ matrix.artifact_name }}
+          path: SpaceInvaders-${{ matrix.artifact_name }}.zip
+
+      - name: Release erstellen (Nur bei Tag)
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: Launcher-${{ matrix.os }}.zip
+          files: SpaceInvaders-${{ matrix.artifact_name }}.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
