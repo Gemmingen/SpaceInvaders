@@ -5,11 +5,8 @@ on:
     branches:
       - main
     tags:
-      - 'v*'
-  pull_request:
-    branches:
-      - main
-  workflow_dispatch:
+      - 'v*' 
+  workflow_dispatch: 
 
 permissions:
   contents: write
@@ -41,7 +38,7 @@ jobs:
         run: |
           pyinstaller --noconsole launcher.py
 
-      - name: 5. Artefakt hochladen (Immer)
+      - name: 5. Artefakt hochladen
         uses: actions/upload-artifact@v4
         with:
           name: Arcade-Launcher-${{ matrix.os }}
