@@ -1,20 +1,24 @@
 name: Build Launcher (Cross-Platform)
 
-# Wann soll das Script laufen? Bei jedem Push auf den "main" Branch.
 on:
   push:
     branches: [ main ]
+    tags:
+      - 'v*' # Triggert das Release bei Version-Tags
   pull_request:
     branches: [ main ]
+  workflow_dispatch: # Ermöglicht manuelles Starten
+
+permissions:
+  contents: write # Erlaubt das Hochladen der Dateien in die Releases
 
 jobs:
   build:
     name: Build auf ${{ matrix.os }}
-    # HIER PASSIERT DIE MAGIE: Die Matrix-Strategie
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false # Verhindert, dass ein Fehler auf einem OS alle anderen abbricht
       matrix:
-        # GitHub startet für jedes dieser Systeme parallel einen eigenen Job!
         os: [windows-latest, macos-latest, ubuntu-latest]
 
     steps:
@@ -24,7 +28,7 @@ jobs:
       - name: 2. Python installieren
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11' # Eine stabile Python-Version
+          python-version: '3.11'
 
       - name: 3. Bibliotheken installieren (Pygame & PyInstaller)
         run: |
@@ -32,14 +36,26 @@ jobs:
           pip install pygame pyinstaller
 
       - name: 4. Launcher verpacken (PyInstaller ausführen)
-        # Auf jedem System wird jetzt PyInstaller ausgeführt
         run: |
           pyinstaller --noconsole launcher.py
 
       - name: 5. Fertige Dateien als Download (Artefakt) bereitstellen
         uses: actions/upload-artifact@v4
         with:
-          # Der Name des Downloads ändert sich je nach Betriebssystem dynamisch
           name: Arcade-Launcher-${{ matrix.os }}
-          # Er lädt den kompletten dist-Ordner hoch, in dem eure fertige Datei liegt
           path: dist/
+
+      - name: 6. Dateien für Release zippen
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          # Erstellt ein ZIP-Archiv vom Inhalt des dist-Ordners
+          python -c "import shutil; shutil.make_archive('Launcher-${{ matrix.os }}', 'zip', 'dist')"
+
+      - name: 7. Release erstellen und Dateien hochladen
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: Launcher-${{ matrix.os }}.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
