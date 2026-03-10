@@ -5,8 +5,8 @@ on:
     branches:
       - main
     tags:
-      - 'v*' # Triggert bei Versionstags wie v1.0.0
-  workflow_dispatch: # Ermöglicht manuelles Starten zum Testen
+      - 'v*'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -35,41 +35,40 @@ jobs:
       - name: Python installieren
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10' # Stabilste Version für Cross-Builds
+          python-version: '3.10'
 
       - name: Abhängigkeiten installieren
         run: |
           python -m pip install --upgrade pip
-          # Fix für den NullProvider-Fehler bei PyInstaller/Setuptools
           pip install "setuptools<69.0.0" pygame pyinstaller
 
       - name: PyInstaller Build
         shell: bash
         run: |
+          # Der Parameter -n game erzwingt den Namen game.exe / game.app
           if [[ "${{ matrix.artifact_name }}" == "Mac_Intel" ]]; then
-            # Erzwingt Intel-Architektur (x86_64) für das MacBook Pro
             arch -x86_64 python -m pip install --upgrade pip
             arch -x86_64 pip install "setuptools<69.0.0" pygame pyinstaller --force-reinstall
-            arch -x86_64 pyinstaller --noconsole main.py
+            arch -x86_64 pyinstaller --noconsole -n game main.py
           else
-            # Standard-Build für alle anderen Systeme
-            pyinstaller --noconsole main.py
+            pyinstaller --noconsole -n game main.py
           fi
-          # Kopiere wichtige Spieldaten in den dist-Ordner
-          cp -r assets dist/main/ || true
-          cp highsscores.json dist/main/ || true
+          
+          # Ordnername in dist/ ist nun durch -n game ebenfalls "game"
+          cp -r assets dist/game/ || true
+          cp highsscores.json dist/game/ || true
 
       - name: Archivieren (ZIP erstellen)
         shell: bash
-        run: python -c "import shutil; shutil.make_archive('SpaceInvaders-${{ matrix.artifact_name }}', 'zip', 'dist/main')"
+        run: python -c "import shutil; shutil.make_archive('SpaceInvaders-${{ matrix.artifact_name }}', 'zip', 'dist/game')"
 
-      - name: Test-Artifact hochladen (Immer)
+      - name: Test-Artifact hochladen
         uses: actions/upload-artifact@v4
         with:
           name: SpaceInvaders-${{ matrix.artifact_name }}
           path: SpaceInvaders-${{ matrix.artifact_name }}.zip
 
-      - name: Release erstellen (Nur bei Tag)
+      - name: Release erstellen
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
