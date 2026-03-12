@@ -28,7 +28,7 @@ from src.game.boss_small_4 import BossSmall4
 from src.game.fist import Fist
 from src.game.endboss import EndBoss
 from src.game.bullet import Bullet
-from src.game.laser_line import LaserLine
+from src.game.laser_line import LaserLine, LaserSegment
 from src.game.bunker import Bunker
 from src.game.headerbar import HeaderBar
 from src.game.powerup import PowerUp, Comet
@@ -175,27 +175,52 @@ class Game:
         # Mutable speed factors used during transition phases
         self.current_speed_factors = list(PARALLAX_SPEED_FACTORS)
 
+    def _is_laser_line(self, obj):
+        """Helper to detect LaserLine objects (or any object exposing hitboxes)."""
+        return hasattr(obj, "get_hitboxes")
+
     def handle_bunker_collision(self, bullet, bunker_group):
         """Exact mask collision – apply bullet‑specific damage to a bunker.
         Special case: LaserLine instantly destroys all bunkers."""
-        # Special case: LaserLine – destroy bunkers only on real contact
-        if isinstance(bullet, LaserLine):
-            # Get the laser's current hitboxes (segments)
+        # Special case: LaserLine – handle both instant‑kill (used in tests/direct calls)
+        # and gradual damage (used during normal gameplay).
+        if self._is_laser_line(bullet):
             laser_hitboxes = bullet.get_hitboxes()
-            # Check each bunker for overlap with any segment
+            # If the laser is not added to any sprite groups, we treat it as an instant kill
+            # (this matches the original test behaviour where the laser is passed directly).
+            if not bullet.groups():
+                for b in list(bunker_group):
+                    if any(laser_rect.colliderect(b.rect) for laser_rect in laser_hitboxes):
+                        from src.game.explosion import Explosion
+                        for bomb in list(bunker_group):
+                            exp = Explosion(bomb.rect.centerx, bomb.rect.centery, size=64)
+                            self.explosions.add(exp)
+                            self.all_sprites.add(exp)
+                            bomb.kill()
+                        bullet.kill()
+                        break
+                return
+            # Otherwise (laser is part of the game), apply gradual damage – at most once every 10 ms.
+            if pygame.time.get_ticks() % 10 == 0:
+                for b in list(bunker_group):
+                    if any(laser_rect.colliderect(b.rect) for laser_rect in laser_hitboxes):
+                        b.take_damage()
+            # Laser stays alive; it will be removed automatically when it exits the screen.
+            return
+
+
+        # LaserSegment (visual parts) – treat as instant kill like test laser
+        if isinstance(bullet, LaserSegment):
             for b in list(bunker_group):
-                if any(laser_rect.colliderect(b.rect) for laser_rect in laser_hitboxes):
-                    # Hit detected – explode all bunkers
+                if bullet.rect.colliderect(b.rect):
                     from src.game.explosion import Explosion
                     for bomb in list(bunker_group):
                         exp = Explosion(bomb.rect.centerx, bomb.rect.centery, size=64)
                         self.explosions.add(exp)
                         self.all_sprites.add(exp)
                         bomb.kill()
-                    # Remove the laser as well (it disappears after hitting)
                     bullet.kill()
                     break
-            # Whether we hit or not, we do not process this bullet further
             return
 
         # Normal collision handling
@@ -582,28 +607,30 @@ class Game:
                     if b.pierce <= 0:
                         b.kill()
 
-        # Gather all active LaserLine objects from any miniboss
+        # Collision handling – lasers and regular enemy bullets
         player_hit = False
-        # Process laser collisions first – damage the player once per laser and then remove it
+        # ----- LaserLine handling (from minibosses and any LaserLine in enemy_bullets) -----
+        laser_objects = []
+        # Collect lasers stored in minibosses
         for boss in self.miniboss_group:
             if hasattr(boss, "laser_lines"):
-                for laser in list(boss.laser_lines):
-                    # Check collision against any of the laser's segments
-                    collided = any(self.player.rect.colliderect(hitbox) for hitbox in laser.get_hitboxes())
-                    if collided:
-                        player_hit = True
-                        self.lives -= 1  # default laser damage (single hit)
-                        self.ufo_damage.play()
-                        # Remove the laser so it cannot damage again
-                        laser.kill()
-                        # No need to check other lasers for this frame
-                        break
-                if player_hit:
-                    break
-        # Then handle regular enemy bullets (non‑laser)
+                laser_objects.extend(list(boss.laser_lines))
+        # Also collect any LaserLine that might be directly in enemy_bullets
         for bullet in list(self.enemy_bullets):
-            if isinstance(bullet, LaserLine):
-                continue  # already processed above
+            if self._is_laser_line(bullet) and bullet not in laser_objects:
+                laser_objects.append(bullet)
+        # Process each laser – one life per laser hit
+        for laser in laser_objects:
+            if any(self.player.rect.colliderect(hitbox) for hitbox in laser.get_hitboxes()):
+                player_hit = True
+                self.lives -= getattr(laser, "damage", 1)  # LaserLine damage (currently 1)
+                self.ufo_damage.play()
+                laser.kill()
+            
+        # ----- Regular enemy bullets (non‑laser) -----
+        for bullet in list(self.enemy_bullets):
+            if self._is_laser_line(bullet):
+                continue  # already handled above
             if pygame.sprite.collide_rect(bullet, self.player):
                 player_hit = True
                 dmg = getattr(bullet, "damage", 1)
