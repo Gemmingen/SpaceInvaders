@@ -55,7 +55,7 @@ class BossSmall2(MiniBossBase):
     def __init__(self, health=3, speed=2):
         super().__init__("assets/boss-small2.png", health, speed)
         # Position the boss near the top centre
-        self.base_y = int(SCREEN_HEIGHT * 0.10)
+        self.base_y = int(SCREEN_HEIGHT * 0.20)
         self.rect.centerx = SCREEN_WIDTH // 2
         self.rect.centery = self.base_y
 
@@ -73,6 +73,7 @@ class BossSmall2(MiniBossBase):
         self.laser_count = 0
         self.orb_shake_timer = 0
         self.explosion_timer = 0
+        self.invincible = False
 
         # Sprite groups for orbs and lasers
         self.orbs = pygame.sprite.Group()
@@ -96,6 +97,7 @@ class BossSmall2(MiniBossBase):
         self.attack_substate = self.ATTACK_FLASH
         self.flash_timer = BOSS2_FLASH_DURATION * FPS
         self.is_flashing = True
+        self.invincible = True
 
     def spawn_orbs(self):
         """Create the left and right orbs and add them to the relevant groups."""
@@ -348,6 +350,7 @@ class BossSmall2(MiniBossBase):
         self.move_timer = BOSS2_MOVE_DURATION * FPS
         self.attack_substate = None
         self.is_flashing = False
+        self.invincible = False
         self.image = self.original_image.copy()
         # Reset laser counters for the next attack
         self.laser_spawn_timer = 0
@@ -369,6 +372,8 @@ class BossSmall2(MiniBossBase):
         return [orb.rect for orb in self.orbs]
 
     def hit(self):
+        if getattr(self, "invincible", False):
+            return
         self.health -= 1
         if self.health <= 0:
             self.orbs.empty()
