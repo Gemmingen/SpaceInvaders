@@ -22,7 +22,7 @@ BULLET_SPEED = 10
 
 # Enemy wave per level – can be tweaked later
 TEST_AMOUNT = 1
-
+TEST_START_LEVEL = 2
 ENEMY_WAVE_SETTINGS = {
     1: dict(rows=TEST_AMOUNT, cols=TEST_AMOUNT, speed=ENEMY_SPEED, shoot_chance=ENEMY_SHOOT_CHANCE),
     2: dict(rows=TEST_AMOUNT, cols=TEST_AMOUNT, speed=ENEMY_SPEED, shoot_chance=ENEMY_SHOOT_CHANCE),
@@ -110,3 +110,26 @@ POWERUP_SPEED_MULTIPLIER = 1.5   # 50% schneller
 POWERUP_SPEED_DURATION = 5       # in Sekunden
 POWERUP_DOUBLESHOT_DURATION = 5  # in Sekunden
 POWERUP_TRIPLESHOT_DURATION = 5  # in Sekunden
+
+# BossSmall2 (Level 2) Attack Pattern Settings
+BOSS2_LASER_SPRITE = "assets/laser-element.png"
+BOSS2_LASER_SPRITE_WIDTH = 25
+BOSS2_CHARGE_FRAMES = 60  # 1 second at 60 FPS
+
+BOSS2_MOVE_DURATION = 5
+BOSS2_FLASH_DURATION = 1
+BOSS2_ORB_ARC_DURATION = 1
+BOSS2_ORB_Y_PERCENT = 0.25
+BOSS2_LASER_SPAWN_INTERVAL = 1.2
+BOSS2_LASER_COUNT = 5
+BOSS2_LASER_SPEED = 5
+BOSS2_GAP_WIDTH_MULTIPLIER = 3.0
+BOSS2_GAP_RANDOM_RANGE = 100
+# Horizontal offset to shift the entire laser line to the right (positive moves right)
+BOSS2_LASER_X_OFFSET = 50
+# Optional extra margin between laser and orb edges (pixels). Adjust for visual spacing.
+BOSS2_LASER_ORB_MARGIN = 4
+# Laser build‑up and pause configuration for BossSmall2
+BOSS2_LASER_BUILD_INTERVAL = 0.1  # seconds per growth step (adds one sprite width each step)
+# Tiny pause after the laser is fully built before it starts moving downward
+BOSS2_LASER_PAUSE_FRAMES = int(FPS * 0.05)  # ~3 frames at 60 FPS (≈0.05 s)
