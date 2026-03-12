@@ -11,6 +11,7 @@ import pygame
 # All boss‑level fist behavior (charging, launching, homing) is handled here.
 
 import math
+from src.game.explosion import Explosion
 from src.config.config import (
     FIST_CHARGE_TIME,
     FIST_FLASH_COLORS,
@@ -95,6 +96,9 @@ class Fist(pygame.sprite.Sprite):
 
     # -----------------------------------------------------------------
     def update(self, *args, **kwargs):
+        # Retrieve optional groups for explosion handling
+        explosions_group = kwargs.get('explosions')
+        all_sprites_group = kwargs.get('all_sprites')
         # -----------------------------------------------------------------
         # ATTACHED – simply hover above the boss
         if self.state == "attached":
@@ -144,6 +148,12 @@ class Fist(pygame.sprite.Sprite):
 
         # Remove only after the fist fully leaves the screen (prevents premature death)
         if (self.rect.right < 0 or self.rect.left > SCREEN_WIDTH or
-            self.rect.bottom < 0 or self.rect.top > SCREEN_HEIGHT):  # Also remove if it reaches the player
+            self.rect.bottom < 0 or self.rect.top > SCREEN_HEIGHT):
+            # Create a single explosion instance and add it to both groups (if provided)
+            exp = Explosion(self.rect.centerx, self.rect.centery, size=64)
+            if explosions_group is not None:
+                explosions_group.add(exp)
+            if all_sprites_group is not None:
+                all_sprites_group.add(exp)
             self.kill()
     

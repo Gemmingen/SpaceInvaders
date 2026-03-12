@@ -210,8 +210,9 @@ class Game:
         if hit_bunker:
             # Fist has its own special effect
             if isinstance(bullet, Fist):
-                from src.game.explosion import Explosion
-                self.all_sprites.add(Explosion(bullet.rect.centerx, bullet.rect.centery, size=64))
+                exp = Explosion(bullet.rect.centerx, bullet.rect.centery, size=64)
+                self.explosions.add(exp)
+                self.all_sprites.add(exp)
                 hit_bunker.take_damage()
             else:
                 damage = getattr(bullet, "damage", 1)
@@ -219,8 +220,10 @@ class Game:
                     hit_bunker.take_damage()
             # Explosion when bunker is fully destroyed
             if not hit_bunker.alive():
-                from src.game.explosion import Explosion
-                self.all_sprites.add(Explosion(hit_bunker.rect.centerx, hit_bunker.rect.centery, size=96))
+                # Bunker destroyed – create explosion and add to both groups
+                exp = Explosion(hit_bunker.rect.centerx, hit_bunker.rect.centery, size=96)
+                self.explosions.add(exp)
+                self.all_sprites.add(exp)
             # Piercing logic
             if hasattr(bullet, "pierce"):
                 bullet.pierce -= 1
