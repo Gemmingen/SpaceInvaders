@@ -146,8 +146,13 @@ class BossSmall2(MiniBossBase):
             for orb in (left_orb, right_orb):
                 self._all_sprites.remove(orb)
                 self._all_sprites.add(orb)
-        if self._enemy_bullets:
-            self._enemy_bullets.add(laser)
+        # The parent LaserLine is deliberately NOT added to the enemy_bullets group.
+        # Only its visual segments are added later in the update() method. This prevents the
+        # tiny placeholder rect of the LaserLine from being killed on a player hit, which would
+        # freeze the beam and leave its segments stranded on screen.
+        # (We keep the block commented out for reference.)
+        # if self._enemy_bullets:
+        #     self._enemy_bullets.add(laser)
 
     def cleanup_orbs(self, spawn_only=False):
         """Create an explosion at each orb position.
@@ -183,10 +188,20 @@ class BossSmall2(MiniBossBase):
         # Ensure laser segments are present in the global groups (draw / collision)
         if self._all_sprites:
             for laser in self.laser_lines:
-                self._all_sprites.add(laser.segments)
-        if self._enemy_bullets:
+                # Add each segment sprite individually so they are drawn and collide
+                self._all_sprites.add(*laser.segments)
+        if self._enemy_bullets is not None:
             for laser in self.laser_lines:
-                self._enemy_bullets.add(laser.segments)
+                # Ensure each segment has a mask for pixel‑perfect bunker collisions.
+                # This is only done once per segment; subsequent frames skip the
+                # creation because the attribute already exists.
+                for segment in laser.segments:
+                    if not hasattr(segment, "mask") and hasattr(segment, "image"):
+                        segment.mask = pygame.mask.from_surface(segment.image)
+                # Add the segment group (not the parent LaserLine) to the global
+                # enemy‑bullet group so the player can still be hit.
+                # Add each segment individually to enemy bullets for collision handling
+                self._enemy_bullets.add(*laser.segments)
 
     # ------------------------------------------------------------------
     # State implementations

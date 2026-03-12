@@ -180,108 +180,54 @@ class Game:
         return hasattr(obj, "get_hitboxes")
 
     def handle_bunker_collision(self, bullet, bunker_group):
-        """Exact mask collision – apply bullet‑specific damage to a bunker.
-        Special case: LaserLine instantly destroys all bunkers."""
-        # Special case: LaserLine – handle both instant‑kill (used in tests/direct calls)
-        # and gradual damage (used during normal gameplay).
-        if self._is_laser_line(bullet):
-            laser_hitboxes = bullet.get_hitboxes()
-            # If the laser is not added to any sprite groups, we treat it as an instant kill
-            # (this matches the original test behaviour where the laser is passed directly).
-            if not bullet.groups():
-                for b in list(bunker_group):
-                    if any(laser_rect.colliderect(b.rect) for laser_rect in laser_hitboxes):
-                        from src.game.explosion import Explosion
-                        for bomb in list(bunker_group):
-                            exp = Explosion(bomb.rect.centerx, bomb.rect.centery, size=64)
-                            self.explosions.add(exp)
-                            self.all_sprites.add(exp)
-                            bomb.kill()
-                        bullet.kill()
-                        break
-                return
-            # Otherwise (laser is part of the game), apply gradual damage – at most once every 10 ms.
-            if pygame.time.get_ticks() % 10 == 0:
-                for b in list(bunker_group):
-                    if any(laser_rect.colliderect(b.rect) for laser_rect in laser_hitboxes):
-                        b.take_damage()
-            # Laser stays alive; it will be removed automatically when it exits the screen.
-            return
-
-
-        # LaserSegment (visual parts) – treat as instant kill like test laser
-        if isinstance(bullet, LaserSegment):
+        """Handle collisions between projectiles (including lasers) and bunkers.
+        LaserLine objects and LaserSegments instantly destroy any bunker they intersect and
+        are then removed from the game. Regular bullets apply damage and respect pierce.
+        """
+        # ---------- Laser handling (LaserLine or segments) ----------
+        if self._is_laser_line(bullet) or isinstance(bullet, LaserSegment):
+            # Gather hitboxes: LaserLine provides a list, segment provides its rect.
+            hitboxes = bullet.get_hitboxes() if self._is_laser_line(bullet) else [bullet.rect]
+            hit_any = False
             for b in list(bunker_group):
-                if bullet.rect.colliderect(b.rect):
+                if any(laser_rect.colliderect(b.rect) for laser_rect in hitboxes):
                     from src.game.explosion import Explosion
-                    for bomb in list(bunker_group):
-                        exp = Explosion(bomb.rect.centerx, bomb.rect.centery, size=64)
-                        self.explosions.add(exp)
-                        self.all_sprites.add(exp)
-                        bomb.kill()
-                    bullet.kill()
-                    break
+                    exp = Explosion(b.rect.centerx, b.rect.centery, size=96)
+                    self.explosions.add(exp)
+                    self.all_sprites.add(exp)
+                    b.kill()
+                    hit_any = True
+            if hit_any:
+                # Remove all bunkers (laser clears entire line)
+                bunker_group.empty()
+                bullet.kill()   # laser disappears after destroying a bunker
             return
 
-        # Normal collision handling
+        # ---------- Normal projectile handling ----------
         hit_bunker = pygame.sprite.spritecollideany(
             bullet, bunker_group, pygame.sprite.collide_mask
         )
         if hit_bunker:
-            # bullets may carry a custom damage attribute (default = 1)
-            damage = getattr(bullet, "damage", 1)
-            for _ in range(damage):
-                hit_bunker.take_damage()
-
-            # Explosion for fist hit
+            # Fist has its own special effect
             if isinstance(bullet, Fist):
                 from src.game.explosion import Explosion
-                import random
-
-                # 1. Main explosion at impact point
-                impact_x = (bullet.rect.centerx + hit_bunker.rect.centerx) // 2
-                impact_y = (bullet.rect.centery + hit_bunker.rect.centery) // 2
-
-                main_explosion = Explosion(impact_x, impact_y, size=64)
-                self.explosions.add(main_explosion)
-                self.all_sprites.add(main_explosion)
-
-                # 2. Additional small explosion at a random offset
-                min_distance_sq = 40 ** 2
-                sec_x, sec_y = impact_x, impact_y
-                found = False
-                for _ in range(10):
-                    offset_x = random.randint(-45, 45)
-                    offset_y = random.randint(-45, 45)
-                    sec_x = hit_bunker.rect.centerx + offset_x
-                    sec_y = hit_bunker.rect.centery + offset_y
-                    dist_sq = (sec_x - impact_x) ** 2 + (sec_y - impact_y) ** 2
-                    if dist_sq >= min_distance_sq:
-                        found = True
-                        break
-                if not found:
-                    sec_x, sec_y = impact_x, impact_y
-                secondary_explosion = Explosion(sec_x, sec_y, size=32)
-                self.explosions.add(secondary_explosion)
-                self.all_sprites.add(secondary_explosion)
-
-            # If the bunker was destroyed, spawn a large explosion (size 64)
+                self.all_sprites.add(Explosion(bullet.rect.centerx, bullet.rect.centery, size=64))
+                hit_bunker.take_damage()
+            else:
+                damage = getattr(bullet, "damage", 1)
+                for _ in range(damage):
+                    hit_bunker.take_damage()
+            # Explosion when bunker is fully destroyed
             if not hit_bunker.alive():
                 from src.game.explosion import Explosion
-                explosion = Explosion(hit_bunker.rect.centerx,
-                                      hit_bunker.rect.centery,
-                                      size=64)
-                self.explosions.add(explosion)
-                self.all_sprites.add(explosion)
-
-            # Pierce system for bullets
+                self.all_sprites.add(Explosion(hit_bunker.rect.centerx, hit_bunker.rect.centery, size=96))
+            # Piercing logic
             if hasattr(bullet, "pierce"):
                 bullet.pierce -= 1
                 if bullet.pierce <= 0:
                     bullet.kill()
             else:
                 bullet.kill()
-
 
     def rebuild_bunkers(self):
         # Alte Reste der Bunker zerstören
@@ -593,7 +539,7 @@ class Game:
                             self.all_sprites.add(powerup)
                             break  # Verhindert, dass ein Gegner 2 Items droppt
             self.score += len(hits) * 100
-
+        
         # UFO vs player bullet
         bonushits = pygame.sprite.groupcollide(self.ufo_group, self.player_bullets, True, False)
         if bonushits:
@@ -966,6 +912,7 @@ class Game:
                     self.handle_bunker_collision(bullet, self.bunkers)
                 for bomb in self.enemy_bullets:
                     self.handle_bunker_collision(bomb, self.bunkers)
+                
 
                 # --- 4. Timer, Gegner-Logik & generelle Kollisionen ---
                 self._handle_enemy_movement()
