@@ -112,6 +112,7 @@ POWERUP_DOUBLESHOT_DURATION = 5  # in Sekunden
 POWERUP_TRIPLESHOT_DURATION = 5  # in Sekunden
 
 # BossSmall2 (Level 2) Attack Pattern Settings
+
 BOSS2_LASER_SPRITE = "assets/laser-element.png"
 BOSS2_LASER_SPRITE_WIDTH = 25
 BOSS2_CHARGE_FRAMES = 60  # 1 second at 60 FPS
@@ -123,6 +124,12 @@ BOSS2_ORB_Y_PERCENT = 0.25
 BOSS2_LASER_SPAWN_INTERVAL = 1.2
 BOSS2_LASER_COUNT = 5
 BOSS2_LASER_SPEED = 5
+
+# Side‑laser configuration – these lasers sit on the centre of each orb
+BOSS2_SIDE_LASER_SPRITE = "assets/downward-laser.png"
+BOSS2_SIDE_LASER_SPEED = BOSS2_LASER_SPEED  # same downward speed as the main laser
+BOSS2_SIDE_LASER_PAUSE_FRAMES = BOSS2_CHARGE_FRAMES  # pause before moving, same as main laser
+BOSS2_SIDE_LASER_OFFSET = 0  # horizontal offset when centering on orb (0 = exact centre)
 BOSS2_GAP_WIDTH_MULTIPLIER = 3.0
 BOSS2_GAP_RANDOM_RANGE = 100
 # Horizontal offset to shift the entire laser line to the right (positive moves right)

@@ -34,6 +34,7 @@ from src.game.headerbar import HeaderBar
 from src.game.powerup import PowerUp, Comet
 from src.game.mainmenue import MainMenu
 from src.game.endscreen import EndScreen
+from src.game.explosion import Explosion
 # Helper function to slice sprites
 def get_image(sheet, x, y, width, height):
     image = pygame.Surface((width, height), pygame.SRCALPHA)
@@ -191,7 +192,7 @@ class Game:
             hit_any = False
             for b in list(bunker_group):
                 if any(laser_rect.colliderect(b.rect) for laser_rect in hitboxes):
-                    from src.game.explosion import Explosion
+        
                     exp = Explosion(b.rect.centerx, b.rect.centery, size=96)
                     self.explosions.add(exp)
                     self.all_sprites.add(exp)
