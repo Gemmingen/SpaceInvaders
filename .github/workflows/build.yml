@@ -45,7 +45,6 @@ jobs:
       - name: PyInstaller Build
         shell: bash
         run: |
-          # Der Parameter -n game erzwingt den Namen game.exe / game.app
           if [[ "${{ matrix.artifact_name }}" == "Mac_Intel" ]]; then
             arch -x86_64 python -m pip install --upgrade pip
             arch -x86_64 pip install "setuptools<69.0.0" pygame pyinstaller --force-reinstall
@@ -54,9 +53,14 @@ jobs:
             pyinstaller --noconsole -n game main.py
           fi
           
-          # Ordnername in dist/ ist nun durch -n game ebenfalls "game"
+          # Ordner vorbereiten
           cp -r assets dist/game/ || true
           cp highsscores.json dist/game/ || true
+          
+          # NEU: Rechte setzen für Linux
+          if [[ "${{ matrix.artifact_name }}" == "Linux" ]]; then
+            chmod +x dist/game/game || true
+          fi
 
       - name: Archivieren (ZIP erstellen)
         shell: bash
