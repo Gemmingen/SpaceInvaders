@@ -5,7 +5,10 @@ from src.utils.helpers import load_image
 class Bullet(pygame.sprite.Sprite):
     def __init__(self, x, y, direction=-1, bullet_type="single"):
         super().__init__()
-        self.pierce = 1 # Wie viele Gegner getroffen werden können
+        self.pierce = 1  # Wie viele Gegner getroffen werden können (default)
+        # Enemy bullets should be able to pass through at least one bunker before being destroyed
+        if direction == 1:
+            self.pierce = 1
         
         if direction == 1:
             img_path = "assets/enemy-attack-small1.png"

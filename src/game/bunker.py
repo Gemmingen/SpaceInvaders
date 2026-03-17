@@ -52,7 +52,18 @@ class Bunker(pygame.sprite.Sprite):
         self.image = self.current_base_image.copy()
         
         self.rect = self.image.get_rect(center=(x, y))
-        self.mask = pygame.mask.from_surface(self.image)
+        # Build a mask that only includes sufficiently opaque pixels (alpha >= 128)
+        # This removes the invisible halo around the sprite that caused premature bullet despawn.
+        alpha_threshold = 128
+        # Use pygame.mask.from_threshold which works without numpy
+        # The reference color has full alpha (255) – we allow any RGB value (threshold 255)
+        # and accept any pixel whose alpha is within (255 - alpha_threshold) of 255,
+        # i.e. alpha >= alpha_threshold.
+        self.mask = pygame.mask.from_threshold(
+            self.image,
+            (0, 0, 0, 255),
+            (255, 255, 255, 255 - alpha_threshold)
+        )
         
         # Originalposition speichern, damit der Satellit nach dem Wackeln zurückkehrt
         self.base_x = self.rect.centerx
@@ -82,7 +93,13 @@ class Bunker(pygame.sprite.Sprite):
             
         # Aktualisiere die Kollisionsmaske nur, wenn sich das Bild geändert hat
         if self.health in (10, 5):
-            self.mask = pygame.mask.from_surface(self.current_base_image)
+            # Re‑create mask with alpha threshold to avoid halo after damage
+            alpha_threshold = 128
+            self.mask = pygame.mask.from_threshold(
+                self.current_base_image,
+                (0, 0, 0, 255),
+                (255, 255, 255, 255 - alpha_threshold)
+            )
         
         # Satellit zerstören, wenn HP auf 0 fällt
         if self.health <= 0:
