@@ -211,7 +211,16 @@ class Game:
         if hit_bunker:
             # Special case: PoisonGlob instantly destroys bunker
             if isinstance(bullet, PoisonGlob):
+                # Explosion at the bunker location
+                exp = Explosion(hit_bunker.rect.centerx, hit_bunker.rect.centery, size=96)
+                self.explosions.add(exp)
+                self.all_sprites.add(exp)
+                # Destroy the bunker
                 hit_bunker.kill()
+                # Suppress the poison puddle (cloud) from spawning
+                bullet.puddle_group = None
+                bullet.has_spawned = True
+                # Remove the glob itself
                 bullet.kill()
                 return
             # Fist has its own special effect

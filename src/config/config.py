@@ -32,13 +32,17 @@ ENEMY_WAVE_SETTINGS = {
 }
 
 # Mini‑boss per level – health can be changed later
+
+# BossSmall3 split settings
+BOSS3_GLOB_SPLIT_ANGLE_DEGREES = 10          # degrees offset for side bullets (±10°)
+BOSS3_GLOB_SPLIT_HEIGHT = SCREEN_HEIGHT // 2  # y‑position where the bullet splits
 FIST_SETTINGS = {
     "cooldown": 120,  # frames between fist launches
     "speed": 4,       # movement speed of launched fists
     "damage": 1,
 }
 
-# Additional fist visual‑cue settings
+# Additional fist visual‑cue settings (BOSS 1 only)
 FIST_CHARGE_TIME = 30                     # frames the fist swings & flashes
 FIST_FLASH_COLORS = [(255, 255, 255), (255, 0, 0)]  # white ↔ red
 FIST_FLASH_INTERVAL = 5                  # frames per colour before toggling

@@ -5,17 +5,20 @@ periodically spawns a bomb sprite (using the boss‑attack1 image) that falls
 straight down.
 """
 import pygame
+import random
 import math
-from src.config.config import SCREEN_WIDTH, SCREEN_HEIGHT
+from src.config.config import SCREEN_WIDTH, SCREEN_HEIGHT, BOSS3_GLOB_SPLIT_ANGLE_DEGREES, BOSS3_GLOB_SPLIT_HEIGHT
 from src.game.miniboss_base import MiniBossBase
 
 # Configurable constants
 GLOB_SPEED = 8          # Pixels per frame – fast enough to reach the player
 PUDDLE_OFFSET = -40       # No vertical offset; puddle sits on player's bottom
+# Inaccuracy in pixels applied to the homing glob's trajectory
+INACCURACY_PIXELS = 30  # +/- 30 px random offset for dx/dy
 
 class PoisonGlob(pygame.sprite.Sprite):
     """Simple bomb that falls vertically."""
-    def __init__(self, x, y, speed=GLOB_SPEED, puddle_group=None, player=None):
+    def __init__(self, x, y, speed=GLOB_SPEED, puddle_group=None, player=None, splits=False):
         super().__init__()
         img = pygame.image.load('assets/boss-attack1.png').convert_alpha()
         self.image = pygame.transform.scale(img, (30, 30))
@@ -28,6 +31,9 @@ class PoisonGlob(pygame.sprite.Sprite):
         self.puddle_group = puddle_group
         self.has_spawned = False
         self.player = player
+        self.damage = 1  # reduced damage for this weaker homing bullet
+        self.splits = splits          # flag: this bullet should split at mid‑screen
+        self.has_split = False        # ensures split happens only once
 
     def update(self, *args, **kwargs):
         """Move the glob using exact float coordinates and kill on floor contact.
@@ -44,6 +50,31 @@ class PoisonGlob(pygame.sprite.Sprite):
         # Sync integer rect with float coordinates
         self.rect.x = int(self.exact_x)
         self.rect.y = int(self.exact_y)
+
+        # ----- Split logic (mid‑screen) -----
+        if getattr(self, 'splits', False) and not getattr(self, 'has_split', False) and self.rect.centery >= BOSS3_GLOB_SPLIT_HEIGHT:
+            # Prevent the original puddle from spawning
+            self.has_spawned = True
+            self.has_split = True
+            # Create three child globs with diverging angles
+            for angle in (-BOSS3_GLOB_SPLIT_ANGLE_DEGREES, 0, BOSS3_GLOB_SPLIT_ANGLE_DEGREES):
+                rad = math.radians(angle)
+                vx = math.sin(rad) * self.speed
+                vy = math.cos(rad) * self.speed
+                child = PoisonGlob(self.rect.centerx, self.rect.centery,
+                                   speed=self.speed,
+                                   puddle_group=self.puddle_group,
+                                   player=self.player,
+                                   splits=False)
+                child.image = pygame.transform.scale(child.image, (15, 15))
+                child.vel_x = vx
+                child.vel_y = vy
+                # Add child to all groups the parent belonged to
+                for grp in self.groups():
+                    grp.add(child)
+            # Kill the original bullet without spawning a puddle
+            self.kill()
+            return
 
         # Kill when reaching the bottom of the screen (puddle will be spawned in kill())
         if self.rect.bottom >= SCREEN_HEIGHT:
@@ -133,18 +164,17 @@ class BossSmall3(MiniBossBase):
         # --- Poison glob dropping timer ---
         self.drop_timer -= 1
         if self.drop_timer <= 0:
-            speed = GLOB_SPEED
-            if player:
-                dx = player.rect.centerx - self.rect.centerx
-                dy = player.rect.centery - self.rect.bottom
-                dist = math.hypot(dx, dy) or 1
-                vel_x = dx / dist * speed
-                vel_y = dy / dist * speed
-            else:
-                vel_x, vel_y = 0, speed
-            glob = PoisonGlob(self.rect.centerx, self.rect.bottom, speed=speed, puddle_group=self.puddle_group, player=player)
-            glob.vel_x = vel_x
-            glob.vel_y = vel_y
+            # Reduce the base speed (make the bullet slower) – 75 % of the original
+            speed = int(GLOB_SPEED * 0.75)
+            # Fire straight down without homing; enable split at mid‑screen
+            glob = PoisonGlob(self.rect.centerx, self.rect.bottom,
+                               speed=speed,
+                               puddle_group=self.puddle_group,
+                               player=player,
+                               splits=True)
+            # Straight‑down velocity
+            glob.vel_x = 0
+            glob.vel_y = speed
             self.poison_group.add(glob)
             self.drop_timer = self.drop_interval
 
