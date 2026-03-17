@@ -23,7 +23,7 @@ from src.game.explosion import Explosion, BunkerRespawnEffect
 from src.game.ufo import UFO
 from src.game.Boss_small_1 import BossSmall1
 from src.game.boss_small_2 import BossSmall2
-from src.game.boss_small_3 import BossSmall3
+from src.game.boss_small_3 import BossSmall3, PoisonGlob
 from src.game.boss_small_4 import BossSmall4
 from src.game.fist import Fist
 from src.game.endboss import EndBoss
@@ -201,14 +201,28 @@ class Game:
             if hit_any:
                 # Remove all bunkers (laser clears entire line)
                 bunker_group.empty()
-                bullet.kill()   # laser disappears after destroying a bunker
-            return
+                bullet.kill()
+                return
 
         # ---------- Normal projectile handling ----------
         hit_bunker = pygame.sprite.spritecollideany(
             bullet, bunker_group, pygame.sprite.collide_mask
         )
         if hit_bunker:
+            # Special case: PoisonGlob instantly destroys bunker
+            if isinstance(bullet, PoisonGlob):
+                # Explosion at the bunker location
+                exp = Explosion(hit_bunker.rect.centerx, hit_bunker.rect.centery, size=96)
+                self.explosions.add(exp)
+                self.all_sprites.add(exp)
+                # Destroy the bunker
+                hit_bunker.kill()
+                # Suppress the poison puddle (cloud) from spawning
+                bullet.puddle_group = None
+                bullet.has_spawned = True
+                # Remove the glob itself
+                bullet.kill()
+                return
             # Fist has its own special effect
             if isinstance(bullet, Fist):
                 exp = Explosion(bullet.rect.centerx, bullet.rect.centery, size=64)
@@ -230,8 +244,22 @@ class Game:
                 bullet.pierce -= 1
                 if bullet.pierce <= 0:
                     bullet.kill()
+                # ----- Poison puddles (area denial) -----
+                for puddle in list(self.puddle_group):
+                    if pygame.sprite.collide_rect(puddle, self.player):
+                        if self.player_invuln_timer == 0:
+                            self.lives -= 1
+                            self.player_invuln_timer = 30  # ~0.5 sec
+                        player_hit = True
             else:
                 bullet.kill()
+                # ----- Poison puddles (area denial) -----
+                for puddle in list(self.puddle_group):
+                    if pygame.sprite.collide_rect(puddle, self.player):
+                        if self.player_invuln_timer == 0:
+                            self.lives -= 1
+                            self.player_invuln_timer = 30  # ~0.5 sec
+                        player_hit = True
 
     def rebuild_bunkers(self):
         # Alte Reste der Bunker zerstören
@@ -273,6 +301,8 @@ class Game:
         self.enemies = pygame.sprite.Group()
         self.player_bullets = pygame.sprite.Group()
         self.enemy_bullets = pygame.sprite.Group()
+        self.puddle_group = pygame.sprite.Group()
+        self.player_invuln_timer = 0
         self.bunkers = pygame.sprite.Group()
         self.ufo_group = pygame.sprite.Group()
         
@@ -335,7 +365,7 @@ class Game:
         nw, nh = int(SCREEN_WIDTH * scale), int(SCREEN_HEIGHT * scale)
         
         # Skaliere das Spielfeld qualitativ hochwertig
-        scaled_surf = pygame.transform.smoothscale(self.game_surface, (nw, nh))
+        scaled_surf = pygame.transform.scale(self.game_surface, (nw, nh))
         
         # Zentriere die Fläche (schwarze Balken bei nicht-quadratischen Monitoren)
         self.display.blit(scaled_surf, ((sw - nw) // 2, (sh - nh) // 2))
@@ -527,6 +557,9 @@ class Game:
 
     def _check_collisions(self):
         # Enemy vs player bullet (WICHTIG: dokill2=False für Pierce-Mechanik)
+        # Decrease the player's invulnerability timer if active
+        if hasattr(self, 'player_invuln_timer') and self.player_invuln_timer > 0:
+            self.player_invuln_timer -= 1
         hits = pygame.sprite.groupcollide(self.enemies, self.player_bullets, True, False)
         if hits:
             self.enemy_explosion.play()
@@ -594,6 +627,13 @@ class Game:
                 dmg = getattr(bullet, "damage", 1)
                 self.lives -= dmg
                 bullet.kill()
+                # ----- Poison puddles (area denial) -----
+                for puddle in list(self.puddle_group):
+                    if pygame.sprite.collide_rect(puddle, self.player):
+                        if self.player_invuln_timer == 0:
+                            self.lives -= 1
+                            self.player_invuln_timer = 30  # ~0.5 sec
+                        player_hit = True
         if player_hit:
             if self.lives <= 0:
                 self.game_over.play()
@@ -912,7 +952,14 @@ class Game:
                 self.player_bullets.update()
                 self.enemy_bullets.update()
                 self.bunkers.update()
-                self.miniboss_group.update(self.player, all_sprites=self.all_sprites, enemy_bullets=self.enemy_bullets, explosions=self.explosions, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
+                self.miniboss_group.update(self.player,
+                               self.all_sprites,
+                               self.enemy_bullets,
+                               self.explosions,
+                               SCREEN_WIDTH,
+                               SCREEN_HEIGHT,
+                               self.puddle_group)
+                self.puddle_group.update()
                 self.explosions.update()
                 self.powerups.update(SCREEN_HEIGHT)
                 self.comets.update(SCREEN_WIDTH, SCREEN_HEIGHT)
