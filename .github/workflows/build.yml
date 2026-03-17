@@ -53,12 +53,6 @@ jobs:
             pyinstaller --noconsole -n game main.py
           fi
           
-          # --- NEU: Endungen entfernen ---
-          # Auf Windows generiert PyInstaller eine .exe. Wir benennen sie um.
-          if [[ "${{ matrix.artifact_name }}" == "Windows" ]]; then
-            mv dist/game/game.exe dist/game/game || true
-          fi
-          
           # Ordner vorbereiten
           cp -r assets dist/game/ || true
           cp highsscores.json dist/game/ || true
