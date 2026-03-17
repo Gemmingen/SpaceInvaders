@@ -326,11 +326,19 @@ class Game:
         self.decel_normal_frames = 0
 
     def _present(self):
-        """Blit the game surface onto the full‑screen display with black borders and flip."""
+        """Blittet die game_surface skaliert und zentriert auf den echten Monitor."""
         self.display.fill((0, 0, 0))
-        x = (self.full_w - SCREEN_WIDTH) // 2
-        y = (self.full_h - SCREEN_HEIGHT) // 2
-        self.display.blit(self.game_surface, (x, y))
+        sw, sh = self.display.get_size()
+        
+        # Berechne Skalierungsfaktor (Aspect Ratio 1:1 beibehalten)
+        scale = min(sw / SCREEN_WIDTH, sh / SCREEN_HEIGHT)
+        nw, nh = int(SCREEN_WIDTH * scale), int(SCREEN_HEIGHT * scale)
+        
+        # Skaliere das Spielfeld qualitativ hochwertig
+        scaled_surf = pygame.transform.smoothscale(self.game_surface, (nw, nh))
+        
+        # Zentriere die Fläche (schwarze Balken bei nicht-quadratischen Monitoren)
+        self.display.blit(scaled_surf, ((sw - nw) // 2, (sh - nh) // 2))
         pygame.display.flip()
 
     def _run_transition(self):
