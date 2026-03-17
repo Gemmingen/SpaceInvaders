@@ -26,8 +26,8 @@ class Laser(pygame.sprite.Sprite):
         self.rect.x += self.vel_x
         self.rect.y += self.vel_y
         # Remove if off‑screen
-        if (self.rect.right < 0 or self.rect.left > kwargs.get('screen_width', 800) or
-                self.rect.bottom < 0 or self.rect.top > kwargs.get('screen_height', 600)):
+        if (self.rect.right < 0 or self.rect.left > kwargs.get('screen_width', 1080) or
+                self.rect.bottom < 0 or self.rect.top > kwargs.get('screen_height', 1080)):
             self.kill()
 
 class BossSmall4(MiniBossBase):
