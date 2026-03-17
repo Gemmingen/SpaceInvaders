@@ -335,7 +335,7 @@ class Game:
         nw, nh = int(SCREEN_WIDTH * scale), int(SCREEN_HEIGHT * scale)
         
         # Skaliere das Spielfeld qualitativ hochwertig
-        scaled_surf = pygame.transform.smoothscale(self.game_surface, (nw, nh))
+        scaled_surf = pygame.transform.scale(self.game_surface, (nw, nh))
         
         # Zentriere die Fläche (schwarze Balken bei nicht-quadratischen Monitoren)
         self.display.blit(scaled_surf, ((sw - nw) // 2, (sh - nh) // 2))
