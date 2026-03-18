@@ -88,20 +88,25 @@ class BossClone(pygame.sprite.Sprite):
             enemy_bullets_group.add(self)
 
     def update(self, player=None, *args, **kwargs):
-        # Da der Klon sowohl in miniboss_group als auch in enemy_bullets ist, 
-        # verhindern wir ein doppeltes Update pro Frame durch Überprüfen der kwargs
-        if not kwargs: 
+        # Verhindert doppelten Aufruf durch all_sprites.update()
+        if player is None and not args and not kwargs:
             return
             
+        # Akzeptiert Keywords ODER die unbenannten Argumente aus deinem Merge!
         if 'explosions' in kwargs:
             self.explosions_group = kwargs['explosions']
+        elif len(args) >= 3:
+            self.explosions_group = args[2]
+
         if 'all_sprites' in kwargs:
             self.all_sprites_group = kwargs['all_sprites']
+        elif len(args) >= 1:
+            self.all_sprites_group = args[0]
 
         if self.state == "orbiting":
             self.angle += 0.05
-            self.rect.centerx = self.owner.rect.centerx + math.cos(self.angle) * self.radius
-            self.rect.centery = self.owner.rect.centery + math.sin(self.angle) * self.radius
+            self.rect.centerx = round(self.owner.rect.centerx + math.cos(self.angle) * self.radius)
+            self.rect.centery = round(self.owner.rect.centery + math.sin(self.angle) * self.radius)
             
         elif self.state == "charging":
             self.flash_timer -= 1
@@ -158,13 +163,20 @@ class BossSmall4(MiniBossBase):
                 group.add(child)
 
     def update(self, player=None, *args, **kwargs):
+        # WICHTIG: Verhindert doppeltes Update durch den Call aus `all_sprites.update()`!
+        if player is None and not args and not kwargs:
+            return
+            
+        # Akzeptiert Keywords ODER die unbenannten Argumente aus deinem Merge!
         enemy_bullets = kwargs.get('enemy_bullets')
+        if enemy_bullets is None and len(args) >= 2:
+            enemy_bullets = args[1]
 
         if self.state == self.STATE_FLYING:
             target_t = 2 * math.pi * self.max_routes
             remaining = target_t - self.t
             
-            # Halb so schnell wie vorher (Base Speed auf 0.04 gesetzt)
+            # Basisgeschwindigkeit
             base_speed = 0.03
             
             # Sehr weiches "Smooth Easing" im letzten Halbbogen (pi) vor dem Anhalten

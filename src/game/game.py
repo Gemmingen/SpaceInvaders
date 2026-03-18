@@ -151,7 +151,7 @@ class Game:
             if PLANET_SCALE != 1.0:
                 width = int(img.get_width() * PLANET_SCALE)
                 height = int(img.get_height() * PLANET_SCALE)
-                img = pygame.transform.smoothscale(img, (width, height))
+                img = pygame.transform.scale(img, (width, height))
             self.planets[idx] = img
 
         # After loading all planets, initialize animation for the first planet
@@ -306,6 +306,8 @@ class Game:
         self.bunkers = pygame.sprite.Group()
         self.ufo_group = pygame.sprite.Group()
         
+        self.miniboss_group.update(self.player, all_sprites=self.all_sprites, enemy_bullets=self.enemy_bullets, explosions=self.explosions, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
+
         self.powerups = pygame.sprite.Group()
         self.comets = pygame.sprite.Group()
         
