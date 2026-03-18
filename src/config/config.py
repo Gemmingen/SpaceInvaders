@@ -23,7 +23,7 @@ BULLET_SPEED = 10
 
 # Enemy wave per level – can be tweaked later
 TEST_AMOUNT = 1
-TEST_START_LEVEL = 4
+TEST_START_LEVEL = 1
 ENEMY_WAVE_SETTINGS = {
     1: dict(rows=TEST_AMOUNT, cols=TEST_AMOUNT, speed=ENEMY_SPEED, shoot_chance=ENEMY_SHOOT_CHANCE),
     2: dict(rows=TEST_AMOUNT, cols=TEST_AMOUNT, speed=ENEMY_SPEED, shoot_chance=ENEMY_SHOOT_CHANCE),
@@ -146,3 +146,39 @@ BOSS2_LASER_ORB_MARGIN = 4
 BOSS2_LASER_BUILD_INTERVAL = 0.1  # seconds per growth step (adds one sprite width each step)
 # Tiny pause after the laser is fully built before it starts moving downward
 BOSS2_LASER_PAUSE_FRAMES = int(FPS * 0.05)  # ~3 frames at 60 FPS (≈0.05 s)
+
+# --- EndBoss Settings ---
+ENDBOSS_WIDTH = 160                # Bessere Proportionen (nicht mehr gestaucht)
+ENDBOSS_HEIGHT = 130
+ENDBOSS_PHASE_DURATION = 120       # Kürzere Phasen = Schnellere Patternwechsel (120 Frames = 2 Sek)
+ENDBOSS_ATTACK_COOLDOWN = 30       # Sehr kurzes Delay ZWISCHEN den 4 Schüssen in der Mitte
+ENDBOSS_PROJECTILE_SPEED = 6
+ENDBOSS_PROJECTILE_SPLIT_ANGLE = 35 # Winkel der Teilung nach Abprallen
+ENDBOSS_RANDOM_SHOOT_MIN = 60      # Min-Delay für Schüsse während des Fliegens
+ENDBOSS_RANDOM_SHOOT_MAX = 150     # Max-Delay für Schüsse während des Fliegens
+
+# --- BossSmall4 Settings ---
+BOSS4_CLONE_SIZE = (40, 40)
+BOSS4_CLONE_RADIUS = 80
+BOSS4_CLONE_HEALTH = 2
+BOSS4_CLONE_DAMAGE = 1
+BOSS4_CLONE_SPEED = 8
+BOSS4_CLONE_EXPLOSION_SIZE = 64
+BOSS4_CLONE_CHARGE_TIME = 40
+BOSS4_CLONE_FLASH_INTERVAL = 5
+BOSS4_CLONE_ORBIT_SPEED = 0.05
+BOSS4_FLASH_COLOR_1 = (255, 0, 0)
+BOSS4_FLASH_COLOR_2 = (255, 255, 255)
+
+BOSS4_START_Y = 200
+BOSS4_CENTER_Y = 250
+BOSS4_MAX_ROUTES = 2
+BOSS4_CHILDREN_COUNT = 6
+BOSS4_BASE_SPEED = 0.03
+BOSS4_MIN_SPEED = 0.020
+BOSS4_FLIGHT_AMP_X = 350
+BOSS4_FLIGHT_AMP_Y = 100
+BOSS4_FREQ_MULT_Y = 2
+BOSS4_ORBIT_T_STEP = 0.05
+BOSS4_LAUNCH_INITIAL_DELAY = 30
+BOSS4_LAUNCH_DELAY = 15
