@@ -893,7 +893,6 @@ class Game:
                             self._reset()
                             self.state = self.STATE_PLAYING
                         
-                
                 elif self.state == self.STATE_PLAYING: 
                     if event.type == pygame.KEYDOWN:
                         if event.key == pygame.K_SPACE:
@@ -909,8 +908,20 @@ class Game:
                             pygame.quit()
                             sys.exit()
                 
-                elif self.state in (self.STATE_GAME_OVER, self.STATE_VICTORY, self.STATE_LEVEL_CLEARED):
+                # Wenn das Level geschafft ist (Keine Highscore-Eingabe hier!)
+                elif self.state == self.STATE_LEVEL_CLEARED:
                     if event.type == pygame.KEYDOWN:
+                        if event.key == pygame.K_r:
+                            self._reset()
+                            self.state = self.STATE_PLAYING
+                        elif event.key == pygame.K_q:
+                            pygame.quit()
+                            sys.exit()
+
+                # Highscore-Eingabe (Nur bei Game Over oder Victory)
+                elif self.state in (self.STATE_GAME_OVER, self.STATE_VICTORY):
+                    if event.type == pygame.KEYDOWN:
+                        # Schnell-Neustart / Beenden
                         if event.key == pygame.K_r:
                             self.player_name = ""
                             self._reset()
@@ -928,8 +939,26 @@ class Game:
                             self.selected_key_coords[1] = (self.selected_key_coords[1] - 1) % 4
                         elif event.key == pygame.K_DOWN:
                             self.selected_key_coords[1] = (self.selected_key_coords[1] + 1) % 4
+                        
+                        # 2. Buchstabe auswählen / Löschen / OK (mit Enter oder Leertaste)
+                        elif event.key in (pygame.K_RETURN, pygame.K_SPACE):
+                            # Hol dir das aktuell markierte Zeichen aus der EndScreen-Matrix
+                            col, row = self.selected_key_coords
+                            char = self.end_screen.keys[row][col]
 
-                         # Menu input handling omitted for test stability
+                            if char == '<':
+                                # Löscht den letzten Buchstaben
+                                self.player_name = self.player_name[:-1] 
+                            elif char == 'OK':
+                                # Speichert, wenn ein Name da ist, und geht ins Menü
+                                if len(self.player_name) > 0:
+                                    self.save_highscore(self.game_mode)
+                                    self.player_name = ""
+                                    self.state = self.STATE_MENU 
+                            else:
+                                # Fügt Buchstaben hinzu (Maximal 12 Zeichen)
+                                if len(self.player_name) < 12: 
+                                    self.player_name += char
                         
 
             # --- 2. UPDATES & RENDERING (AUSSERHALB DER EVENT-SCHLEIFE) ---
