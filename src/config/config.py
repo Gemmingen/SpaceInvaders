@@ -3,30 +3,27 @@
 # Vollbild-Steuerung
 FULLSCREEN_ENABLED = True 
 
-# Interne Auflösung des Spielfelds
-SCREEN_WIDTH = 1080                                  
-SCREEN_HEIGHT = 1080 
-
+SCREEN_WIDTH = 1080                                  #800 Original size, not for Arcade Version
+SCREEN_HEIGHT = 1080 #1080                           #600 Original size, not for Arcade Version
 FPS = 60
-
 # Bonus UFO (Mystery Ship) configuration
-UFO_SPAWN_HEIGHT_OPTIONS = [80, 300, 800]           # possible vertical spawn positions for the UFO
-UFO_SPEED_OPTIONS = [3, 7, 10]                      # possible speeds for the UFO
+UFO_SPAWN_HEIGHT_OPTIONS = [80, 300, 800]           # possible vertical spawn positions for the UFO (in pixels from top)
+UFO_SPEED_OPTIONS = [3, 7, 10]                      # possible speeds for the UFO (pixels per frame)
 UFO_SPAWN_TIME = 15                                 # seconds before a UFO may appear
 UFO_SCORE_OPTIONS = [1200, 1312, 1500, 1600, 1800]  # possible bonus points
-UFO_SHOT_THRESHOLD = 30                             # number of player shots trigger
+UFO_SHOT_THRESHOLD = 30                             # number of player shots that can also trigger a UFO
 
 # Player Settings
 PLAYER_SPEED = 5
 
 # Enemy Settings
 ENEMY_SPEED = 3
-ENEMY_SHOOT_CHANCE = 0.001                           
+ENEMY_SHOOT_CHANCE = 0.001                           # Chance per frame that an enemy will shoot (adjust for difficulty)
 BULLET_SPEED = 10
 
-# Enemy wave per level
+# Enemy wave per level – can be tweaked later
 TEST_AMOUNT = 1
-TEST_START_LEVEL = 3
+TEST_START_LEVEL = 4
 ENEMY_WAVE_SETTINGS = {
     1: dict(rows=TEST_AMOUNT, cols=TEST_AMOUNT, speed=ENEMY_SPEED, shoot_chance=ENEMY_SHOOT_CHANCE),
     2: dict(rows=TEST_AMOUNT, cols=TEST_AMOUNT, speed=ENEMY_SPEED, shoot_chance=ENEMY_SHOOT_CHANCE),
@@ -40,9 +37,10 @@ ENEMY_WAVE_SETTINGS = {
 # BossSmall3 split settings
 BOSS3_GLOB_SPLIT_ANGLE_DEGREES = 10          # degrees offset for side bullets (±10°)
 BOSS3_GLOB_SPLIT_HEIGHT = SCREEN_HEIGHT // 2  # y‑position where the bullet splits
+
 FIST_SETTINGS = {
-    "cooldown": 120,  
-    "speed": 4,       
+    "cooldown": 120,  # frames between fist launches
+    "speed": 4,       # movement speed of launched fists
     "damage": 1,
 }
 
@@ -60,17 +58,30 @@ MINIBOSS_SETTINGS = {
 }
 
 # Background settings
+
+# Planet assets – indexed by transition count (planet_0.png, planet_1.png, ...)
 PLANET_PATTERN = "assets/planets/planet_{idx}.png"
-PLANET_SCROLL_FACTOR = 1  
+# Scroll factor for planets (relative to background layer 0 scroll)
+PLANET_SCROLL_FACTOR = 1  # slower planet scroll relative to background layer 0
+# Global size scaling factor for all planets (1.0 = original size)
 PLANET_SCALE = 1
 
-# Parallax background
+# Parallax background configuration
+# Naming pattern for per‑level layers (four layers per level)
 LEVEL_BACKGROUND_PATTERN = "assets/background/background_level_1_layer_{layer}.png"
+
+#LEVEL_BACKGROUND_PATTERN = "assets/background/background_level_{level}layer{layer}.png"
+# Naming pattern for transition background (four layers)
 TRANSITION_BACKGROUND_PATTERN = "assets/background/transition_layer_{layer}.png"
+# Number of layers per background
 PARALLAX_LAYERS = 4
-PARALLAX_SPEED_FACTORS = [0, 0.05, 0.06, 0.07] 
+# Speed multipliers for each layer (0 = foreground, highest speed)
+PARALLAX_SPEED_FACTORS = [0, 0.05, 0.06, 0.07] #[Layer0, Layer1, ...]
+# Initial vertical offset for scrolling
 INITIAL_SCROLL = 0
+# Base scroll speed – multiplied by each layer's factor
 BASE_SCROLL_SPEED = 2
+# Transition display duration (in frames) – 5 seconds at the game's FPS
 TRANSITION_FRAMES = 8 * FPS
 # New transition‑speed configuration
 AMPLIFY_STEP = 0.4               # per‑frame increase while amplifying
@@ -85,12 +96,12 @@ BACKGROUND_SCROLL_SPEED = BASE_SCROLL_SPEED
 # --- PowerUp & Comet Settings ---
 # Gesamte Drop-Wahrscheinlichkeit liegt bei ca. 22% pro normalem Gegner
 POWERUP_DROP_CHANCES = {
-    "comet": 0.02,        
-    "bunker": 0.02,       
-    "hp": 0.01,           
-    "speed": 0.03,        
-    "doubleshot": 0.03,   
-    "trippleshot": 0.03   
+    "comet": 0.02,        # 5%
+    "bunker": 0.02,       # 2%
+    "hp": 0.01,           # 2%
+    "speed": 0.03,        # 5%
+    "doubleshot": 0.03,   # 5%
+    "trippleshot": 0.03   # 3%
 }
 POWERUP_FALL_SPEED = 4
 
@@ -100,15 +111,17 @@ TIE_FIGHTER_SPEED = 14
 TIE_FIGHTER_ROTATION_SPEED = 0.5
 TIE_FIGHTER_SIZE = 128
 
-POWERUP_SPEED_MULTIPLIER = 1.5   
-POWERUP_SPEED_DURATION = 5       
-POWERUP_DOUBLESHOT_DURATION = 5  
-POWERUP_TRIPLESHOT_DURATION = 5  
+# Dauer und Stärke der Spieler-Buffs
+POWERUP_SPEED_MULTIPLIER = 1.5   # 50% schneller
+POWERUP_SPEED_DURATION = 5       # in Sekunden
+POWERUP_DOUBLESHOT_DURATION = 5  # in Sekunden
+POWERUP_TRIPLESHOT_DURATION = 5  # in Sekunden
 
-# BossSmall2 Settings
+# BossSmall2 (Level 2) Attack Pattern Settings
+
 BOSS2_LASER_SPRITE = "assets/laser-element.png"
 BOSS2_LASER_SPRITE_WIDTH = 25
-BOSS2_CHARGE_FRAMES = 60  
+BOSS2_CHARGE_FRAMES = 60  # 1 second at 60 FPS
 
 BOSS2_MOVE_DURATION = 5
 BOSS2_FLASH_DURATION = 1
@@ -118,13 +131,18 @@ BOSS2_LASER_SPAWN_INTERVAL = 1.2
 BOSS2_LASER_COUNT = 5
 BOSS2_LASER_SPEED = 5
 
+# Side‑laser configuration – these lasers sit on the centre of each orb
 BOSS2_SIDE_LASER_SPRITE = "assets/downward-laser.png"
-BOSS2_SIDE_LASER_SPEED = BOSS2_LASER_SPEED  
-BOSS2_SIDE_LASER_PAUSE_FRAMES = BOSS2_CHARGE_FRAMES  
-BOSS2_SIDE_LASER_OFFSET = 0  
+BOSS2_SIDE_LASER_SPEED = BOSS2_LASER_SPEED  # same downward speed as the main laser
+BOSS2_SIDE_LASER_PAUSE_FRAMES = BOSS2_CHARGE_FRAMES  # pause before moving, same as main laser
+BOSS2_SIDE_LASER_OFFSET = 0  # horizontal offset when centering on orb (0 = exact centre)
 BOSS2_GAP_WIDTH_MULTIPLIER = 3.0
 BOSS2_GAP_RANDOM_RANGE = 100
+# Horizontal offset to shift the entire laser line to the right (positive moves right)
 BOSS2_LASER_X_OFFSET = 50
+# Optional extra margin between laser and orb edges (pixels). Adjust for visual spacing.
 BOSS2_LASER_ORB_MARGIN = 4
-BOSS2_LASER_BUILD_INTERVAL = 0.1  
-BOSS2_LASER_PAUSE_FRAMES = int(60 * 0.05)
+# Laser build‑up and pause configuration for BossSmall2
+BOSS2_LASER_BUILD_INTERVAL = 0.1  # seconds per growth step (adds one sprite width each step)
+# Tiny pause after the laser is fully built before it starts moving downward
+BOSS2_LASER_PAUSE_FRAMES = int(FPS * 0.05)  # ~3 frames at 60 FPS (≈0.05 s)
