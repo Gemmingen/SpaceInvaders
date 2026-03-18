@@ -34,6 +34,7 @@ from src.game.headerbar import HeaderBar
 from src.game.powerup import PowerUp, Comet
 from src.game.mainmenue import MainMenu
 from src.game.endscreen import EndScreen
+from src.game.led_controller import LedController
 # Helper function to slice sprites
 def get_image(sheet, x, y, width, height):
     image = pygame.Surface((width, height), pygame.SRCALPHA)
@@ -51,6 +52,10 @@ class Game:
         # Compatibility alias: allow access via Game.Player
         pygame.init()
         pygame.mixer.init()
+
+        self.leds = LedController("ws://localhost:8765")
+        self.leds.attract_pause()
+        self.warning_led_active = False
         #Leaderboard
         self.player_name = ""
         self.selected_key_coords = [0, 0]
@@ -341,6 +346,10 @@ class Game:
         if not self.is_transition_active:
             self.is_transition_active = True
             self.transition_state = "amplify"
+
+            self.leds.send_effect("A", "chase", 0, 255, 255, 255, speed=20, repeat=10, priority=3)
+            self.leds.send_effect("A", "chase", 1, 255, 255, 255, speed=20, repeat=10, priority=3)
+
             # start from the normal per‑layer factors
             self.current_speed_factors = list(PARALLAX_SPEED_FACTORS)
             self.decel_normal_frames = 0
@@ -357,6 +366,7 @@ class Game:
         # A – Amplify phase: increase speed until the peak factor is hit
         # ---------------------------------------------------------------
         if self.transition_state == "amplify":
+    
             self.current_speed_factors = _ramp_up(
                 self.current_speed_factors, AMPLIFY_STEP, AMPLIFY_MAX_FACTOR
             )
@@ -518,6 +528,8 @@ class Game:
         hits = pygame.sprite.groupcollide(self.enemies, self.player_bullets, True, False)
         if hits:
             self.enemy_explosion.play()
+            for seg in range(1, 5):
+                self.leds.send_effect("A", "blink", seg, 200, 255, 0, speed=1, repeat=20, priority=2)
             for enemy, bullets in hits.items():
                 explosion = Explosion(enemy.rect.centerx, enemy.rect.centery)
                 self.explosions.add(explosion)
@@ -583,8 +595,12 @@ class Game:
                 self.lives -= dmg
                 bullet.kill()
         if player_hit:
+            for seg in [1, 3]:
+                self.leds.send_effect("A", "blink", seg, 255, 0, 0, speed=40, repeat=3, priority=2)
             if self.lives <= 0:
                 self.game_over.play()
+                self.leds.send_effect("A", "wipe", seg, 255, 0, 0, speed=20, repeat=1, priority=3)
+                
                 explosion = Explosion(self.player.rect.centerx, self.player.rect.centery)
                 self.explosions.add(explosion)
                 self.all_sprites.add(explosion)
@@ -972,22 +988,27 @@ class Game:
                 
                 # Warning Icon Logik
                 if self.lives == 1:
-                        if not self.warning_played:
-                            self.warning_sound.play()
-                            self.warning_played = True
+                    # 1. Sound Trigger
+                    if not self.warning_played:
+                        self.warning_sound.play()
+                        self.warning_played = True
 
-                        is_visible = (pygame.time.get_ticks() // 400) % 2 == 0
-                        if is_visible:
-                            for bar in self.headerbar:
-                                warning_x = bar.rect.right + 15
-                                warning_y = bar.rect.centery - (bar.warning_icon.get_height() // 2)
-                                self.screen.blit(bar.warning_icon, (warning_x, warning_y))
+                    # 2. Visuelles Icon Blinken
+                    is_visible = (pygame.time.get_ticks() // 400) % 2 == 0
+                    if is_visible:
+                        for bar in self.headerbar:
+                            warning_x = bar.rect.right + 15
+                            warning_y = bar.rect.centery - (bar.warning_icon.get_height() // 2)
+                            self.screen.blit(bar.warning_icon, (warning_x, warning_y))
                 else:
                     self.warning_played = False
                 
                 self._present()
 
             elif self.state == self.STATE_LEVEL_CLEARED:
+                self.explosions.update()      # Lässt Explosionen zu Ende animieren
+                self.player_bullets.update()  # Lässt Schüsse aus dem Bild fliegen
+                self.powerups.update(SCREEN_HEIGHT)
                 # Run transition logic (amplify, hold, decelerate, load next level)
                 self._run_transition()
                 # Draw the current background (could be level background or transition)
