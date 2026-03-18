@@ -69,6 +69,9 @@ class Bunker(pygame.sprite.Sprite):
         self.base_x = self.rect.centerx
         self.base_y = self.rect.centery
         
+        # NEU: Offset für die Transition (Bunker fliegt aus dem Bild)
+        self.transition_y = 0.0
+        
         # Health-System: 15 HP insgesamt
         self.max_health = 15
         self.health = self.max_health
@@ -116,13 +119,13 @@ class Bunker(pygame.sprite.Sprite):
             
         self.image = drawn_image
         
-        # 2. Wackeln (Shake) anwenden, falls aktiv
+        # 2. Wackeln (Shake) anwenden und Transition-Y addieren
         if self.shake_timer > 0:
             self.shake_timer -= 1
             offset_x = random.randint(-4, 4)
             offset_y = random.randint(-4, 4)
             self.rect.centerx = self.base_x + offset_x
-            self.rect.centery = self.base_y + offset_y
+            self.rect.centery = self.base_y + offset_y + int(self.transition_y)
         else:
             self.rect.centerx = self.base_x
-            self.rect.centery = self.base_y
+            self.rect.centery = self.base_y + int(self.transition_y)

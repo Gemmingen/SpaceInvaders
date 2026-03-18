@@ -23,7 +23,7 @@ BULLET_SPEED = 10
 
 # Enemy wave per level – can be tweaked later
 TEST_AMOUNT = 1
-TEST_START_LEVEL = 5
+TEST_START_LEVEL = 2
 ENEMY_WAVE_SETTINGS = {
     1: dict(rows=TEST_AMOUNT, cols=TEST_AMOUNT, speed=ENEMY_SPEED, shoot_chance=ENEMY_SHOOT_CHANCE),
     2: dict(rows=TEST_AMOUNT, cols=TEST_AMOUNT, speed=ENEMY_SPEED, shoot_chance=ENEMY_SHOOT_CHANCE),
@@ -156,3 +156,30 @@ ENDBOSS_PROJECTILE_SPEED = 6
 ENDBOSS_PROJECTILE_SPLIT_ANGLE = 35 # Winkel der Teilung nach Abprallen
 ENDBOSS_RANDOM_SHOOT_MIN = 60      # Min-Delay für Schüsse während des Fliegens
 ENDBOSS_RANDOM_SHOOT_MAX = 150     # Max-Delay für Schüsse während des Fliegens
+
+# EndBoss Animation & Projektile
+ENDBOSS_PROJ_SIZE_LARGE = (24, 48)
+ENDBOSS_PROJ_SIZE_SMALL = (12, 24)
+ENDBOSS_EXPLOSION_SIZE = 48
+ENDBOSS_SPAWNER_SIZE = 300
+ENDBOSS_SPAWN_FRAMES = 60          # Frames pro Spawn-Phase (60 Warten, 60 Zoom)
+ENDBOSS_SPAWNER_ROT_SPEED = 6      # Rotationsgeschwindigkeit des Spawner-Portals
+
+# EndBoss Pattern / Bewegungsvariablen
+ENDBOSS_BURSTS_PER_CYCLE = 4       # Anzahl der Salven im Zentrum
+ENDBOSS_EASING_SPEED = 0.08        # Weichheit der Bewegungen (kleiner = weicher)
+ENDBOSS_CENTER_Y = 250             # Y-Mittelpunkt für Kreise/Achten
+ENDBOSS_TOP_Y = 150                # Y-Zielpunkt für das Pendel-Pattern und Zentrum
+ENDBOSS_PATTERN_AMP_X = 250        # X-Amplitude für das Kreisen
+ENDBOSS_PATTERN_AMP_Y = 100        # Y-Amplitude für das Kreisen
+ENDBOSS_PATTERN_WIDE_X = 350       # X-Amplitude für weite Bewegungen (Pendeln, Welle)
+ENDBOSS_FREQ_MULT_X = 0.8          # Frequenz-Faktor X für weite Bewegungen
+ENDBOSS_FREQ_MULT_Y1 = 2.0         # Frequenz-Faktor Y für Wellen-Muster
+ENDBOSS_FREQ_MULT_Y2 = 1.6         # Frequenz-Faktor Y für 8er-Muster
+ENDBOSS_TIME_STEP = 0.05           # Geschwindigkeit der internen Pattern-Zeit
+ENDBOSS_CENTER_TOLERANCE = 20      # Erlaubte Abweichung in Pixeln vom Zentrum
+
+# EndBoss Rohre (Position und Schusswinkel)
+ENDBOSS_PIPE_X_OFFSET_PCT = 0.2    # Eingerückt um 20% von den Rändern
+ENDBOSS_PIPE_Y_OFFSET = 10         # Nach oben verschoben
+ENDBOSS_PIPE_ANGLES = (90, 135, 45)# Unten Mitte, Diagonal Links, Diagonal Rechts
