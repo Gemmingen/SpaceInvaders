@@ -23,7 +23,7 @@ BULLET_SPEED = 10
 
 # Enemy wave per level – can be tweaked later
 TEST_AMOUNT = 1
-TEST_START_LEVEL = 4
+TEST_START_LEVEL = 5
 ENEMY_WAVE_SETTINGS = {
     1: dict(rows=TEST_AMOUNT, cols=TEST_AMOUNT, speed=ENEMY_SPEED, shoot_chance=ENEMY_SHOOT_CHANCE),
     2: dict(rows=TEST_AMOUNT, cols=TEST_AMOUNT, speed=ENEMY_SPEED, shoot_chance=ENEMY_SHOOT_CHANCE),
@@ -54,7 +54,7 @@ MINIBOSS_SETTINGS = {
     2: dict(health=3, speed=2),
     3: dict(health=3, speed=2),
     4: dict(health=3, speed=2),
-    5: dict(health=3, speed=2),
+    5: dict(health=10, speed=3), # Gebuffter Endboss
 }
 
 # Background settings
@@ -146,3 +146,13 @@ BOSS2_LASER_ORB_MARGIN = 4
 BOSS2_LASER_BUILD_INTERVAL = 0.1  # seconds per growth step (adds one sprite width each step)
 # Tiny pause after the laser is fully built before it starts moving downward
 BOSS2_LASER_PAUSE_FRAMES = int(FPS * 0.05)  # ~3 frames at 60 FPS (≈0.05 s)
+
+# --- EndBoss Settings ---
+ENDBOSS_WIDTH = 160                # Bessere Proportionen (nicht mehr gestaucht)
+ENDBOSS_HEIGHT = 130
+ENDBOSS_PHASE_DURATION = 120       # Kürzere Phasen = Schnellere Patternwechsel (120 Frames = 2 Sek)
+ENDBOSS_ATTACK_COOLDOWN = 30       # Sehr kurzes Delay ZWISCHEN den 4 Schüssen in der Mitte
+ENDBOSS_PROJECTILE_SPEED = 6
+ENDBOSS_PROJECTILE_SPLIT_ANGLE = 35 # Winkel der Teilung nach Abprallen
+ENDBOSS_RANDOM_SHOOT_MIN = 60      # Min-Delay für Schüsse während des Fliegens
+ENDBOSS_RANDOM_SHOOT_MAX = 150     # Max-Delay für Schüsse während des Fliegens
