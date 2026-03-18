@@ -52,6 +52,10 @@ class Game:
         # Compatibility alias: allow access via Game.Player
         pygame.init()
         pygame.mixer.init()
+
+        # --- MAUSZEIGER VERSTECKEN ---
+        pygame.mouse.set_visible(False)
+
         #Leaderboard
         self.player_name = ""
         self.selected_key_coords = [0, 0]
