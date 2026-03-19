@@ -189,7 +189,10 @@ class Game:
 
         self.mini_boss_spawned = False
         self.level_cleared_timer = 0
+        
+        # Initialisiere miniboss_group hier sauber
         self.miniboss_group = pygame.sprite.Group()
+        
         # Transition related flags
         self.is_transition_active = False
         self.transition_state = None
@@ -341,6 +344,12 @@ class Game:
         self.player.current_scale = 1.0 # Reset scale
         self.bunker_transition_y = 0.0  # Reset bunker offset
         
+        # FIX: Sauberes Killen der alten Bosse, um Reste (Klone, Laser, Fäuste) zu vernichten
+        if hasattr(self, 'miniboss_group'):
+            for boss in self.miniboss_group:
+                boss.kill()
+        self.miniboss_group = pygame.sprite.Group()
+        
         self.all_sprites = pygame.sprite.Group()
         self.explosions = pygame.sprite.Group()
         self.enemies = pygame.sprite.Group()
@@ -350,8 +359,6 @@ class Game:
         self.player_invuln_timer = 0
         self.bunkers = pygame.sprite.Group()
         self.ufo_group = pygame.sprite.Group()
-        
-        self.miniboss_group.update(self.player, all_sprites=self.all_sprites, enemy_bullets=self.enemy_bullets, explosions=self.explosions, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
 
         self.powerups = pygame.sprite.Group()
         self.comets = pygame.sprite.Group()
@@ -391,7 +398,7 @@ class Game:
         self.player_shots = 0
         # Mini‑boss flags reset
         self.mini_boss_spawned = False
-        self.miniboss_group.empty()
+        
         self.level_cleared_timer = 0
         # Reset transition flags for a fresh start
         self.is_transition_active = False

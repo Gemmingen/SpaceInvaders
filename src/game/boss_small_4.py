@@ -14,16 +14,18 @@ from src.config.config import (
     BOSS4_FLASH_COLOR_1, BOSS4_FLASH_COLOR_2,
     BOSS4_START_Y, BOSS4_CENTER_Y, BOSS4_MAX_ROUTES, BOSS4_CHILDREN_COUNT,
     BOSS4_BASE_SPEED, BOSS4_MIN_SPEED, BOSS4_FLIGHT_AMP_X, BOSS4_FLIGHT_AMP_Y,
-    BOSS4_FREQ_MULT_Y, BOSS4_ORBIT_T_STEP, BOSS4_LAUNCH_INITIAL_DELAY, BOSS4_LAUNCH_DELAY
+    BOSS4_FREQ_MULT_Y, BOSS4_ORBIT_T_STEP, BOSS4_LAUNCH_INITIAL_DELAY, BOSS4_LAUNCH_DELAY,
+    MINIBOSS_SPAWN_FRAMES, MINIBOSS_SPAWNER_SIZE, MINIBOSS_SPAWNER_ROT_SPEED
 )
 from src.game.miniboss_base import MiniBossBase
 from src.game.explosion import Explosion
+from src.utils.helpers import load_image
 
 class BossClone(pygame.sprite.Sprite):
     """Die 'Kinder' des Bosses. Sie umkreisen ihn und greifen dann an."""
     def __init__(self, owner, angle_offset):
         super().__init__()
-        img = pygame.image.load('assets/boss-small4.png').convert_alpha()
+        img = load_image('assets/boss-small4.png').convert_alpha()
         self.image_base = pygame.transform.scale(img, BOSS4_CLONE_SIZE)
         self.image = self.image_base.copy()
         self.rect = self.image.get_rect()
@@ -144,6 +146,7 @@ class BossClone(pygame.sprite.Sprite):
 
 
 class BossSmall4(MiniBossBase):
+    STATE_INTRO = "intro"
     STATE_FLYING = "flying"
     STATE_SPAWNING = "spawning"
     STATE_ORBITING = "orbiting"
@@ -151,13 +154,23 @@ class BossSmall4(MiniBossBase):
 
     def __init__(self, health=15, speed=2):
         super().__init__('assets/boss-small4.png', health, speed)
-        self.rect.center = (SCREEN_WIDTH // 2, BOSS4_START_Y)
+        
+        self.boss_base = self.image.copy()
+        self.spawner_base = load_image('assets/boss4-spawner.png').convert_alpha()
+        
+        self.exact_x = float(SCREEN_WIDTH // 2)
+        self.exact_y = float(BOSS4_START_Y)
+        
+        # Unsichtbarer Start
+        self.image = pygame.Surface((1, 1), pygame.SRCALPHA)
+        self.rect = self.image.get_rect(center=(round(self.exact_x), round(self.exact_y)))
         
         self.center_pos = pygame.math.Vector2(SCREEN_WIDTH // 2, BOSS4_CENTER_Y)
         self.t = 0.0
         self.max_routes = BOSS4_MAX_ROUTES
         
-        self.state = self.STATE_FLYING
+        self.state = self.STATE_INTRO
+        self.intro_timer = 0
         self.children = pygame.sprite.Group()
         self.attack_queue = []
         self.launch_delay = 0
@@ -180,6 +193,45 @@ class BossSmall4(MiniBossBase):
         enemy_bullets = kwargs.get('enemy_bullets')
         if enemy_bullets is None and len(args) >= 2:
             enemy_bullets = args[1]
+
+        # ========================================================
+        # 0. INTRO / SPAWN ANIMATION
+        # ========================================================
+        if getattr(self, 'state', None) == self.STATE_INTRO:
+            self.intro_timer += 1
+            
+            canvas_size = MINIBOSS_SPAWNER_SIZE + 100
+            surf = pygame.Surface((canvas_size, canvas_size), pygame.SRCALPHA)
+            center = (canvas_size // 2, canvas_size // 2)
+            
+            spawner_scale = min(1.0, self.intro_timer / float(MINIBOSS_SPAWN_FRAMES))
+            if spawner_scale > 0:
+                spawner_size = int(MINIBOSS_SPAWNER_SIZE * spawner_scale)
+                if spawner_size > 0:
+                    spawner_scaled = pygame.transform.scale(self.spawner_base, (spawner_size, spawner_size))
+                    spawner_rot = pygame.transform.rotate(spawner_scaled, self.intro_timer * MINIBOSS_SPAWNER_ROT_SPEED)
+                    sp_rect = spawner_rot.get_rect(center=center)
+                    surf.blit(spawner_rot, sp_rect)
+            
+            if self.intro_timer > MINIBOSS_SPAWN_FRAMES:
+                boss_scale = min(1.0, (self.intro_timer - MINIBOSS_SPAWN_FRAMES) / float(MINIBOSS_SPAWN_FRAMES))
+                bw = int(self.boss_base.get_width() * boss_scale)
+                bh = int(self.boss_base.get_height() * boss_scale)
+                if bw > 0 and bh > 0:
+                    boss_scaled = pygame.transform.scale(self.boss_base, (bw, bh))
+                    b_rect = boss_scaled.get_rect(center=center)
+                    surf.blit(boss_scaled, b_rect)
+            
+            self.image = surf
+            self.rect = self.image.get_rect(center=(round(self.exact_x), round(self.exact_y)))
+            
+            if self.intro_timer >= MINIBOSS_SPAWN_FRAMES * 2:
+                self.state = self.STATE_FLYING
+                self.image = self.boss_base.copy()
+                self.rect = self.image.get_rect(center=(round(self.exact_x), round(self.exact_y)))
+                self.mask = pygame.mask.from_surface(self.image)
+                
+            return # Blockiert normale Updates bis das Intro durch ist!
 
         if self.state == self.STATE_FLYING:
             target_t = 2 * math.pi * self.max_routes
@@ -232,7 +284,7 @@ class BossSmall4(MiniBossBase):
                 self.t = 0
 
     def hit(self):
-        # Boss ist UNVERWUNDBAR, solange er Kinder spawnt oder diese existieren
+        # Boss ist UNVERWUNDBAR, solange er im Intro ist, Kinder spawnt oder diese existieren
         if self.state != self.STATE_FLYING:
             return 
             
