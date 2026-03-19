@@ -57,7 +57,7 @@ class PoisonGlob(pygame.sprite.Sprite):
             self.has_spawned = True
             self.has_split = True
             # Create three child globs with diverging angles
-            for angle in (-BOSS3_GLOB_SPLIT_ANGLE_DEGREES, 0, BOSS3_GLOB_SPLIT_ANGLE_DEGREES):
+            for angle in (-BOSS3_GLOB_SPLIT_ANGLE_DEGREES, BOSS3_GLOB_SPLIT_ANGLE_DEGREES):
                 rad = math.radians(angle)
                 vx = math.sin(rad) * self.speed
                 vy = math.cos(rad) * self.speed
@@ -66,7 +66,7 @@ class PoisonGlob(pygame.sprite.Sprite):
                                    puddle_group=self.puddle_group,
                                    player=self.player,
                                    splits=False)
-                child.image = pygame.transform.scale(child.image, (15, 15))
+                child.image = pygame.transform.scale(child.image, (25, 25))
                 child.vel_x = vx
                 child.vel_y = vy
                 # Add child to all groups the parent belonged to
@@ -158,8 +158,8 @@ class BossSmall3(MiniBossBase):
     def __init__(self, health=3, speed=2):
         super().__init__('assets/boss-small3.png', health, speed)
         # Start near top‑left
-        self.rect.centerx = self.rect.width // 2
-        self.base_y = 120
+        self.rect.centerx = SCREEN_WIDTH / 2
+        self.base_y = 220
         self.time_ticker = 0
         self.rect.centery = self.base_y
         self.direction = 1  # 1 = right, -1 = left
