@@ -15,4 +15,5 @@ obj/
 
 # User-specific files
 *.rsuser
-.venv
+*.venv
+*.pytest_cache
