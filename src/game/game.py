@@ -45,6 +45,7 @@ from src.game.mainmenue import MainMenu
 from src.game.endscreen import EndScreen
 from src.game.led_controller import LedController
 from src.game.explosion import Explosion
+from src.game.boss_healthbar import BossHealthBar
 
 # Helper function to slice sprites
 def get_image(sheet, x, y, width, height):
@@ -192,6 +193,7 @@ class Game:
         
         # Initialisiere miniboss_group hier sauber
         self.miniboss_group = pygame.sprite.Group()
+        self.boss_healthbar = None 
         
         # Transition related flags
         self.is_transition_active = False
@@ -373,7 +375,6 @@ class Game:
 
         self.powerups = pygame.sprite.Group()
         self.comets = pygame.sprite.Group()
-        self.miniboss_group = pygame.sprite.Group()
         self.headerbar = pygame.sprite.GroupSingle()
 
         # 4. Player Initialization
@@ -414,6 +415,7 @@ class Game:
         # 6. Timer and State Flag Resets
         self.ufo_timer = int(UFO_SPAWN_TIME * FPS)
         self.mini_boss_spawned = False
+        self.boss_healthbar = None # Healthbar zurücksetzen
         
         self.level_cleared_timer = 0
         self.is_transition_active = False
@@ -619,6 +621,9 @@ class Game:
         # WICHTIG: NACH dem Boss hinzufügen, damit die Fäuste VOR ihm gezeichnet werden!
         if hasattr(boss, "fist_group"):
             self.all_sprites.add(boss.fist_group)
+            
+        # Initialisiere die Healthbar, wenn der Boss spawnt
+        self.boss_healthbar = BossHealthBar(boss)
 
     def _play_music(self, trak_path, volume = 0.2):
         if self.current_track != trak_path:
@@ -960,6 +965,8 @@ class Game:
             return
         self.headerbar.sprite.set_level(self.level)
         self.mini_boss_spawned = False
+        
+        self.boss_healthbar = None # Healthbar beim Levelwechsel löschen
         self.miniboss_group.empty()
         self.enemies.empty()
         # Update background for the new level
@@ -1191,6 +1198,10 @@ class Game:
                 self.headerbar.update(self.score, self.lives)
                 self.headerbar.draw(self.screen)
                 
+                # --- NEU: BOSS HEALTHBAR HIER ZEICHNEN ---
+                if getattr(self, 'boss_healthbar', None):
+                    self.boss_healthbar.draw(self.screen)
+                
                 # Warning Icon Logik
                 if self.lives == 1:
                     # 1. Sound Trigger
@@ -1280,7 +1291,7 @@ class Game:
                 self.bunkers.draw(self.screen)
                 self.headerbar.update(self.score, self.lives)
                 self.headerbar.draw(self.screen)
-                self._draw_hud()
+                self._draw_hud() # Legacy, falls es da drin noch was gibt
                 self._present()
             
             else: # GAME_OVER / VICTORY

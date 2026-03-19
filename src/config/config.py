@@ -271,3 +271,10 @@ ENDBOSS_DEATH_MINI_EXP_INTERVAL = 10 # Alle 10 Frames eine kleine Explosion
 MINIBOSS_SPAWN_FRAMES = 60          # Frames pro Phase (60 Warten, 60 Zoom)
 MINIBOSS_SPAWNER_SIZE = 250         # Größe des Spawners
 MINIBOSS_SPAWNER_ROT_SPEED = 6      # Rotationsgeschwindigkeit
+
+# --- Boss Healthbar Settings ---
+BOSS_HEALTHBAR_WIDTH = 130
+BOSS_HEALTHBAR_HEIGHT = 25
+BOSS_HEALTHBAR_OFFSET_Y = 5        # Abstand über dem Boss
+BOSS_HEALTHBAR_INNER_OFFSET_X = 13  
+BOSS_HEALTHBAR_INNER_OFFSET_Y = 8
