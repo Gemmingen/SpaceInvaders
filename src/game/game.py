@@ -328,72 +328,84 @@ class Game:
             self.all_sprites.add(respawn_effect)
 
     def _reset(self):
-        # Reset for a fresh game (menu start or full restart)
+        """Reset the game state for a fresh start or full restart."""
+        # 1. LED and Sound Initialization
         self.leds.send_effect("A", "pulse", 99, 0, 255, 0, speed=50, repeat=0, priority=1)
+        self.warning_played = False
+        self.warning_led_active = False
+
+        # 2. Score and Level Management
         self.score = 0
         self.level = TEST_START_LEVEL
-        self.planet_index = 0  # reset planet sequence for a fresh game (planet_0 visible)
         self.lives = 3
         self.wave_number = 1
-        self._endless_wave_spawned = True  # First wave already spawned in create_enemy_wave()
-        
-        self.player = Player(SCREEN_WIDTH // 2, SCREEN_HEIGHT - 30)
-        self.player.current_scale = 1.0 # Reset scale
-        self.bunker_transition_y = 0.0  # Reset bunker offset
-        
+        self._endless_wave_spawned = True  
+        self.player_shots = 0
+
+        # 3. Sprite Group Cleanup
+        # Crucial: Empty the miniboss group BEFORE initializing new groups 
+        # to prevent stale bosses from syncing old projectiles.
+        if hasattr(self, 'miniboss_group'):
+            self.miniboss_group.empty()
+            
+        # Ensure all existing puddles are explicitly removed
+        if hasattr(self, 'puddle_group'):
+            for puddle in self.puddle_group:
+                puddle.kill()
+
+        # Initialize/Re-initialize all sprite groups
         self.all_sprites = pygame.sprite.Group()
         self.explosions = pygame.sprite.Group()
         self.enemies = pygame.sprite.Group()
         self.player_bullets = pygame.sprite.Group()
         self.enemy_bullets = pygame.sprite.Group()
         self.puddle_group = pygame.sprite.Group()
-        self.player_invuln_timer = 0
         self.bunkers = pygame.sprite.Group()
         self.ufo_group = pygame.sprite.Group()
-        
-        self.miniboss_group.update(self.player, all_sprites=self.all_sprites, enemy_bullets=self.enemy_bullets, explosions=self.explosions, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
-
         self.powerups = pygame.sprite.Group()
         self.comets = pygame.sprite.Group()
-        
+        self.miniboss_group = pygame.sprite.Group()
         self.headerbar = pygame.sprite.GroupSingle()
-        self.SCROLL = INITIAL_SCROLL  # reset scroll
-        # Reset background to level 1 (or current level after reset)
-        self.current_background_layers = self.level_backgrounds[self.level]
-        self.layer_offsets = [INITIAL_SCROLL] * PARALLAX_LAYERS
-        
-        # Player Boost erzeugen
-        self.player_boost = PlayerBoost(self.player)
 
-        # Dadurch liegt der Boost optisch hinter dem Schiff.
+        # 4. Player Initialization
+        self.player = Player(SCREEN_WIDTH // 2, SCREEN_HEIGHT - 30)
+        self.player.current_scale = 1.0 
+        self.player.exact_y = float(SCREEN_HEIGHT - TRANSITION_PLAYER_Y_NORMAL_OFFSET)
+        self.player_invuln_timer = 0
+        
+        # Player Boost initialization (placed behind the ship)
+        self.player_boost = PlayerBoost(self.player)
         self.all_sprites.add(self.player_boost)
         self.all_sprites.add(self.player)
+
+        # 5. Environment and Level Setup
+        self.SCROLL = INITIAL_SCROLL
+        self.planet_index = 0  
+        self.planet_sliding = True
+        if 0 in self.planets:
+            self.planet_y = -self.planets[0].get_height()
         
+        self.current_background_layers = self.level_backgrounds[self.level]
+        self.layer_offsets = [INITIAL_SCROLL] * PARALLAX_LAYERS
+        self.bunker_transition_y = 0.0
+
+        # Create initial world objects
         self.create_enemy_wave()
         self.enemy_direction = 1
         self.enemy_move_down = 10
-        # Header bar
         self.headerbar.add(HeaderBar(self.screen, self.font))
-        # Bunkers (satellites)
+        
+        # Spawn initial Bunkers
         angles = [0, 90, 180, 270]
         variants = ["satellite", "satellit2", "satellit3", "satellit4"]
         for i, variant in enumerate(variants):
             x_pos = 250 + (i * 190)
-            self.bunkers.add(
-                Bunker(
-                    x_pos,
-                    SCREEN_HEIGHT - 120,
-                    variant=variant,
-                    angle=angles[i],
-                )
-            )
+            self.bunkers.add(Bunker(x_pos, SCREEN_HEIGHT - 120, variant=variant, angle=angles[i]))
+
+        # 6. Timer and State Flag Resets
         self.ufo_timer = int(UFO_SPAWN_TIME * FPS)
-        self.player_shots = 0
-        # Mini‑boss flags reset
         self.mini_boss_spawned = False
-        self.miniboss_group.empty()
         self.level_cleared_timer = 0
-        # Reset transition flags for a fresh start
         self.is_transition_active = False
         self.transition_state = None
         self.transition_timer = 0
