@@ -189,7 +189,10 @@ class Game:
 
         self.mini_boss_spawned = False
         self.level_cleared_timer = 0
+        
+        # Initialisiere miniboss_group hier sauber
         self.miniboss_group = pygame.sprite.Group()
+        
         # Transition related flags
         self.is_transition_active = False
         self.transition_state = None
@@ -339,21 +342,26 @@ class Game:
         self.level = TEST_START_LEVEL
         self.lives = 3
         self.wave_number = 1
-        self._endless_wave_spawned = True  
-        self.player_shots = 0
 
+        self._endless_wave_spawned = True  # First wave already spawned in create_enemy_wave()
+        self.player_shots = 0
+        
+        self.player = Player(SCREEN_WIDTH // 2, SCREEN_HEIGHT - 30)
+        self.player.current_scale = 1.0 # Reset scale
+        self.bunker_transition_y = 0.0  # Reset bunker offset
+        
         # 3. Sprite Group Cleanup
-        # Crucial: Empty the miniboss group BEFORE initializing new groups 
-        # to prevent stale bosses from syncing old projectiles.
+        # FIX: Sauberes Killen der alten Bosse, um Reste (Klone, Laser, Fäuste) zu vernichten
         if hasattr(self, 'miniboss_group'):
-            self.miniboss_group.empty()
-            
+            for boss in self.miniboss_group:
+                boss.kill()
+        self.miniboss_group = pygame.sprite.Group()
+        
         # Ensure all existing puddles are explicitly removed
         if hasattr(self, 'puddle_group'):
             for puddle in self.puddle_group:
                 puddle.kill()
 
-        # Initialize/Re-initialize all sprite groups
         self.all_sprites = pygame.sprite.Group()
         self.explosions = pygame.sprite.Group()
         self.enemies = pygame.sprite.Group()
@@ -362,6 +370,7 @@ class Game:
         self.puddle_group = pygame.sprite.Group()
         self.bunkers = pygame.sprite.Group()
         self.ufo_group = pygame.sprite.Group()
+
         self.powerups = pygame.sprite.Group()
         self.comets = pygame.sprite.Group()
         self.miniboss_group = pygame.sprite.Group()
@@ -405,6 +414,7 @@ class Game:
         # 6. Timer and State Flag Resets
         self.ufo_timer = int(UFO_SPAWN_TIME * FPS)
         self.mini_boss_spawned = False
+        
         self.level_cleared_timer = 0
         self.is_transition_active = False
         self.transition_state = None

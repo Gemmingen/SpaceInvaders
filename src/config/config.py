@@ -25,7 +25,7 @@ BULLET_SPEED = 10
 TEST_AMOUNT = 3
 TEST_START_LEVEL = 3
 TEST_AMOUNT = 1
-TEST_START_LEVEL = 5
+TEST_START_LEVEL = 1
 ENEMY_WAVE_SETTINGS = {
     1: dict(rows=TEST_AMOUNT, cols=TEST_AMOUNT, speed=ENEMY_SPEED, shoot_chance=ENEMY_SHOOT_CHANCE),
     2: dict(rows=TEST_AMOUNT, cols=TEST_AMOUNT, speed=ENEMY_SPEED, shoot_chance=ENEMY_SHOOT_CHANCE),
@@ -268,3 +268,8 @@ ENDBOSS_DEATH_EXPLOSION_SIZE = 450  # Etwas kleiner als 600
 ENDBOSS_DEATH_EXPLOSION_DELAY = 6   # Langsamere Framerate für die große Explosion
 ENDBOSS_DEATH_EASING_SPEED = 0.015  # Drift-Speed zur Bildschirmmitte
 ENDBOSS_DEATH_MINI_EXP_INTERVAL = 10 # Alle 10 Frames eine kleine Explosion
+
+# --- MiniBoss Spawn Animation ---
+MINIBOSS_SPAWN_FRAMES = 60          # Frames pro Phase (60 Warten, 60 Zoom)
+MINIBOSS_SPAWNER_SIZE = 250         # Größe des Spawners
+MINIBOSS_SPAWNER_ROT_SPEED = 6      # Rotationsgeschwindigkeit
