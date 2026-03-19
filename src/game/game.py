@@ -22,7 +22,7 @@ from src.config.config import (
         TRANSITION_PLAYER_Y_AMPLIFY_PCT, TRANSITION_PLAYER_Y_HOLD_PCT,
         TRANSITION_PLAYER_Y_NORMAL_OFFSET, TRANSITION_PLAYER_EASING_UP,
         TRANSITION_PLAYER_EASING_DOWN, TRANSITION_PLAYER_EASING_RETURN,
-        TRANSITION_PLAYER_EASING_PLAYING,
+        TRANSITION_PLAYER_EASING_PLAYING, TRANSITION_WARP_OUT_ACCEL,
         FIST_EXPLOSION_OFFSET_LARGE, FIST_EXPLOSION_OFFSET_SMALL,
         FIST_EXPLOSION_SIZE_LARGE, FIST_EXPLOSION_SIZE_SMALL
     )
@@ -1189,9 +1189,28 @@ class Game:
                 self._present()
 
             elif self.state == self.STATE_LEVEL_CLEARED:
+                
+                # --- Warp-Out-Effekt für alle verbleibenden Objekte ---
+                for group in [self.player_bullets, self.enemy_bullets, self.powerups, self.comets, self.ufo_group]:
+                    for sprite in group:
+                        if hasattr(sprite, 'speed') and isinstance(sprite.speed, (int, float)):
+                            sprite.speed *= TRANSITION_WARP_OUT_ACCEL
+                        if hasattr(sprite, 'vel_x'):
+                            sprite.vel_x *= TRANSITION_WARP_OUT_ACCEL
+                        if hasattr(sprite, 'vel_y'):
+                            sprite.vel_y *= TRANSITION_WARP_OUT_ACCEL
+                        if hasattr(sprite, 'speed_x'):
+                            sprite.speed_x *= TRANSITION_WARP_OUT_ACCEL
+                        if hasattr(sprite, 'speed_y'):
+                            sprite.speed_y *= TRANSITION_WARP_OUT_ACCEL
+
                 self.explosions.update()      # Lässt Explosionen zu Ende animieren
                 self.player_bullets.update()  # Lässt Schüsse aus dem Bild fliegen
+                self.enemy_bullets.update()
                 self.powerups.update(SCREEN_HEIGHT)
+                self.comets.update(SCREEN_WIDTH, SCREEN_HEIGHT)
+                self.ufo_group.update()
+                self.puddle_group.update()
                 
                 # --- Y-Achsen Easing für den Cinematic Flight ---
                 if self.transition_state == "amplify":
