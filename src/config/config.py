@@ -22,7 +22,7 @@ ENEMY_SHOOT_CHANCE = 0.001                           # Chance per frame that an 
 BULLET_SPEED = 10
 
 # Enemy wave per level – can be tweaked later
-TEST_AMOUNT = 3
+TEST_AMOUNT = 1
 TEST_START_LEVEL = 1
 ENEMY_WAVE_SETTINGS = {
     1: dict(rows=TEST_AMOUNT, cols=TEST_AMOUNT, speed=ENEMY_SPEED, shoot_chance=ENEMY_SHOOT_CHANCE),
@@ -96,7 +96,7 @@ BACKGROUND_SCROLL_SPEED = BASE_SCROLL_SPEED
 # --- PowerUp & Comet Settings ---
 # Gesamte Drop-Wahrscheinlichkeit liegt bei ca. 22% pro normalem Gegner
 POWERUP_DROP_CHANCES = {
-    "comet": 1,        # 5%
+    "comet": 0.05,        # 5%
     "bunker": 0.02,       # 2%
     "hp": 0.01,           # 2%
     "speed": 0.03,        # 5%

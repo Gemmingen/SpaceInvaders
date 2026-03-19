@@ -570,6 +570,34 @@ class Game:
                 self.current_speed_factors = list(PARALLAX_SPEED_FACTORS)
             return
 
+    def _spawn_ufo(self):
+        ufo = UFO()
+        self.ufo_group.add(ufo)
+        self.all_sprites.add(ufo)
+
+    def _spawn_miniboss(self):
+        boss_map = {
+            1: BossSmall1,
+            2: BossSmall2,
+            3: BossSmall3,
+            4: BossSmall4,
+            5: EndBoss,
+        }
+        boss_cls = boss_map.get(self.level, BossSmall1)
+        settings = MINIBOSS_SETTINGS.get(self.level, MINIBOSS_SETTINGS[1])
+        boss = boss_cls(health=settings.get("health", 3), speed=settings.get("speed", 2))
+        extra = getattr(boss, "extra_settings", None)
+        if isinstance(extra, dict):
+            for k, v in extra.items():
+                setattr(boss, k, v)
+        
+        self.miniboss_group.add(boss)
+        self.all_sprites.add(boss)
+        
+        # WICHTIG: NACH dem Boss hinzufügen, damit die Fäuste VOR ihm gezeichnet werden!
+        if hasattr(boss, "fist_group"):
+            self.all_sprites.add(boss.fist_group)
+
     def _play_music(self, trak_path, volume = 0.2):
         if self.current_track != trak_path:
             pygame.mixer.music.load(trak_path)
@@ -902,34 +930,6 @@ class Game:
             wave_number=self.wave_number
         )
 
-    def _spawn_ufo(self):
-        ufo = UFO()
-        self.ufo_group.add(ufo)
-        self.all_sprites.add(ufo)
-
-    def _spawn_miniboss(self):
-        boss_map = {
-            1: BossSmall1,
-            2: BossSmall2,
-            3: BossSmall3,
-            4: BossSmall4,
-            5: EndBoss,
-        }
-        boss_cls = boss_map.get(self.level, BossSmall1)
-        settings = MINIBOSS_SETTINGS.get(self.level, MINIBOSS_SETTINGS[1])
-        boss = boss_cls(health=settings.get("health", 3), speed=settings.get("speed", 2))
-        extra = getattr(boss, "extra_settings", None)
-        if isinstance(extra, dict):
-            for k, v in extra.items():
-                setattr(boss, k, v)
-        
-        self.miniboss_group.add(boss)
-        self.all_sprites.add(boss)
-        
-        # WICHTIG: NACH dem Boss hinzufügen, damit die Fäuste VOR ihm gezeichnet werden!
-        if hasattr(boss, "fist_group"):
-            self.all_sprites.add(boss.fist_group)
-
     def advance_level(self):
         self.level += 1
         if self.level > self.MAX_LEVEL:
@@ -980,6 +980,11 @@ class Game:
                     pygame.quit()
                     sys.exit()
                 
+                # --- GLOBAL QUIT CHECK ---
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_q:
+                    pygame.quit()
+                    sys.exit()
+                
                 if self.state == self.STATE_MENU:
                     self._play_music(self.music_intro, 0.7)
                     self.leds.send_effect("A", "pulse", 99, 0, 255, 0, speed=20, repeat=10, priority=1)
@@ -996,6 +1001,7 @@ class Game:
                         
                 elif self.state == self.STATE_PLAYING: 
                     if event.type == pygame.KEYDOWN:
+                        # --- NEU: Schießen per Einzelklick im EVENT LOOP ---
                         if event.key == pygame.K_SPACE:
                             bullet = self.player.shoot()
                             if bullet:
@@ -1005,9 +1011,6 @@ class Game:
                                 self.player_shots += 1
                         elif event.key == pygame.K_r:
                             self._reset()
-                        elif event.key == pygame.K_q:
-                            pygame.quit()
-                            sys.exit()
                 
                 # Wenn das Level geschafft ist (Keine Highscore-Eingabe hier!)
                 elif self.state == self.STATE_LEVEL_CLEARED:
@@ -1015,9 +1018,6 @@ class Game:
                         if event.key == pygame.K_r:
                             self._reset()
                             self.state = self.STATE_PLAYING
-                        elif event.key == pygame.K_q:
-                            pygame.quit()
-                            sys.exit()
 
                 # Highscore-Eingabe (Nur bei Game Over oder Victory)
                 elif self.state in (self.STATE_GAME_OVER, self.STATE_VICTORY):
@@ -1027,9 +1027,6 @@ class Game:
                             self.player_name = ""
                             self._reset()
                             self.state = self.STATE_PLAYING
-                        elif event.key == pygame.K_q:
-                            pygame.quit()
-                            sys.exit()
 
                         # 1. Navigation auf der Tastatur
                         elif event.key == pygame.K_LEFT:
