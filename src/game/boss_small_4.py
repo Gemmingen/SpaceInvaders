@@ -6,7 +6,16 @@ frames.
 """
 import pygame
 import math
-from src.config.config import SCREEN_WIDTH, SCREEN_HEIGHT
+from src.config.config import (
+    SCREEN_WIDTH, SCREEN_HEIGHT,
+    BOSS4_CLONE_SIZE, BOSS4_CLONE_RADIUS, BOSS4_CLONE_HEALTH,
+    BOSS4_CLONE_DAMAGE, BOSS4_CLONE_SPEED, BOSS4_CLONE_EXPLOSION_SIZE,
+    BOSS4_CLONE_CHARGE_TIME, BOSS4_CLONE_FLASH_INTERVAL, BOSS4_CLONE_ORBIT_SPEED,
+    BOSS4_FLASH_COLOR_1, BOSS4_FLASH_COLOR_2,
+    BOSS4_START_Y, BOSS4_CENTER_Y, BOSS4_MAX_ROUTES, BOSS4_CHILDREN_COUNT,
+    BOSS4_BASE_SPEED, BOSS4_MIN_SPEED, BOSS4_FLIGHT_AMP_X, BOSS4_FLIGHT_AMP_Y,
+    BOSS4_FREQ_MULT_Y, BOSS4_ORBIT_T_STEP, BOSS4_LAUNCH_INITIAL_DELAY, BOSS4_LAUNCH_DELAY
+)
 from src.game.miniboss_base import MiniBossBase
 from src.game.explosion import Explosion
 
@@ -15,16 +24,16 @@ class BossClone(pygame.sprite.Sprite):
     def __init__(self, owner, angle_offset):
         super().__init__()
         img = pygame.image.load('assets/boss-small4.png').convert_alpha()
-        self.image_base = pygame.transform.scale(img, (40, 40))
+        self.image_base = pygame.transform.scale(img, BOSS4_CLONE_SIZE)
         self.image = self.image_base.copy()
         self.rect = self.image.get_rect()
         self.mask = pygame.mask.from_surface(self.image)
         
         self.owner = owner
         self.angle = angle_offset
-        self.radius = 80
-        self.health = 2 # Anzahl der Schüsse, die ein Klon aushält
-        self.damage = 1 # Schaden am Spieler oder Bunker
+        self.radius = BOSS4_CLONE_RADIUS
+        self.health = BOSS4_CLONE_HEALTH # Anzahl der Schüsse, die ein Klon aushält
+        self.damage = BOSS4_CLONE_DAMAGE # Schaden am Spieler oder Bunker
         
         # Status-Management
         self.state = "orbiting" # orbiting | charging | launched
@@ -34,7 +43,7 @@ class BossClone(pygame.sprite.Sprite):
         self.velocity = pygame.math.Vector2(0, 0)
         self.exact_x = 0.0
         self.exact_y = 0.0
-        self.speed = 8
+        self.speed = BOSS4_CLONE_SPEED
 
         self.explosions_group = None
         self.all_sprites_group = None
@@ -54,7 +63,7 @@ class BossClone(pygame.sprite.Sprite):
             
             if not getattr(self, 'silent_kill', False):
                 if getattr(self, 'explosions_group', None) is not None:
-                    exp = Explosion(self.rect.centerx, self.rect.centery, size=64)
+                    exp = Explosion(self.rect.centerx, self.rect.centery, size=BOSS4_CLONE_EXPLOSION_SIZE)
                     self.explosions_group.add(exp)
                     
                     if getattr(self, 'all_sprites_group', None) is not None:
@@ -64,8 +73,8 @@ class BossClone(pygame.sprite.Sprite):
 
     def start_charge(self):
         self.state = "charging"
-        self.charge_timer = 40 # Frames zum Blinken
-        self.flash_timer = 5
+        self.charge_timer = BOSS4_CLONE_CHARGE_TIME # Frames zum Blinken
+        self.flash_timer = BOSS4_CLONE_FLASH_INTERVAL
 
     def launch(self, target_pos, enemy_bullets_group):
         self.state = "launched"
@@ -104,16 +113,16 @@ class BossClone(pygame.sprite.Sprite):
             self.all_sprites_group = args[0]
 
         if self.state == "orbiting":
-            self.angle += 0.05
+            self.angle += BOSS4_CLONE_ORBIT_SPEED
             self.rect.centerx = round(self.owner.rect.centerx + math.cos(self.angle) * self.radius)
             self.rect.centery = round(self.owner.rect.centery + math.sin(self.angle) * self.radius)
             
         elif self.state == "charging":
             self.flash_timer -= 1
             if self.flash_timer <= 0:
-                self.flash_timer = 5
+                self.flash_timer = BOSS4_CLONE_FLASH_INTERVAL
                 self.flash_index = (self.flash_index + 1) % 2
-                color = (255, 0, 0) if self.flash_index == 0 else (255, 255, 255)
+                color = BOSS4_FLASH_COLOR_1 if self.flash_index == 0 else BOSS4_FLASH_COLOR_2
                 new_img = self.image_base.copy()
                 pygame.draw.rect(new_img, color, new_img.get_rect(), 2)
                 self.image = new_img
@@ -142,11 +151,11 @@ class BossSmall4(MiniBossBase):
 
     def __init__(self, health=15, speed=2):
         super().__init__('assets/boss-small4.png', health, speed)
-        self.rect.center = (SCREEN_WIDTH // 2, 200)
+        self.rect.center = (SCREEN_WIDTH // 2, BOSS4_START_Y)
         
-        self.center_pos = pygame.math.Vector2(SCREEN_WIDTH // 2, 250)
+        self.center_pos = pygame.math.Vector2(SCREEN_WIDTH // 2, BOSS4_CENTER_Y)
         self.t = 0.0
-        self.max_routes = 2
+        self.max_routes = BOSS4_MAX_ROUTES
         
         self.state = self.STATE_FLYING
         self.children = pygame.sprite.Group()
@@ -154,8 +163,8 @@ class BossSmall4(MiniBossBase):
         self.launch_delay = 0
 
     def spawn_children(self):
-        for i in range(6):
-            angle = (2 * math.pi / 6) * i
+        for i in range(BOSS4_CHILDREN_COUNT):
+            angle = (2 * math.pi / BOSS4_CHILDREN_COUNT) * i
             child = BossClone(self, angle)
             self.children.add(child)
             # Kinder in die gleichen Gruppen pushen wie den Boss (macht sie für den Spieler abknallbar!)
@@ -177,12 +186,12 @@ class BossSmall4(MiniBossBase):
             remaining = target_t - self.t
             
             # Basisgeschwindigkeit
-            base_speed = 0.03
+            base_speed = BOSS4_BASE_SPEED
             
             # Sehr weiches "Smooth Easing" im letzten Halbbogen (pi) vor dem Anhalten
             if remaining < math.pi:
                 ratio = remaining / math.pi
-                speed = max(0.020, base_speed * math.sin(ratio * math.pi / 2))
+                speed = max(BOSS4_MIN_SPEED, base_speed * math.sin(ratio * math.pi / 2))
             else:
                 speed = base_speed
             
@@ -191,8 +200,8 @@ class BossSmall4(MiniBossBase):
                 self.t = target_t
                 self.state = self.STATE_SPAWNING
 
-            self.rect.centerx = self.center_pos.x + 350 * math.sin(self.t)
-            self.rect.centery = self.center_pos.y + 100 * math.sin(2 * self.t)
+            self.rect.centerx = self.center_pos.x + BOSS4_FLIGHT_AMP_X * math.sin(self.t)
+            self.rect.centery = self.center_pos.y + BOSS4_FLIGHT_AMP_Y * math.sin(BOSS4_FREQ_MULT_Y * self.t)
         
         elif self.state == self.STATE_SPAWNING:
             self.rect.center = self.center_pos
@@ -201,13 +210,13 @@ class BossSmall4(MiniBossBase):
             self.t = 0
 
         elif self.state == self.STATE_ORBITING:
-            self.t += 0.05 
+            self.t += BOSS4_ORBIT_T_STEP 
             if self.t >= 2 * math.pi:
                 self.state = self.STATE_ATTACKING
                 self.attack_queue = self.children.sprites()
                 for child in self.attack_queue:
                     child.start_charge()
-                self.launch_delay = 30
+                self.launch_delay = BOSS4_LAUNCH_INITIAL_DELAY
 
         elif self.state == self.STATE_ATTACKING:
             if self.attack_queue:
@@ -216,7 +225,7 @@ class BossSmall4(MiniBossBase):
                     child = self.attack_queue.pop(0)
                     if child.alive() and player:
                         child.launch(player.rect.center, enemy_bullets)
-                    self.launch_delay = 15
+                    self.launch_delay = BOSS4_LAUNCH_DELAY
             
             if len(self.children) == 0:
                 self.state = self.STATE_FLYING
