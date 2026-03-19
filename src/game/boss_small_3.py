@@ -63,7 +63,7 @@ class PoisonGlob(pygame.sprite.Sprite):
             self.has_spawned = True
             self.has_split = True
             # Create three child globs with diverging angles
-            for angle in (-BOSS3_GLOB_SPLIT_ANGLE_DEGREES, 0, BOSS3_GLOB_SPLIT_ANGLE_DEGREES):
+            for angle in (-BOSS3_GLOB_SPLIT_ANGLE_DEGREES, BOSS3_GLOB_SPLIT_ANGLE_DEGREES):
                 rad = math.radians(angle)
                 vx = math.sin(rad) * self.speed
                 vy = math.cos(rad) * self.speed
@@ -72,7 +72,7 @@ class PoisonGlob(pygame.sprite.Sprite):
                                    puddle_group=self.puddle_group,
                                    player=self.player,
                                    splits=False)
-                child.image = pygame.transform.scale(child.image, (15, 15))
+                child.image = pygame.transform.scale(child.image, (25, 25))
                 child.vel_x = vx
                 child.vel_y = vy
                 # Add child to all groups the parent belonged to
@@ -142,14 +142,17 @@ class PoisonPuddle(pygame.sprite.Sprite):
         self.frames = PoisonPuddle._frame_cache
         self.animation_speed = animation_speed
         
-        # Use a float for the current frame to support fractional speeds like 0.5
         self.current_frame = 0.0 
-        
         self.image = self.frames[0]
         self.rect = self.image.get_rect(center=(x, y))
+        
+        # --- NEW: Effect spawning variables ---
+        self.effects_to_spawn = 8
+        # Calculate roughly how many frames to wait between spawns
+        self.effect_interval = max(1, len(self.frames) // (self.effects_to_spawn + 1))
+        self.last_effect_frame = 0
 
     def update(self, *args, **kwargs):
-        # Advance the fractional frame counter
         self.current_frame += self.animation_speed
         
         # Convert to an integer to get the actual list index
@@ -159,6 +162,62 @@ class PoisonPuddle(pygame.sprite.Sprite):
             self.kill()
         else:
             self.image = self.frames[frame_index]
+            
+            # --- NEW: Spawn poison effects ---
+            if frame_index - self.last_effect_frame >= self.effect_interval and self.effects_to_spawn > 0:
+                self.last_effect_frame = frame_index
+                self.effects_to_spawn -= 1
+                
+                # Calculate a random position within the general width of the puddle
+                offset_x = random.randint(-self.rect.width // 4, self.rect.width // 4)
+                # Position it near the centre/bottom area
+                offset_y = random.randint(0, self.rect.height // 5)
+                
+                effect = PoisonEffect(self.rect.centerx + offset_x, self.rect.centery + offset_y)
+                
+                # Automatically add the effect to the same sprite groups as the puddle
+                for group in self.groups():
+                    group.add(effect)
+
+class PoisonEffect(pygame.sprite.Sprite):
+    """Small poison effect particle that rises and fades."""
+    _image_cache = None
+
+    def __init__(self, x, y):
+        super().__init__()
+        # Load the image once and cache it
+        if PoisonEffect._image_cache is None:
+            try:
+                PoisonEffect._image_cache = pygame.image.load('assets/poison-effect.png').convert_alpha()
+                
+            except Exception:
+                # Fallback if image is missing
+                surf = pygame.Surface((15, 15), pygame.SRCALPHA)
+                surf.fill((0, 255, 0, 180))
+                PoisonEffect._image_cache = surf
+                
+        self.original_image = pygame.transform.scale(PoisonEffect._image_cache, (100, 100))
+        self.image = self.original_image.copy()
+        self.rect = self.image.get_rect(center=(x, y))
+        self.alpha = 255
+        
+        # Randomize fade and rise speeds slightly for a natural effect
+        self.fade_speed = random.randint(3, 7) 
+        self.rise_speed = random.uniform(0.5, 1.5)
+        self.exact_y = float(self.rect.y)
+
+    def update(self, *args, **kwargs):
+        # Rise slowly upwards
+        self.exact_y -= self.rise_speed
+        self.rect.y = int(self.exact_y)
+        
+        # Fade out
+        self.alpha -= self.fade_speed
+        if self.alpha <= 0:
+            self.kill()
+        else:
+            self.image = self.original_image.copy()
+            self.image.set_alpha(self.alpha)
 
 class BossSmall3(MiniBossBase):
     def __init__(self, health=3, speed=2):
@@ -168,7 +227,7 @@ class BossSmall3(MiniBossBase):
         self.boss_base = self.image.copy()
         self.spawner_base = load_image('assets/boss3-spawner.png').convert_alpha()
         
-        self.base_y = 120
+        self.base_y = 220
         # Start near top‑left (verschoben auf SCREEN_WIDTH // 2, wie gewünscht!)
         self.exact_x = float(SCREEN_WIDTH // 2)
         self.exact_y = float(self.base_y)
@@ -251,7 +310,7 @@ class BossSmall3(MiniBossBase):
         # ========================================================
         # --- Sine wave vertical movement ---
         self.time_ticker += 0.05
-        self.rect.centery = int(self.base_y + math.sin(self.time_ticker) * 50)
+        self.rect.centery = int(self.base_y - abs(math.sin(self.time_ticker)) * 50)
 
         # --- Horizontal movement (bounce) ---
         self.rect.x += self.direction * self.speed
