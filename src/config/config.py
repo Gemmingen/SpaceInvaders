@@ -24,6 +24,8 @@ BULLET_SPEED = 10
 # Enemy wave per level – can be tweaked later
 TEST_AMOUNT = 3
 TEST_START_LEVEL = 3
+TEST_AMOUNT = 1
+TEST_START_LEVEL = 5
 ENEMY_WAVE_SETTINGS = {
     1: dict(rows=TEST_AMOUNT, cols=TEST_AMOUNT, speed=ENEMY_SPEED, shoot_chance=ENEMY_SHOOT_CHANCE),
     2: dict(rows=TEST_AMOUNT, cols=TEST_AMOUNT, speed=ENEMY_SPEED, shoot_chance=ENEMY_SHOOT_CHANCE),
@@ -57,7 +59,7 @@ MINIBOSS_SETTINGS = {
     2: dict(health=3, speed=2),
     3: dict(health=3, speed=2),
     4: dict(health=3, speed=2),
-    5: dict(health=10, speed=3), # Gebuffter Endboss
+    5: dict(health=5, speed=3), # Gebuffter Endboss
 }
 
 # Background settings
@@ -99,7 +101,7 @@ BACKGROUND_SCROLL_SPEED = BASE_SCROLL_SPEED
 # --- PowerUp & Comet Settings ---
 # Gesamte Drop-Wahrscheinlichkeit liegt bei ca. 22% pro normalem Gegner
 POWERUP_DROP_CHANCES = {
-    "comet": 1,        # 5%
+    "comet": 0.05,        # 5%
     "bunker": 0.02,       # 2%
     "hp": 0.01,           # 2%
     "speed": 0.03,        # 5%
@@ -252,8 +254,17 @@ TRANSITION_PLAYER_EASING_UP = 0.03
 TRANSITION_PLAYER_EASING_DOWN = 0.02
 TRANSITION_PLAYER_EASING_RETURN = 0.04
 TRANSITION_PLAYER_EASING_PLAYING = 0.08
+TRANSITION_WARP_OUT_ACCEL = 1.10
 
 FIST_EXPLOSION_OFFSET_LARGE = 25
 FIST_EXPLOSION_OFFSET_SMALL = 10
 FIST_EXPLOSION_SIZE_LARGE = 64
 FIST_EXPLOSION_SIZE_SMALL = 32
+
+# --- EndBoss Death Sequence ---
+ENDBOSS_DEATH_SHAKE_FRAMES = 150    # Länger wackeln (2.5 Sek)
+ENDBOSS_DEATH_SHAKE_PIXELS = 8      # Intensität des Wackelns
+ENDBOSS_DEATH_EXPLOSION_SIZE = 450  # Etwas kleiner als 600
+ENDBOSS_DEATH_EXPLOSION_DELAY = 6   # Langsamere Framerate für die große Explosion
+ENDBOSS_DEATH_EASING_SPEED = 0.015  # Drift-Speed zur Bildschirmmitte
+ENDBOSS_DEATH_MINI_EXP_INTERVAL = 10 # Alle 10 Frames eine kleine Explosion

@@ -12,7 +12,19 @@ from src.config.config import (
     ENDBOSS_WIDTH, ENDBOSS_HEIGHT,
     ENDBOSS_PHASE_DURATION, ENDBOSS_ATTACK_COOLDOWN,
     ENDBOSS_PROJECTILE_SPEED, ENDBOSS_PROJECTILE_SPLIT_ANGLE,
-    ENDBOSS_RANDOM_SHOOT_MIN, ENDBOSS_RANDOM_SHOOT_MAX
+    ENDBOSS_RANDOM_SHOOT_MIN, ENDBOSS_RANDOM_SHOOT_MAX,
+    ENDBOSS_PROJ_SIZE_LARGE, ENDBOSS_PROJ_SIZE_SMALL,
+    ENDBOSS_EXPLOSION_SIZE, ENDBOSS_SPAWNER_SIZE,
+    ENDBOSS_SPAWN_FRAMES, ENDBOSS_SPAWNER_ROT_SPEED,
+    ENDBOSS_BURSTS_PER_CYCLE, ENDBOSS_EASING_SPEED,
+    ENDBOSS_CENTER_Y, ENDBOSS_TOP_Y, ENDBOSS_PATTERN_AMP_X,
+    ENDBOSS_PATTERN_AMP_Y, ENDBOSS_PATTERN_WIDE_X,
+    ENDBOSS_FREQ_MULT_X, ENDBOSS_FREQ_MULT_Y1, ENDBOSS_FREQ_MULT_Y2,
+    ENDBOSS_TIME_STEP, ENDBOSS_CENTER_TOLERANCE,
+    ENDBOSS_PIPE_X_OFFSET_PCT, ENDBOSS_PIPE_Y_OFFSET, ENDBOSS_PIPE_ANGLES,
+    ENDBOSS_DEATH_SHAKE_FRAMES, ENDBOSS_DEATH_SHAKE_PIXELS,
+    ENDBOSS_DEATH_EXPLOSION_SIZE, ENDBOSS_DEATH_EXPLOSION_DELAY,
+    ENDBOSS_DEATH_EASING_SPEED, ENDBOSS_DEATH_MINI_EXP_INTERVAL
 )
 from src.game.miniboss_base import MiniBossBase
 from src.game.explosion import Explosion
@@ -32,9 +44,9 @@ class EndBossProjectile(pygame.sprite.Sprite):
         
         # Größenskalierung je nach Teilungs-Level
         if self.split_level == 0:
-            self.image_base = pygame.transform.scale(img, (24, 48))
+            self.image_base = pygame.transform.scale(img, ENDBOSS_PROJ_SIZE_LARGE)
         else:
-            self.image_base = pygame.transform.scale(img, (12, 24))
+            self.image_base = pygame.transform.scale(img, ENDBOSS_PROJ_SIZE_SMALL)
             
         # Rotiert das Sprite visuell in die korrekte Flugrichtung
         self.image = pygame.transform.rotate(self.image_base, -angle + 90)
@@ -109,7 +121,7 @@ class EndBossProjectile(pygame.sprite.Sprite):
             if not getattr(self, 'silent_kill', False):
                 # Explosion spawnen, weil er getroffen hat
                 if self.explosions_group is not None:
-                    exp = Explosion(self.rect.centerx, self.rect.centery, size=48)
+                    exp = Explosion(self.rect.centerx, self.rect.centery, size=ENDBOSS_EXPLOSION_SIZE)
                     self.explosions_group.add(exp)
                     if self.all_sprites_group is not None:
                         self.all_sprites_group.add(exp)
@@ -147,6 +159,7 @@ class EndBossProjectile(pygame.sprite.Sprite):
 class EndBoss(MiniBossBase):
     STATE_SPAWNING = "spawning"
     STATE_FLYING = "flying"
+    STATE_DYING = "dying"
 
     def __init__(self, health=50, speed=3):
         super().__init__('assets/endboss.png', health, speed)
@@ -156,9 +169,14 @@ class EndBoss(MiniBossBase):
         self.spawner_base = load_image('assets/endboss-spawner.png').convert_alpha()
         
         # Start-Setup (Mitte oben)
-        self.center_pos = pygame.math.Vector2(SCREEN_WIDTH // 2, 250)
+        self.center_pos = pygame.math.Vector2(SCREEN_WIDTH // 2, ENDBOSS_CENTER_Y)
         self.exact_x = float(self.center_pos.x)
-        self.exact_y = float(150)
+        self.exact_y = float(ENDBOSS_TOP_Y)
+        
+        # FIX: Behebt den 1-Millisekunde-Glitch oben links! 
+        # Macht das Sprite für den allerersten Frame komplett unsichtbar
+        self.image = pygame.Surface((1, 1), pygame.SRCALPHA)
+        self.rect = self.image.get_rect(center=(round(self.exact_x), round(self.exact_y)))
         
         self.state = self.STATE_SPAWNING
         self.spawn_timer = 0
@@ -174,6 +192,11 @@ class EndBoss(MiniBossBase):
         # Schuss-Logik während der Flug-Runden (Phase 1-4)
         self.random_shoot_timer = random.randint(ENDBOSS_RANDOM_SHOOT_MIN, ENDBOSS_RANDOM_SHOOT_MAX)
         
+        # Todes-Logik
+        self.death_timer = 0
+        self.base_x = 0
+        self.base_y = 0
+
         self.projectiles = pygame.sprite.Group()
 
     def update(self, player=None, *args, **kwargs):
@@ -194,31 +217,75 @@ class EndBoss(MiniBossBase):
             all_sprites = args[0]
 
         # ========================================================
+        # 0. TODES-ANIMATION (In die Mitte driften & Mini-Explosionen)
+        # ========================================================
+        if self.state == self.STATE_DYING:
+            self.death_timer -= 1
+            
+            if self.death_timer > 0:
+                # 1. Easing in Richtung Bildschirmmitte
+                target_x = SCREEN_WIDTH // 2
+                target_y = SCREEN_HEIGHT // 2
+                self.base_x += (target_x - self.base_x) * ENDBOSS_DEATH_EASING_SPEED
+                self.base_y += (target_y - self.base_y) * ENDBOSS_DEATH_EASING_SPEED
+                
+                # 2. Heftiges Wackeln
+                offset_x = random.randint(-ENDBOSS_DEATH_SHAKE_PIXELS, ENDBOSS_DEATH_SHAKE_PIXELS)
+                offset_y = random.randint(-ENDBOSS_DEATH_SHAKE_PIXELS, ENDBOSS_DEATH_SHAKE_PIXELS)
+                self.rect.centerx = round(self.base_x) + offset_x
+                self.rect.centery = round(self.base_y) + offset_y
+                
+                # 3. Random kleine Explosionen spawnen (immer im Rhythmus)
+                if self.death_timer % ENDBOSS_DEATH_MINI_EXP_INTERVAL == 0:
+                    if explosions is not None:
+                        mini_x = self.rect.centerx + random.randint(-ENDBOSS_WIDTH // 2, ENDBOSS_WIDTH // 2)
+                        mini_y = self.rect.centery + random.randint(-ENDBOSS_HEIGHT // 2, ENDBOSS_HEIGHT // 2)
+                        mini_exp = Explosion(mini_x, mini_y, size=64)
+                        explosions.add(mini_exp)
+                        if all_sprites is not None:
+                            all_sprites.add(mini_exp)
+            else:
+                # 4. Am Ende die gigantische Explosion spawnen
+                if explosions is not None:
+                    exp = Explosion(
+                        round(self.base_x), round(self.base_y), 
+                        size=ENDBOSS_DEATH_EXPLOSION_SIZE, 
+                        anim_delay=ENDBOSS_DEATH_EXPLOSION_DELAY
+                    )
+                    explosions.add(exp)
+                    if all_sprites is not None:
+                        all_sprites.add(exp)
+                
+                # Boss endgültig entfernen
+                self.kill() 
+                
+            return # Blockiert das Fliegen & Schießen!
+
+        # ========================================================
         # 1. INTRO / SPAWN ANIMATION
         # ========================================================
         if self.state == self.STATE_SPAWNING:
             self.spawn_timer += 1
             
             # Erstelle eine durchsichtige Arbeitsfläche (Canvas) für die Animation
-            surf = pygame.Surface((400, 400), pygame.SRCALPHA)
-            center = (200, 200)
+            canvas_size = ENDBOSS_SPAWNER_SIZE + 100
+            surf = pygame.Surface((canvas_size, canvas_size), pygame.SRCALPHA)
+            center = (canvas_size // 2, canvas_size // 2)
             
-            # --- Spawner Logik (0 bis 60 Frames) ---
-            # Wächst von 0 auf 100% (300px), rotiert rasend schnell
-            spawner_scale = min(1.0, self.spawn_timer / 60.0)
+            # --- Spawner Logik ---
+            spawner_scale = min(1.0, self.spawn_timer / float(ENDBOSS_SPAWN_FRAMES))
             if spawner_scale > 0:
-                spawner_size = int(300 * spawner_scale)
+                spawner_size = int(ENDBOSS_SPAWNER_SIZE * spawner_scale)
                 if spawner_size > 0:
                     spawner_scaled = pygame.transform.scale(self.spawner_base, (spawner_size, spawner_size))
                     # Rotiert anhand der Zeit
-                    spawner_rot = pygame.transform.rotate(spawner_scaled, self.spawn_timer * 6)
+                    spawner_rot = pygame.transform.rotate(spawner_scaled, self.spawn_timer * ENDBOSS_SPAWNER_ROT_SPEED)
                     sp_rect = spawner_rot.get_rect(center=center)
                     surf.blit(spawner_rot, sp_rect)
             
-            # --- Boss Zoom Logik (60 bis 120 Frames) ---
-            # Boss kommt aus der Mitte extrem schnell nach vorne geschossen
-            if self.spawn_timer > 60:
-                boss_scale = min(1.0, (self.spawn_timer - 60) / 60.0)
+            # --- Boss Zoom Logik ---
+            if self.spawn_timer > ENDBOSS_SPAWN_FRAMES:
+                boss_scale = min(1.0, (self.spawn_timer - ENDBOSS_SPAWN_FRAMES) / float(ENDBOSS_SPAWN_FRAMES))
                 bw = int(ENDBOSS_WIDTH * boss_scale)
                 bh = int(ENDBOSS_HEIGHT * boss_scale)
                 if bw > 0 and bh > 0:
@@ -230,7 +297,7 @@ class EndBoss(MiniBossBase):
             self.rect = self.image.get_rect(center=(round(self.exact_x), round(self.exact_y)))
             
             # Animation beendet
-            if self.spawn_timer >= 120:
+            if self.spawn_timer >= ENDBOSS_SPAWN_FRAMES * 2:
                 self.state = self.STATE_FLYING
                 # Finales, sauberes Boss-Bild ohne Spawner
                 self.image = pygame.transform.scale(self.boss_base, (ENDBOSS_WIDTH, ENDBOSS_HEIGHT))
@@ -243,7 +310,7 @@ class EndBoss(MiniBossBase):
         # 2. NORMALES FLIEGEN & KÄMPFEN
         # ========================================================
         if self.state == self.STATE_FLYING:
-            self.t += 0.05 
+            self.t += ENDBOSS_TIME_STEP 
             
             # Start/Ziel-Koordinaten
             target_x = self.center_pos.x
@@ -252,34 +319,33 @@ class EndBoss(MiniBossBase):
             # --- Flugmuster Phasen (Berechnen nur das MATHEMATISCHE Ziel) ---
             if self.phase == 1:
                 # Pattern: Boss 1 (Kreisen)
-                target_x = self.center_pos.x + 250 * math.cos(self.t)
-                target_y = self.center_pos.y + 100 * math.sin(self.t)
+                target_x = self.center_pos.x + ENDBOSS_PATTERN_AMP_X * math.cos(self.t)
+                target_y = self.center_pos.y + ENDBOSS_PATTERN_AMP_Y * math.sin(self.t)
                 
             elif self.phase == 2:
                 # Pattern: Boss 2 (Pendeln oben)
-                target_x = self.center_pos.x + 350 * math.sin(self.t * 0.8)
-                target_y = 150
+                target_x = self.center_pos.x + ENDBOSS_PATTERN_WIDE_X * math.sin(self.t * ENDBOSS_FREQ_MULT_X)
+                target_y = ENDBOSS_TOP_Y
                     
             elif self.phase == 3:
                 # Pattern: Boss 3 (Welle)
-                target_x = self.center_pos.x + 350 * math.sin(self.t * 0.8)
-                target_y = self.center_pos.y - 50 + 100 * math.cos(self.t * 2)
+                target_x = self.center_pos.x + ENDBOSS_PATTERN_WIDE_X * math.sin(self.t * ENDBOSS_FREQ_MULT_X)
+                target_y = self.center_pos.y - 50 + ENDBOSS_PATTERN_AMP_Y * math.cos(self.t * ENDBOSS_FREQ_MULT_Y1)
                     
             elif self.phase == 4:
                 # Pattern: Boss 4 (8er Bewegung)
-                target_x = self.center_pos.x + 350 * math.sin(self.t * 0.8)
-                target_y = self.center_pos.y + 100 * math.sin(self.t * 1.6)
+                target_x = self.center_pos.x + ENDBOSS_PATTERN_WIDE_X * math.sin(self.t * ENDBOSS_FREQ_MULT_X)
+                target_y = self.center_pos.y + ENDBOSS_PATTERN_AMP_Y * math.sin(self.t * ENDBOSS_FREQ_MULT_Y2)
                 
             elif self.phase == 5:
                 # Finales Pattern: Genau im Zentrum stehen
                 target_x = self.center_pos.x
-                target_y = 150
+                target_y = ENDBOSS_TOP_Y
 
             # --- SMOOTH EASING ---
             # Der Boss lenkt sanft zu seinem Ziel-Pattern, ohne zu Ruckeln/Zucken!
-            easing_speed = 0.08
-            self.exact_x += (target_x - self.exact_x) * easing_speed
-            self.exact_y += (target_y - self.exact_y) * easing_speed
+            self.exact_x += (target_x - self.exact_x) * ENDBOSS_EASING_SPEED
+            self.exact_y += (target_y - self.exact_y) * ENDBOSS_EASING_SPEED
             
             self.rect.centerx = round(self.exact_x)
             self.rect.centery = round(self.exact_y)
@@ -301,7 +367,7 @@ class EndBoss(MiniBossBase):
                     
             elif self.phase == 5:
                 # Dauerfeuer-Pattern! (Erst wenn er in der Mitte ruht)
-                if abs(self.exact_x - target_x) < 20 and abs(self.exact_y - target_y) < 20:
+                if abs(self.exact_x - target_x) < ENDBOSS_CENTER_TOLERANCE and abs(self.exact_y - target_y) < ENDBOSS_CENTER_TOLERANCE:
                     self.attack_timer -= 1
                     if self.attack_timer <= 0:
                         self.shoot(enemy_bullets, explosions, all_sprites)
@@ -309,7 +375,7 @@ class EndBoss(MiniBossBase):
                         self.attack_timer = ENDBOSS_ATTACK_COOLDOWN
                         
                         # Nach 4 Salven wieder bei Phase 1 anfangen
-                        if self.bursts_fired >= 4:
+                        if self.bursts_fired >= ENDBOSS_BURSTS_PER_CYCLE:
                             self.phase = 1
                             self.phase_timer = ENDBOSS_PHASE_DURATION
                             self.bursts_fired = 0
@@ -319,13 +385,13 @@ class EndBoss(MiniBossBase):
         center_pipe = self.rect.midbottom
         
         # 20% Eingerückt von den Seiten, leicht über dem Boden
-        left_pipe = (self.rect.left + self.rect.width * 0.2, self.rect.bottom - 10)
-        right_pipe = (self.rect.right - self.rect.width * 0.2, self.rect.bottom - 10)
+        left_pipe = (self.rect.left + self.rect.width * ENDBOSS_PIPE_X_OFFSET_PCT, self.rect.bottom - ENDBOSS_PIPE_Y_OFFSET)
+        right_pipe = (self.rect.right - self.rect.width * ENDBOSS_PIPE_X_OFFSET_PCT, self.rect.bottom - ENDBOSS_PIPE_Y_OFFSET)
 
         # 90° = Unten Mitte, 135° = Diagonal Unten Links, 45° = Diagonal Unten Rechts
-        p1 = EndBossProjectile(center_pipe, 90, 0, explosions, all_sprites, enemy_bullets, self.projectiles)
-        p2 = EndBossProjectile(left_pipe, 135, 0, explosions, all_sprites, enemy_bullets, self.projectiles)
-        p3 = EndBossProjectile(right_pipe, 45, 0, explosions, all_sprites, enemy_bullets, self.projectiles)
+        p1 = EndBossProjectile(center_pipe, ENDBOSS_PIPE_ANGLES[0], 0, explosions, all_sprites, enemy_bullets, self.projectiles)
+        p2 = EndBossProjectile(left_pipe, ENDBOSS_PIPE_ANGLES[1], 0, explosions, all_sprites, enemy_bullets, self.projectiles)
+        p3 = EndBossProjectile(right_pipe, ENDBOSS_PIPE_ANGLES[2], 0, explosions, all_sprites, enemy_bullets, self.projectiles)
 
         for p in (p1, p2, p3):
             self.projectiles.add(p)
@@ -335,14 +401,19 @@ class EndBoss(MiniBossBase):
                 all_sprites.add(p)
 
     def hit(self):
-        # Boss ist UNVERWUNDBAR, solange er seine krasse Intro-Animation ausführt
-        if self.state == self.STATE_SPAWNING:
+        # Unverwundbar im Spawning UND im Sterben
+        if self.state in (self.STATE_SPAWNING, self.STATE_DYING):
             return 
             
         self.health -= 1
         if self.health <= 0:
-            # Wenn der Boss stirbt, verschwinden seine Kugeln sofort lautlos
+            # Projektile lautlos zerstören
             for proj in self.projectiles:
                 proj.silent_kill = True
                 proj.kill()
-            self.kill()
+                
+            # Statt self.kill() leiten wir jetzt die Todesphase ein!
+            self.state = self.STATE_DYING
+            self.death_timer = ENDBOSS_DEATH_SHAKE_FRAMES
+            self.base_x = self.exact_x
+            self.base_y = self.exact_y

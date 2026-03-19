@@ -22,7 +22,7 @@ from src.config.config import (
         TRANSITION_PLAYER_Y_AMPLIFY_PCT, TRANSITION_PLAYER_Y_HOLD_PCT,
         TRANSITION_PLAYER_Y_NORMAL_OFFSET, TRANSITION_PLAYER_EASING_UP,
         TRANSITION_PLAYER_EASING_DOWN, TRANSITION_PLAYER_EASING_RETURN,
-        TRANSITION_PLAYER_EASING_PLAYING,
+        TRANSITION_PLAYER_EASING_PLAYING, TRANSITION_WARP_OUT_ACCEL,
         FIST_EXPLOSION_OFFSET_LARGE, FIST_EXPLOSION_OFFSET_SMALL,
         FIST_EXPLOSION_SIZE_LARGE, FIST_EXPLOSION_SIZE_SMALL
     )
@@ -582,6 +582,34 @@ class Game:
                 self.current_speed_factors = list(PARALLAX_SPEED_FACTORS)
             return
 
+    def _spawn_ufo(self):
+        ufo = UFO()
+        self.ufo_group.add(ufo)
+        self.all_sprites.add(ufo)
+
+    def _spawn_miniboss(self):
+        boss_map = {
+            1: BossSmall1,
+            2: BossSmall2,
+            3: BossSmall3,
+            4: BossSmall4,
+            5: EndBoss,
+        }
+        boss_cls = boss_map.get(self.level, BossSmall1)
+        settings = MINIBOSS_SETTINGS.get(self.level, MINIBOSS_SETTINGS[1])
+        boss = boss_cls(health=settings.get("health", 3), speed=settings.get("speed", 2))
+        extra = getattr(boss, "extra_settings", None)
+        if isinstance(extra, dict):
+            for k, v in extra.items():
+                setattr(boss, k, v)
+        
+        self.miniboss_group.add(boss)
+        self.all_sprites.add(boss)
+        
+        # WICHTIG: NACH dem Boss hinzufügen, damit die Fäuste VOR ihm gezeichnet werden!
+        if hasattr(boss, "fist_group"):
+            self.all_sprites.add(boss.fist_group)
+
     def _play_music(self, trak_path, volume = 0.2):
         if self.current_track != trak_path:
             pygame.mixer.music.load(trak_path)
@@ -914,34 +942,6 @@ class Game:
             wave_number=self.wave_number
         )
 
-    def _spawn_ufo(self):
-        ufo = UFO()
-        self.ufo_group.add(ufo)
-        self.all_sprites.add(ufo)
-
-    def _spawn_miniboss(self):
-        boss_map = {
-            1: BossSmall1,
-            2: BossSmall2,
-            3: BossSmall3,
-            4: BossSmall4,
-            5: EndBoss,
-        }
-        boss_cls = boss_map.get(self.level, BossSmall1)
-        settings = MINIBOSS_SETTINGS.get(self.level, MINIBOSS_SETTINGS[1])
-        boss = boss_cls(health=settings.get("health", 3), speed=settings.get("speed", 2))
-        extra = getattr(boss, "extra_settings", None)
-        if isinstance(extra, dict):
-            for k, v in extra.items():
-                setattr(boss, k, v)
-        
-        self.miniboss_group.add(boss)
-        self.all_sprites.add(boss)
-        
-        # WICHTIG: NACH dem Boss hinzufügen, damit die Fäuste VOR ihm gezeichnet werden!
-        if hasattr(boss, "fist_group"):
-            self.all_sprites.add(boss.fist_group)
-
     def advance_level(self):
         self.level += 1
         if self.level > self.MAX_LEVEL:
@@ -992,6 +992,11 @@ class Game:
                     pygame.quit()
                     sys.exit()
                 
+                # --- GLOBAL QUIT CHECK ---
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_q:
+                    pygame.quit()
+                    sys.exit()
+                
                 if self.state == self.STATE_MENU:
                     self._play_music(self.music_intro, 0.7)
                     self.leds.send_effect("A", "pulse", 99, 0, 255, 0, speed=20, repeat=10, priority=1)
@@ -1008,6 +1013,7 @@ class Game:
                         
                 elif self.state == self.STATE_PLAYING: 
                     if event.type == pygame.KEYDOWN:
+                        # --- NEU: Schießen per Einzelklick im EVENT LOOP ---
                         if event.key == pygame.K_SPACE:
                             bullet = self.player.shoot()
                             if bullet:
@@ -1017,9 +1023,6 @@ class Game:
                                 self.player_shots += 1
                         elif event.key == pygame.K_r:
                             self._reset()
-                        elif event.key == pygame.K_q:
-                            pygame.quit()
-                            sys.exit()
                 
                 # Wenn das Level geschafft ist (Keine Highscore-Eingabe hier!)
                 elif self.state == self.STATE_LEVEL_CLEARED:
@@ -1027,9 +1030,6 @@ class Game:
                         if event.key == pygame.K_r:
                             self._reset()
                             self.state = self.STATE_PLAYING
-                        elif event.key == pygame.K_q:
-                            pygame.quit()
-                            sys.exit()
 
                 # Highscore-Eingabe (Nur bei Game Over oder Victory)
                 elif self.state in (self.STATE_GAME_OVER, self.STATE_VICTORY):
@@ -1039,9 +1039,6 @@ class Game:
                             self.player_name = ""
                             self._reset()
                             self.state = self.STATE_PLAYING
-                        elif event.key == pygame.K_q:
-                            pygame.quit()
-                            sys.exit()
 
                         # 1. Navigation auf der Tastatur
                         elif event.key == pygame.K_LEFT:
@@ -1204,9 +1201,28 @@ class Game:
                 self._present()
 
             elif self.state == self.STATE_LEVEL_CLEARED:
+                
+                # --- Warp-Out-Effekt für alle verbleibenden Objekte ---
+                for group in [self.player_bullets, self.enemy_bullets, self.powerups, self.comets, self.ufo_group]:
+                    for sprite in group:
+                        if hasattr(sprite, 'speed') and isinstance(sprite.speed, (int, float)):
+                            sprite.speed *= TRANSITION_WARP_OUT_ACCEL
+                        if hasattr(sprite, 'vel_x'):
+                            sprite.vel_x *= TRANSITION_WARP_OUT_ACCEL
+                        if hasattr(sprite, 'vel_y'):
+                            sprite.vel_y *= TRANSITION_WARP_OUT_ACCEL
+                        if hasattr(sprite, 'speed_x'):
+                            sprite.speed_x *= TRANSITION_WARP_OUT_ACCEL
+                        if hasattr(sprite, 'speed_y'):
+                            sprite.speed_y *= TRANSITION_WARP_OUT_ACCEL
+
                 self.explosions.update()      # Lässt Explosionen zu Ende animieren
                 self.player_bullets.update()  # Lässt Schüsse aus dem Bild fliegen
+                self.enemy_bullets.update()
                 self.powerups.update(SCREEN_HEIGHT)
+                self.comets.update(SCREEN_WIDTH, SCREEN_HEIGHT)
+                self.ufo_group.update()
+                self.puddle_group.update()
                 
                 # --- Y-Achsen Easing für den Cinematic Flight ---
                 if self.transition_state == "amplify":
