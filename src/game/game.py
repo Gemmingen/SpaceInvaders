@@ -232,7 +232,7 @@ class Game:
                 bullet.kill()
                 return
             # Fist has its own special effect
-            if isinstance(bullet, Fist):
+            if isinstance(bullet, Fist) or isinstance(bullet, PoisonGlob):
                 exp = Explosion(bullet.rect.centerx, bullet.rect.centery, size=64)
                 self.explosions.add(exp)
                 self.all_sprites.add(exp)

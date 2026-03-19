@@ -7,12 +7,12 @@ straight down.
 import pygame
 import random
 import math
-from src.config.config import SCREEN_WIDTH, SCREEN_HEIGHT, BOSS3_GLOB_SPLIT_ANGLE_DEGREES, BOSS3_GLOB_SPLIT_HEIGHT
+from src.config.config import SCREEN_WIDTH, SCREEN_HEIGHT, BOSS3_GLOB_SPLIT_ANGLE_DEGREES, BOSS3_GLOB_SPLIT_HEIGHT, BOSS3_POISON_PUDDLE_FRAME_SKIP, BOSS3_POISON_PUDDLE_ANIMATION_SPEED, BOSS3_POISON_PUDDLE_SIZE
 from src.game.miniboss_base import MiniBossBase
 
 # Configurable constants
 GLOB_SPEED = 8          # Pixels per frame – fast enough to reach the player
-PUDDLE_OFFSET = -40       # No vertical offset; puddle sits on player's bottom
+PUDDLE_OFFSET = 0    # No vertical offset; puddle sits on player's bottom
 # Inaccuracy in pixels applied to the homing glob's trajectory
 INACCURACY_PIXELS = 30  # +/- 30 px random offset for dx/dy
 
@@ -91,32 +91,68 @@ class PoisonGlob(pygame.sprite.Sprite):
             # Preserve the projectile's X coordinate
             puddle_x = self.rect.centerx
             # Use the player's foot level if available, otherwise fall back to the glob's current bottom
-            if self.player is not None:
-                puddle_y = min(self.player.rect.bottom + PUDDLE_OFFSET, SCREEN_HEIGHT - 20)
-            else:
-                puddle_y = min(self.rect.bottom + PUDDLE_OFFSET, SCREEN_HEIGHT - 20)
-            self.puddle_group.add(PoisonPuddle(puddle_x, puddle_y))
+            #if self.player is not None:
+            puddle_y = min(self.player.rect.bottom + PUDDLE_OFFSET, SCREEN_HEIGHT - 20)
+            #else:
+            #    puddle_y = min(self.rect.bottom + PUDDLE_OFFSET, SCREEN_HEIGHT - 20)
+            self.puddle_group.add(PoisonPuddle(puddle_x, puddle_y, BOSS3_POISON_PUDDLE_FRAME_SKIP, BOSS3_POISON_PUDDLE_ANIMATION_SPEED, BOSS3_POISON_PUDDLE_SIZE))
             self.has_spawned = True
         super().kill()
 
 class PoisonPuddle(pygame.sprite.Sprite):
-    """Lingers on the ground for a short time, damaging the player."""
-    def __init__(self, x, y):
+    """Lingers on the ground, plays an animated poison explosion, and damages the player."""
+    
+    _frame_cache = None 
+
+    def __init__(self, x, y, 
+                 frame_skip=BOSS3_POISON_PUDDLE_FRAME_SKIP, 
+                 animation_speed=BOSS3_POISON_PUDDLE_ANIMATION_SPEED, 
+                 target_size=BOSS3_POISON_PUDDLE_SIZE):
         super().__init__()
-        try:
-            img = pygame.image.load('assets/poison-puddle.png').convert_alpha()
-        except Exception:
-            img = pygame.Surface((64, 16), pygame.SRCALPHA)
-            img.fill((0, 255, 0, 255))  # semi‑transparent green
-        self.image = img
-        self.rect = self.image.get_rect(midtop=(x, y))
-        self.lifespan = 360  # 6 seconds @ 60 FPS
+        
+        # 1. Load and scale frames ONLY if the cache is empty
+        if PoisonPuddle._frame_cache is None:
+            PoisonPuddle._frame_cache = []
+            total_frames = 278 
+            
+            for i in range(1, total_frames + 1, frame_skip):
+                try:
+                    img_path = f'assets/poison-explosion/poison-explosion{i:03d}.png'
+                    img = pygame.image.load(img_path).convert_alpha()
+                    
+                    if target_size:
+                        img = pygame.transform.scale(img, target_size)
+                        
+                    PoisonPuddle._frame_cache.append(img)
+                except Exception:
+                    pass
+                    
+            # Fallback if no images are found
+            if not PoisonPuddle._frame_cache:
+                img = pygame.Surface((64, 16), pygame.SRCALPHA)
+                img.fill((0, 255, 0, 255))
+                PoisonPuddle._frame_cache.append(img)
+
+        self.frames = PoisonPuddle._frame_cache
+        self.animation_speed = animation_speed
+        
+        # Use a float for the current frame to support fractional speeds like 0.5
+        self.current_frame = 0.0 
+        
+        self.image = self.frames[0]
+        self.rect = self.image.get_rect(center=(x, y))
 
     def update(self, *args, **kwargs):
-        self.lifespan -= 1
-        if self.lifespan <= 0:
+        # Advance the fractional frame counter
+        self.current_frame += self.animation_speed
+        
+        # Convert to an integer to get the actual list index
+        frame_index = int(self.current_frame)
+        
+        if frame_index >= len(self.frames):
             self.kill()
-
+        else:
+            self.image = self.frames[frame_index]
 
 class BossSmall3(MiniBossBase):
     def __init__(self, health=3, speed=2):

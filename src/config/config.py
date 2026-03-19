@@ -37,6 +37,9 @@ ENEMY_WAVE_SETTINGS = {
 # BossSmall3 split settings
 BOSS3_GLOB_SPLIT_ANGLE_DEGREES = 10          # degrees offset for side bullets (±10°)
 BOSS3_GLOB_SPLIT_HEIGHT = SCREEN_HEIGHT // 2  # y‑position where the bullet splits
+BOSS3_POISON_PUDDLE_FRAME_SKIP = 3
+BOSS3_POISON_PUDDLE_ANIMATION_SPEED = 1
+BOSS3_POISON_PUDDLE_SIZE = (1000, 1000)
 
 FIST_SETTINGS = {
     "cooldown": 120,  # frames between fist launches
