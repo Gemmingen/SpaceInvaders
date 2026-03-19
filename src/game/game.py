@@ -35,6 +35,7 @@ from src.game.powerup import PowerUp, Comet
 from src.game.mainmenue import MainMenu
 from src.game.endscreen import EndScreen
 from src.game.explosion import Explosion
+
 # Helper function to slice sprites
 def get_image(sheet, x, y, width, height):
     image = pygame.Surface((width, height), pygame.SRCALPHA)
@@ -52,6 +53,10 @@ class Game:
         # Compatibility alias: allow access via Game.Player
         pygame.init()
         pygame.mixer.init()
+
+        # --- MAUSZEIGER VERSTECKEN ---
+        pygame.mouse.set_visible(False)
+
         #Leaderboard
         self.player_name = ""
         self.selected_key_coords = [0, 0]
@@ -165,6 +170,9 @@ class Game:
         self.next_planet_y = 0
         self.next_planet_sliding = False
         self.decel_normal_frames = 0
+        
+        # Transition Offset für Bunker
+        self.bunker_transition_y = 0.0
 
         self.mini_boss_spawned = False
         self.level_cleared_timer = 0
@@ -295,7 +303,11 @@ class Game:
         self.lives = 3
         self.wave_number = 1
         self._endless_wave_spawned = True  # First wave already spawned in create_enemy_wave()
+        
         self.player = Player(SCREEN_WIDTH // 2, SCREEN_HEIGHT - 30)
+        self.player.current_scale = 1.0 # Reset scale
+        self.bunker_transition_y = 0.0  # Reset bunker offset
+        
         self.all_sprites = pygame.sprite.Group()
         self.explosions = pygame.sprite.Group()
         self.enemies = pygame.sprite.Group()
@@ -317,11 +329,12 @@ class Game:
         self.current_background_layers = self.level_backgrounds[self.level]
         self.layer_offsets = [INITIAL_SCROLL] * PARALLAX_LAYERS
         
-        self.all_sprites.add(self.player)
-        
         # Player Boost erzeugen
         self.player_boost = PlayerBoost(self.player)
+
+        # Dadurch liegt der Boost optisch hinter dem Schiff.
         self.all_sprites.add(self.player_boost)
+        self.all_sprites.add(self.player)
         
         self.create_enemy_wave()
         self.enemy_direction = 1
@@ -396,6 +409,27 @@ class Game:
 
         def _ramp_down(factors, step, target):
             return [max(f - step, target) for f in factors]
+
+        # ---------------------------------------------------------------
+        # Ziele für Animationen basierend auf Transition Phase
+        # ---------------------------------------------------------------
+        if self.transition_state == "amplify":
+            target_scale = 1.8   # Zoomt auf 180% Größe
+            target_bunker_y = 250 # Bunker rutschen 250px aus dem Bild nach unten
+        elif self.transition_state in ("hold", "decel_to_thresh"):
+            target_scale = 1.8
+            target_bunker_y = 250
+        else: # "decel_to_normal"
+            target_scale = 1.0   # Zoomt zurück auf Normalgröße
+            target_bunker_y = 0  # Bunker kommen zurück
+
+        # Easing anwenden auf Scale und Bunker-Offset
+        self.player.current_scale += (target_scale - self.player.current_scale) * 0.05
+        
+        self.bunker_transition_y += (target_bunker_y - self.bunker_transition_y) * 0.05
+        for b in self.bunkers:
+            b.transition_y = self.bunker_transition_y
+
 
         # ---------------------------------------------------------------
         # A – Amplify phase: increase speed until the peak factor is hit
@@ -889,7 +923,6 @@ class Game:
                             self._reset()
                             self.state = self.STATE_PLAYING
                         
-                
                 elif self.state == self.STATE_PLAYING: 
                     if event.type == pygame.KEYDOWN:
                         if event.key == pygame.K_SPACE:
@@ -905,8 +938,20 @@ class Game:
                             pygame.quit()
                             sys.exit()
                 
-                elif self.state in (self.STATE_GAME_OVER, self.STATE_VICTORY, self.STATE_LEVEL_CLEARED):
+                # Wenn das Level geschafft ist (Keine Highscore-Eingabe hier!)
+                elif self.state == self.STATE_LEVEL_CLEARED:
                     if event.type == pygame.KEYDOWN:
+                        if event.key == pygame.K_r:
+                            self._reset()
+                            self.state = self.STATE_PLAYING
+                        elif event.key == pygame.K_q:
+                            pygame.quit()
+                            sys.exit()
+
+                # Highscore-Eingabe (Nur bei Game Over oder Victory)
+                elif self.state in (self.STATE_GAME_OVER, self.STATE_VICTORY):
+                    if event.type == pygame.KEYDOWN:
+                        # Schnell-Neustart / Beenden
                         if event.key == pygame.K_r:
                             self.player_name = ""
                             self._reset()
@@ -924,8 +969,26 @@ class Game:
                             self.selected_key_coords[1] = (self.selected_key_coords[1] - 1) % 4
                         elif event.key == pygame.K_DOWN:
                             self.selected_key_coords[1] = (self.selected_key_coords[1] + 1) % 4
+                        
+                        # 2. Buchstabe auswählen / Löschen / OK (mit Enter oder Leertaste)
+                        elif event.key in (pygame.K_RETURN, pygame.K_SPACE):
+                            # Hol dir das aktuell markierte Zeichen aus der EndScreen-Matrix
+                            col, row = self.selected_key_coords
+                            char = self.end_screen.keys[row][col]
 
-                         # Menu input handling omitted for test stability
+                            if char == '<':
+                                # Löscht den letzten Buchstaben
+                                self.player_name = self.player_name[:-1] 
+                            elif char == 'OK':
+                                # Speichert, wenn ein Name da ist, und geht ins Menü
+                                if len(self.player_name) > 0:
+                                    self.save_highscore(self.game_mode)
+                                    self.player_name = ""
+                                    self.state = self.STATE_MENU 
+                            else:
+                                # Fügt Buchstaben hinzu (Maximal 12 Zeichen)
+                                if len(self.player_name) < 12: 
+                                    self.player_name += char
                         
 
             # --- 2. UPDATES & RENDERING (AUSSERHALB DER EVENT-SCHLEIFE) ---
@@ -944,13 +1007,19 @@ class Game:
                 else:
                     self._play_music(self.music_level, 0.7)
 
-                # --- 1. Spieler-Logik & Buffs ---
+                # --- 1. Y-Achsen Easing (Nach Transition weich zurück auf Normalhöhe) ---
+                target_y = SCREEN_HEIGHT - 46 # Normalhöhe
+                if abs(self.player.exact_y - target_y) > 0.5:
+                    self.player.exact_y += (target_y - self.player.exact_y) * 0.08
+                
+                # --- 2. Spieler-Logik & Buffs ---
                 keys = pygame.key.get_pressed()
                 self.player.move(keys, SCREEN_WIDTH)
                 self.player.update_buffs()      
-                self.player_boost.update()  
+                # Im normalen Spiel: Normaler Boost
+                self.player_boost.update(is_hyperboosting=False)  
 
-                # --- 2. ALLE GRUPPEN UPDATEN (Jede strikt nur 1x!) ---
+                # --- 3. ALLE GRUPPEN UPDATEN (Jede strikt nur 1x!) ---
                 self.player_bullets.update()
                 self.enemy_bullets.update()
                 self.bunkers.update()
@@ -968,14 +1037,14 @@ class Game:
                 self.enemies.update()
                 self.ufo_group.update()
                 
-                # --- 3. Kollisionen mit Bunkern prüfen ---
+                # --- 4. Kollisionen mit Bunkern prüfen ---
                 for bullet in self.player_bullets:
                     self.handle_bunker_collision(bullet, self.bunkers)
                 for bomb in self.enemy_bullets:
                     self.handle_bunker_collision(bomb, self.bunkers)
                 
 
-                # --- 4. Timer, Gegner-Logik & generelle Kollisionen ---
+                # --- 5. Timer, Gegner-Logik & generelle Kollisionen ---
                 self._handle_enemy_movement()
                 self._enemy_shooting()
                 
@@ -987,10 +1056,11 @@ class Game:
                 
                 self._check_collisions()
                 
-                # --- 5. Level Progress Check ---
+                # --- 6. Level Progress Check ---
                 if not self.enemies and not self.explosions:
                     if self.game_mode == "story":
                         if not self.mini_boss_spawned:
+                            # Level geschafft! Wechsle in den Transition-State
                             self.state = self.STATE_LEVEL_CLEARED
                             self.level_cleared_timer = 5 * FPS
                         elif self.mini_boss_spawned and not self.miniboss_group:
@@ -1015,7 +1085,7 @@ class Game:
                     if self.game_mode == "endless":
                         self._endless_wave_spawned = False
 
-                # --- 6. Zeichnen ---
+                # --- 7. Zeichnen ---
                 # Parallax background drawing (all layers)
                 for idx, layer_img in enumerate(self.current_background_layers):
                     offset = self.layer_offsets[idx]
@@ -1049,8 +1119,37 @@ class Game:
                 self._present()
 
             elif self.state == self.STATE_LEVEL_CLEARED:
+                
+                # --- Y-Achsen Easing für den Cinematic Flight ---
+                if self.transition_state == "amplify":
+                    # Schießt sanft hoch auf 20% des Bildschirms (ca. 80% hoch)
+                    target_y = SCREEN_HEIGHT * 0.2
+                    easing_speed_y = 0.03  # Sehr weich
+                elif self.transition_state in ("hold", "decel_to_thresh"):
+                    # Fällt sanft zurück auf 50% der Bildschirmmitte
+                    target_y = SCREEN_HEIGHT * 0.5
+                    easing_speed_y = 0.02  # Noch weicher
+                else: # "decel_to_normal"
+                    # Fliegt extrem weich zurück in die Ausgangsposition
+                    target_y = SCREEN_HEIGHT - 46 
+                    easing_speed_y = 0.04
+                    
+                self.player.exact_y += (target_y - self.player.exact_y) * easing_speed_y
+                
+                # --- Spielerbewegung und HYPERBOOST während der Transition ---
+                keys = pygame.key.get_pressed()
+                # Spieler bleibt auf X-Achse beweglich, wendet am Ende intern exact_y an!
+                self.player.move(keys, SCREEN_WIDTH)
+                self.player.update_buffs()
+                
+                # HYPERBOOST aktivieren (wächst sanft an und nutzt die 4 Frames)
+                self.player_boost.update(is_hyperboosting=True)
+                
                 # Run transition logic (amplify, hold, decelerate, load next level)
+                # (Hier rutschen auch die Bunker sanft aus dem Bild)
                 self._run_transition()
+                self.bunkers.update()
+                
                 # Draw the current background (could be level background or transition)
                 for idx, layer_img in enumerate(self.current_background_layers):
                     offset = self.layer_offsets[idx]
@@ -1061,6 +1160,7 @@ class Game:
                     self.layer_offsets[idx] = (offset + BASE_SCROLL_SPEED * self.current_speed_factors[idx]) % layer_h
                 # Draw the static planet for the current level
                 self._draw_planet()
+                
                 # Draw regular game elements on top of the background
                 self.all_sprites.draw(self.screen)
                 self.bunkers.draw(self.screen)
@@ -1074,6 +1174,7 @@ class Game:
                 self._draw_end_screen()
                 self.explosions.draw(self.screen)
                 self._present() 
+
     def save_highscore(self, game_mode="story"):
         # Pfad-Logik: Findet den Hauptordner deines Projekts
         base_path = os.path.dirname(os.path.abspath(__file__))
