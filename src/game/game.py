@@ -15,7 +15,16 @@ from src.config.config import (
     POWERUP_SPEED_DURATION, POWERUP_DOUBLESHOT_DURATION, POWERUP_TRIPLESHOT_DURATION,
         POWERUP_SPEED_MULTIPLIER, TIE_FIGHTER_SPEED, TIE_FIGHTER_SIZE, TIE_FIGHTER_ROTATION_SPEED,
         AMPLIFY_STEP, DECEL_STEP, AMPLIFY_MAX_FACTOR, THRESHOLD_FACTOR, TRANSITION_HOLD_FRAMES,
-        PLANET_SCROLL_FACTOR
+        PLANET_SCROLL_FACTOR,
+        TRANSITION_PLAYER_SCALE_MAX, TRANSITION_PLAYER_SCALE_NORMAL,
+        TRANSITION_PLAYER_SCALE_EASING, TRANSITION_BUNKER_Y_DOWN,
+        TRANSITION_BUNKER_Y_UP, TRANSITION_BUNKER_EASING,
+        TRANSITION_PLAYER_Y_AMPLIFY_PCT, TRANSITION_PLAYER_Y_HOLD_PCT,
+        TRANSITION_PLAYER_Y_NORMAL_OFFSET, TRANSITION_PLAYER_EASING_UP,
+        TRANSITION_PLAYER_EASING_DOWN, TRANSITION_PLAYER_EASING_RETURN,
+        TRANSITION_PLAYER_EASING_PLAYING,
+        FIST_EXPLOSION_OFFSET_LARGE, FIST_EXPLOSION_OFFSET_SMALL,
+        FIST_EXPLOSION_SIZE_LARGE, FIST_EXPLOSION_SIZE_SMALL
     )
 from src.game.player import Player, PlayerBoost
 from src.game.enemy import Enemy
@@ -231,11 +240,30 @@ class Game:
                 # Remove the glob itself
                 bullet.kill()
                 return
+            
             # Fist has its own special effect
             if isinstance(bullet, Fist):
-                exp = Explosion(bullet.rect.centerx, bullet.rect.centery, size=64)
-                self.explosions.add(exp)
-                self.all_sprites.add(exp)
+                # 1. Große Explosion zufällig auf dem Bunker
+                offset_x1 = random.randint(-FIST_EXPLOSION_OFFSET_LARGE, FIST_EXPLOSION_OFFSET_LARGE)
+                offset_y1 = random.randint(-FIST_EXPLOSION_OFFSET_LARGE, FIST_EXPLOSION_OFFSET_LARGE)
+                exp1_x = hit_bunker.rect.centerx + offset_x1
+                exp1_y = hit_bunker.rect.centery + offset_y1
+                
+                exp1 = Explosion(exp1_x, exp1_y, size=FIST_EXPLOSION_SIZE_LARGE)
+                self.explosions.add(exp1)
+                self.all_sprites.add(exp1)
+                
+                # 2. Zweite, kleinere Explosion (gegenüberliegend, damit sie nicht überlappen)
+                # Wir negieren den ersten Offset und addieren etwas Zufall
+                offset_x2 = -offset_x1 + random.randint(-FIST_EXPLOSION_OFFSET_SMALL, FIST_EXPLOSION_OFFSET_SMALL)
+                offset_y2 = -offset_y1 + random.randint(-FIST_EXPLOSION_OFFSET_SMALL, FIST_EXPLOSION_OFFSET_SMALL)
+                exp2_x = hit_bunker.rect.centerx + offset_x2
+                exp2_y = hit_bunker.rect.centery + offset_y2
+                
+                exp2 = Explosion(exp2_x, exp2_y, size=FIST_EXPLOSION_SIZE_SMALL)
+                self.explosions.add(exp2)
+                self.all_sprites.add(exp2)
+                
                 hit_bunker.take_damage()
             else:
                 damage = getattr(bullet, "damage", 1)
@@ -414,19 +442,19 @@ class Game:
         # Ziele für Animationen basierend auf Transition Phase
         # ---------------------------------------------------------------
         if self.transition_state == "amplify":
-            target_scale = 1.8   # Zoomt auf 180% Größe
-            target_bunker_y = 250 # Bunker rutschen 250px aus dem Bild nach unten
+            target_scale = TRANSITION_PLAYER_SCALE_MAX   
+            target_bunker_y = TRANSITION_BUNKER_Y_DOWN 
         elif self.transition_state in ("hold", "decel_to_thresh"):
-            target_scale = 1.8
-            target_bunker_y = 250
+            target_scale = TRANSITION_PLAYER_SCALE_MAX
+            target_bunker_y = TRANSITION_BUNKER_Y_DOWN
         else: # "decel_to_normal"
-            target_scale = 1.0   # Zoomt zurück auf Normalgröße
-            target_bunker_y = 0  # Bunker kommen zurück
+            target_scale = TRANSITION_PLAYER_SCALE_NORMAL   
+            target_bunker_y = TRANSITION_BUNKER_Y_UP  
 
         # Easing anwenden auf Scale und Bunker-Offset
-        self.player.current_scale += (target_scale - self.player.current_scale) * 0.05
+        self.player.current_scale += (target_scale - self.player.current_scale) * TRANSITION_PLAYER_SCALE_EASING
         
-        self.bunker_transition_y += (target_bunker_y - self.bunker_transition_y) * 0.05
+        self.bunker_transition_y += (target_bunker_y - self.bunker_transition_y) * TRANSITION_BUNKER_EASING
         for b in self.bunkers:
             b.transition_y = self.bunker_transition_y
 
@@ -532,7 +560,6 @@ class Game:
                 # WICHTIG: Faktoren final festschreiben
                 self.current_speed_factors = list(PARALLAX_SPEED_FACTORS)
             return
-
 
     def _play_music(self, trak_path, volume = 0.2):
         if self.current_track != trak_path:
@@ -662,6 +689,13 @@ class Game:
                 player_hit = True
                 dmg = getattr(bullet, "damage", 1)
                 self.lives -= dmg
+                
+                # NEU: Explosion wenn die Faust den Spieler trifft
+                if isinstance(bullet, Fist):
+                    exp = Explosion(bullet.rect.centerx, bullet.rect.centery, size=64)
+                    self.explosions.add(exp)
+                    self.all_sprites.add(exp)
+                    
                 bullet.kill()
                 # ----- Poison puddles (area denial) -----
                 for puddle in list(self.puddle_group):
@@ -867,10 +901,13 @@ class Game:
         if isinstance(extra, dict):
             for k, v in extra.items():
                 setattr(boss, k, v)
-        if hasattr(boss, "fist_group"):
-            self.all_sprites.add(boss.fist_group)
+        
         self.miniboss_group.add(boss)
         self.all_sprites.add(boss)
+        
+        # WICHTIG: NACH dem Boss hinzufügen, damit die Fäuste VOR ihm gezeichnet werden!
+        if hasattr(boss, "fist_group"):
+            self.all_sprites.add(boss.fist_group)
 
     def advance_level(self):
         self.level += 1
@@ -889,6 +926,9 @@ class Game:
         self.player_shots = 0
         self.level_cleared_timer = 0
         self.state = self.STATE_PLAYING
+        
+        # NEU: Spieler fliegt zurück auf seine "Linie" unten (Easing)
+        self.transitioning_back_timer = 2 * FPS # Dauer des Rückflugs
 
     def increase_level(self):
         if self.mini_boss_spawned:
@@ -1008,9 +1048,9 @@ class Game:
                     self._play_music(self.music_level, 0.7)
 
                 # --- 1. Y-Achsen Easing (Nach Transition weich zurück auf Normalhöhe) ---
-                target_y = SCREEN_HEIGHT - 46 # Normalhöhe
+                target_y = SCREEN_HEIGHT - TRANSITION_PLAYER_Y_NORMAL_OFFSET # Normalhöhe
                 if abs(self.player.exact_y - target_y) > 0.5:
-                    self.player.exact_y += (target_y - self.player.exact_y) * 0.08
+                    self.player.exact_y += (target_y - self.player.exact_y) * TRANSITION_PLAYER_EASING_PLAYING
                 
                 # --- 2. Spieler-Logik & Buffs ---
                 keys = pygame.key.get_pressed()
@@ -1123,16 +1163,16 @@ class Game:
                 # --- Y-Achsen Easing für den Cinematic Flight ---
                 if self.transition_state == "amplify":
                     # Schießt sanft hoch auf 20% des Bildschirms (ca. 80% hoch)
-                    target_y = SCREEN_HEIGHT * 0.2
-                    easing_speed_y = 0.03  # Sehr weich
+                    target_y = SCREEN_HEIGHT * TRANSITION_PLAYER_Y_AMPLIFY_PCT
+                    easing_speed_y = TRANSITION_PLAYER_EASING_UP  # Sehr weich
                 elif self.transition_state in ("hold", "decel_to_thresh"):
                     # Fällt sanft zurück auf 50% der Bildschirmmitte
-                    target_y = SCREEN_HEIGHT * 0.5
-                    easing_speed_y = 0.02  # Noch weicher
+                    target_y = SCREEN_HEIGHT * TRANSITION_PLAYER_Y_HOLD_PCT
+                    easing_speed_y = TRANSITION_PLAYER_EASING_DOWN  # Noch weicher
                 else: # "decel_to_normal"
                     # Fliegt extrem weich zurück in die Ausgangsposition
-                    target_y = SCREEN_HEIGHT - 46 
-                    easing_speed_y = 0.04
+                    target_y = SCREEN_HEIGHT - TRANSITION_PLAYER_Y_NORMAL_OFFSET 
+                    easing_speed_y = TRANSITION_PLAYER_EASING_RETURN
                     
                 self.player.exact_y += (target_y - self.player.exact_y) * easing_speed_y
                 
