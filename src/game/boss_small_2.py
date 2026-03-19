@@ -19,30 +19,24 @@ the flow deterministic and easy to test.
 from datetime import time
 import pygame
 # Side‑laser imports
-from src.config.config import BOSS2_SIDE_LASER_SPRITE, BOSS2_SIDE_LASER_PAUSE_FRAMES, BOSS2_SIDE_LASER_SPEED, BOSS2_SIDE_LASER_OFFSET
+from src.config.config import (
+    BOSS2_SIDE_LASER_SPRITE, BOSS2_SIDE_LASER_PAUSE_FRAMES, BOSS2_SIDE_LASER_SPEED, BOSS2_SIDE_LASER_OFFSET,
+    SCREEN_WIDTH, SCREEN_HEIGHT, FPS, BOSS2_MOVE_DURATION, BOSS2_FLASH_DURATION,
+    BOSS2_ORB_ARC_DURATION, BOSS2_ORB_Y_PERCENT, BOSS2_CHARGE_FRAMES,
+    BOSS2_LASER_X_OFFSET, BOSS2_LASER_COUNT, BOSS2_LASER_SPAWN_INTERVAL,
+    MINIBOSS_SPAWN_FRAMES, MINIBOSS_SPAWNER_SIZE, MINIBOSS_SPAWNER_ROT_SPEED
+)
 from src.game.laser_line import SideLaser
 import random
-from src.config.config import (
-    SCREEN_WIDTH,
-    SCREEN_HEIGHT,
-    FPS,
-    BOSS2_MOVE_DURATION,
-    BOSS2_FLASH_DURATION,
-    BOSS2_ORB_ARC_DURATION,
-    BOSS2_ORB_Y_PERCENT,
-    BOSS2_CHARGE_FRAMES,
-    BOSS2_LASER_X_OFFSET,
-    BOSS2_LASER_COUNT,
-    BOSS2_LASER_SPAWN_INTERVAL,
-)
 from src.game.miniboss_base import MiniBossBase
 from src.game.orb import Orb
 from src.game.laser_line import LaserLine
 from src.game.explosion import Explosion
-
+from src.utils.helpers import load_image
 
 class BossSmall2(MiniBossBase):
     # Primary states
+    STATE_INTRO = "intro"
     STATE_MOVE = "move"
     STATE_ATTACK = "attack"
 
@@ -57,16 +51,27 @@ class BossSmall2(MiniBossBase):
 
     def __init__(self, health=3, speed=2):
         super().__init__("assets/boss-small2.png", health, speed)
+        
+        # Lade Originalbilder für die Intro-Animation
+        self.boss_base = self.image.copy()
+        self.spawner_base = load_image('assets/boss2-spawner.png').convert_alpha()
+
         # Position the boss near the top centre
         self.base_y = int(SCREEN_HEIGHT * 0.20)
-        self.rect.centerx = SCREEN_WIDTH // 2
-        self.rect.centery = self.base_y
+        self.exact_x = float(SCREEN_WIDTH // 2)
+        self.exact_y = float(self.base_y)
+        
+        # Unsichtbarer Start
+        self.image = pygame.Surface((1, 1), pygame.SRCALPHA)
+        self.rect = self.image.get_rect(center=(round(self.exact_x), round(self.exact_y)))
 
         self.direction = 1
-        self.x = self.rect.centerx
+        self.x = self.exact_x
 
         # Initialise state tracking variables
-        self.state = self.STATE_MOVE
+        self.state = self.STATE_INTRO
+        self.intro_timer = 0
+        
         self.attack_substate = None
         self.move_timer = BOSS2_MOVE_DURATION * FPS
         self.flash_timer = 0
@@ -85,7 +90,7 @@ class BossSmall2(MiniBossBase):
         # Track whether side lasers have been created for this attack cycle
         self.side_lasers_spawned = False
 
-        self.original_image = self.image.copy()
+        self.original_image = self.boss_base.copy()
         self.is_flashing = False
 
         # References set each frame by the Game loop
@@ -197,6 +202,45 @@ class BossSmall2(MiniBossBase):
         self._enemy_bullets = enemy_bullets
         self._explosions = explosions
 
+        # ========================================================
+        # 1. INTRO / SPAWN ANIMATION
+        # ========================================================
+        if self.state == self.STATE_INTRO:
+            self.intro_timer += 1
+            
+            canvas_size = MINIBOSS_SPAWNER_SIZE + 100
+            surf = pygame.Surface((canvas_size, canvas_size), pygame.SRCALPHA)
+            center = (canvas_size // 2, canvas_size // 2)
+            
+            spawner_scale = min(1.0, self.intro_timer / float(MINIBOSS_SPAWN_FRAMES))
+            if spawner_scale > 0:
+                spawner_size = int(MINIBOSS_SPAWNER_SIZE * spawner_scale)
+                if spawner_size > 0:
+                    spawner_scaled = pygame.transform.scale(self.spawner_base, (spawner_size, spawner_size))
+                    spawner_rot = pygame.transform.rotate(spawner_scaled, self.intro_timer * MINIBOSS_SPAWNER_ROT_SPEED)
+                    sp_rect = spawner_rot.get_rect(center=center)
+                    surf.blit(spawner_rot, sp_rect)
+            
+            if self.intro_timer > MINIBOSS_SPAWN_FRAMES:
+                boss_scale = min(1.0, (self.intro_timer - MINIBOSS_SPAWN_FRAMES) / float(MINIBOSS_SPAWN_FRAMES))
+                bw = int(self.boss_base.get_width() * boss_scale)
+                bh = int(self.boss_base.get_height() * boss_scale)
+                if bw > 0 and bh > 0:
+                    boss_scaled = pygame.transform.scale(self.boss_base, (bw, bh))
+                    b_rect = boss_scaled.get_rect(center=center)
+                    surf.blit(boss_scaled, b_rect)
+            
+            self.image = surf
+            self.rect = self.image.get_rect(center=(round(self.exact_x), round(self.exact_y)))
+            
+            if self.intro_timer >= MINIBOSS_SPAWN_FRAMES * 2:
+                self.state = self.STATE_MOVE
+                self.image = self.boss_base.copy()
+                self.rect = self.image.get_rect(center=(round(self.exact_x), round(self.exact_y)))
+                self.mask = pygame.mask.from_surface(self.image)
+                
+            return # Blockiert normale Updates bis das Intro durch ist!
+
         if self.state == self.STATE_MOVE:
             self._update_move_state()
         elif self.state == self.STATE_ATTACK:
@@ -236,6 +280,8 @@ class BossSmall2(MiniBossBase):
             self.direction = 1
         self.rect.centerx = self.x
         self.rect.centery = self.base_y
+        self.exact_x = float(self.rect.centerx)
+        self.exact_y = float(self.rect.centery)
         # Countdown to next attack
         self.move_timer -= 1
         if self.move_timer <= 0:
@@ -384,7 +430,7 @@ class BossSmall2(MiniBossBase):
         self.orb_shake_timer = 0
         self.explosion_timer = 0
         # Remove any remaining lasers (including stationary side lasers)
-     
+      
 
     # ------------------------------------------------------------------
     # Utility methods used by collision detection in the main game loop
@@ -399,7 +445,7 @@ class BossSmall2(MiniBossBase):
         return [orb.rect for orb in self.orbs]
 
     def hit(self):
-        if getattr(self, "invincible", False):
+        if getattr(self, "invincible", False) or getattr(self, 'state', None) == self.STATE_INTRO:
             return
         self.health -= 1
         # If still alive and currently in MOVE state, start the attack cycle.
