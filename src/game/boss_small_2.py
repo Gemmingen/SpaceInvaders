@@ -18,6 +18,9 @@ the flow deterministic and easy to test.
 
 from datetime import time
 import pygame
+# Side‑laser imports
+from src.config.config import BOSS2_SIDE_LASER_SPRITE, BOSS2_SIDE_LASER_PAUSE_FRAMES, BOSS2_SIDE_LASER_SPEED, BOSS2_SIDE_LASER_OFFSET
+from src.game.laser_line import SideLaser
 import random
 from src.config.config import (
     SCREEN_WIDTH,
@@ -73,11 +76,14 @@ class BossSmall2(MiniBossBase):
         self.laser_count = 0
         self.orb_shake_timer = 0
         self.explosion_timer = 0
+        self.side_lasers_spawned = False
         self.invincible = False
 
         # Sprite groups for orbs and lasers
         self.orbs = pygame.sprite.Group()
         self.laser_lines = pygame.sprite.Group()
+        # Track whether side lasers have been created for this attack cycle
+        self.side_lasers_spawned = False
 
         self.original_image = self.image.copy()
         self.is_flashing = False
@@ -148,6 +154,18 @@ class BossSmall2(MiniBossBase):
             for orb in (left_orb, right_orb):
                 self._all_sprites.remove(orb)
                 self._all_sprites.add(orb)
+        # ------------------------------------------------------------
+        # Spawn side lasers (one centered on each orb) – only once per attack
+        # ------------------------------------------------------------
+        if not self.side_lasers_spawned:
+            # Left side laser
+            left_side = SideLaser(left_orb.rect.centerx + BOSS2_SIDE_LASER_OFFSET, laser_y, orb=left_orb)
+            # Right side laser
+            right_side = SideLaser(right_orb.rect.centerx + BOSS2_SIDE_LASER_OFFSET, laser_y, orb=right_orb)
+            self.laser_lines.add(left_side, right_side)
+            if self._all_sprites:
+                self._all_sprites.add(left_side, right_side)
+            self.side_lasers_spawned = True
         # The parent LaserLine is deliberately NOT added to the enemy_bullets group.
         # Only its visual segments are added later in the update() method. This prevents the
         # tiny placeholder rect of the LaserLine from being killed on a player hit, which would
@@ -162,6 +180,7 @@ class BossSmall2(MiniBossBase):
         """
         for orb in self.orbs:
             explosion = Explosion(orb.rect.centerx, orb.rect.centery, size=64)
+            # Side lasers are managed via self.laser_lines and will be cleared in the cleanup state.
             if self._all_sprites is not None:
                 self._all_sprites.add(explosion)
             if self._explosions is not None:
@@ -295,7 +314,9 @@ class BossSmall2(MiniBossBase):
                 self.laser_spawn_timer = BOSS2_LASER_SPAWN_INTERVAL * FPS
         # After the required number of lasers have been fired, wait for them to disappear
         if self.laser_count >= BOSS2_LASER_COUNT:
-            if not self.laser_lines:  # all lasers cleared
+            # Check if any main LaserLine (with gap) remains; side lasers are ignored
+            main_lasers_remaining = any(isinstance(l, LaserLine) for l in self.laser_lines)
+            if not main_lasers_remaining:
                 self.attack_substate = self.ATTACK_ORB_SHAKE
                 self.orb_shake_timer = FPS  # 1‑second shake before explosion
 
@@ -313,7 +334,11 @@ class BossSmall2(MiniBossBase):
         self.orb_shake_timer -= 1
         if self.orb_shake_timer <= 0:
             self.attack_substate = self.ATTACK_ORB_EXPLOSION
-
+            for laser in list(self.laser_lines):
+              laser.kill()
+            self.laser_lines.empty()
+             # Reset side‑laser flag for the next attack cycle
+            self.side_lasers_spawned = False
             # Explosion duration – roughly the length of the Explosion animation (14 frames at 60 FPS)
             self.explosion_timer = 30  # ~0.5 s (enough for the explosion animation)
 
@@ -358,6 +383,8 @@ class BossSmall2(MiniBossBase):
         self.orb_shake_started = False
         self.orb_shake_timer = 0
         self.explosion_timer = 0
+        # Remove any remaining lasers (including stationary side lasers)
+     
 
     # ------------------------------------------------------------------
     # Utility methods used by collision detection in the main game loop
@@ -375,6 +402,9 @@ class BossSmall2(MiniBossBase):
         if getattr(self, "invincible", False):
             return
         self.health -= 1
+        # If still alive and currently in MOVE state, start the attack cycle.
+        if self.health > 0 and getattr(self, "state", None) == self.STATE_MOVE:
+            self.start_attack()
         if self.health <= 0:
             self.orbs.empty()
             self.laser_lines.empty()

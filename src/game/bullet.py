@@ -1,11 +1,11 @@
 import pygame
-from src.config.config import BULLET_SPEED
+from src.config.config import BULLET_SPEED, SCREEN_HEIGHT # SCREEN_HEIGHT hinzugefügt
 from src.utils.helpers import load_image
 
 class Bullet(pygame.sprite.Sprite):
     def __init__(self, x, y, direction=-1, bullet_type="single"):
         super().__init__()
-        self.pierce = 1 # Wie viele Gegner getroffen werden können
+        self.pierce = 1 
         
         if direction == 1:
             img_path = "assets/enemy-attack-small1.png"
@@ -31,9 +31,9 @@ class Bullet(pygame.sprite.Sprite):
 
     def update(self):
         self.rect.y += self.speed
-        # Remove bullet if it goes off-screen
+        # Korrektur: Prüfe gegen SCREEN_HEIGHT aus der Config
         if (
             self.rect.bottom < 0
-            or self.rect.top > pygame.display.get_surface().get_height()
+            or self.rect.top > SCREEN_HEIGHT
         ):
             self.kill()

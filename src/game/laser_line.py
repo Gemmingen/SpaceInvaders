@@ -26,6 +26,10 @@ from src.config.config import (
     BOSS2_LASER_SPRITE_WIDTH,
     BOSS2_CHARGE_FRAMES,
     FPS,
+    # Side‑laser config
+    BOSS2_SIDE_LASER_SPRITE,
+    BOSS2_SIDE_LASER_PAUSE_FRAMES,
+    BOSS2_SIDE_LASER_SPEED,
 )
 
 class LaserSegment(pygame.sprite.Sprite):
@@ -45,6 +49,7 @@ class LaserSegment(pygame.sprite.Sprite):
 
 
 class LaserLine(pygame.sprite.Sprite):
+    # existing implementation unchanged
     """Container for a laser that grows segment‑by‑segment.
 
     Parameters
@@ -155,5 +160,63 @@ class LaserLine(pygame.sprite.Sprite):
     # Ensure segments are cleaned up when the container is killed
     # ------------------------------------------------------------------ #
     def kill(self):
+        # Ensure every segment sprite is killed so it is removed from any groups it was added to.
+        for seg in self.segments:
+            seg.kill()
+        # Clear the internal group and then kill the container sprite.
         self.segments.empty()
         super().kill()
+
+
+class SideLaser(pygame.sprite.Sprite):
+    """Stationary vertical laser that appears at a given x‑coordinate.
+
+    It uses the same initial pause as ``LaserLine`` but does **not** move
+    afterwards. It has no gap – the whole sprite is a solid beam.
+    """
+    def __init__(self, x_center, y_pos, orb=None):
+        super().__init__()
+        sprite = pygame.image.load(BOSS2_SIDE_LASER_SPRITE).convert_alpha()
+        self.image = sprite
+        self.rect = self.image.get_rect(midtop=(x_center, y_pos))
+        self.mask = pygame.mask.from_surface(self.image)
+        self._pause_counter = BOSS2_SIDE_LASER_PAUSE_FRAMES
+        # No speed – laser stays stationary after the pause
+        self.speed = 0
+        # Expose a ``segments`` group so the boss update logic can treat it like a regular LaserLine
+        self.segments = pygame.sprite.Group(self)
+        # Store reference to the orb (if any) and compute the horizontal offset used at spawn
+        self.orb = orb
+        self.offset = x_center - (orb.rect.centerx if orb else 0)
+
+    def update(self, *args, **kwargs):
+        # Initial pause – after this the laser remains stationary
+        if self._pause_counter > 0:
+            self._pause_counter -= 1
+            return
+        # Follow the orb’s position (including shake jitter) if attached
+        if self.orb:
+            self.rect.midtop = (self.orb.rect.centerx + self.offset, self.orb.rect.centery)
+        # Keep the segment rects in sync (they already match ``self.rect``)
+        for seg in self.segments:
+            seg.rect.topleft = self.rect.topleft
+        # No auto‑kill; cleanup handled by boss.
+        pass
+
+    def kill(self):
+        # Ensure the segment sprite is also removed from any groups.
+        # ``self.segments`` contains ``self`` for SideLaser, so we must not
+        # iterate over it (that would cause infinite recursion).  Simply
+        # clear the group and then call the superclass ``kill``.
+        self.segments.empty()
+        super().kill()
+
+    def get_hitboxes(self):
+        """Return a list containing the rectangle of this side laser.
+
+        The boss collision code expects every laser sprite to implement a
+        ``get_hitboxes`` method that returns an iterable of ``pygame.Rect``
+        objects.  ``SideLaser`` is a single‑segment sprite, so we simply
+        return a copy of its own rect.
+        """
+        return [self.rect.copy()]
