@@ -2,7 +2,13 @@ import pygame
 import os
 from src.game.bullet import Bullet
 from src.utils.helpers import load_image
-from src.config.config import PLAYER_SPEED
+from src.config.config import (
+    PLAYER_SPEED, PLAYER_PATCH_COLOR, PLAYER_PATCH_RECT,
+    PLAYER_BOOST_NORMAL_SIZE, PLAYER_HYPERBOOST_SIZE,
+    PLAYER_HYPERBOOST_ANIMATION_DELAY, PLAYER_HYPERBOOST_PROGRESS_UP,
+    PLAYER_HYPERBOOST_PROGRESS_DOWN, PLAYER_HYPERBOOST_OVERLAP_BASE,
+    PLAYER_HYPERBOOST_OVERLAP_MULT
+)
 
 class Player(pygame.sprite.Sprite):
     def __init__(self, x, y):
@@ -18,12 +24,11 @@ class Player(pygame.sprite.Sprite):
             # Erstelle eine komplett transparente Fläche in der Größe des Bildes
             patched = pygame.Surface(img.get_size(), pygame.SRCALPHA)
             
-            # Flicken-Farbe: Ein passendes Dunkelgrau/Schwarz statt Weiß
-            patch_color = (40, 40, 40) 
+            # Flicken-Farbe aus Config
+            patch_color = PLAYER_PATCH_COLOR 
             
-            # Etwas größerer Flicken (12x12 Pixel) und leicht angepasst, 
-            # um sicherzustellen, dass absolut alle Lücken gefüllt sind.
-            patch_rect = pygame.Rect(10, 10, 12, 12) 
+            # Flicken-Rect aus Config (X, Y, Breite, Höhe)
+            patch_rect = pygame.Rect(*PLAYER_PATCH_RECT) 
             
             # Zeichne das Quadrat auf die leere Fläche
             pygame.draw.rect(patched, patch_color, patch_rect)
@@ -127,7 +132,7 @@ class PlayerBoost(pygame.sprite.Sprite):
             ]
         except Exception:
             print("Warning: Normal boost images not found, using fallback.")
-            img = pygame.Surface((16, 24), pygame.SRCALPHA)
+            img = pygame.Surface(PLAYER_BOOST_NORMAL_SIZE, pygame.SRCALPHA)
             img.fill((255, 100, 0, 200)) # Orange
             self.raw_normal_frames = [img, img, img]
         
@@ -142,13 +147,13 @@ class PlayerBoost(pygame.sprite.Sprite):
                     raise FileNotFoundError(f"{filename} not found")
             except Exception as e:
                 print(f"Warning: {filename} not found, using fallback. Error: {e}")
-                img = pygame.Surface((32, 64), pygame.SRCALPHA)
+                img = pygame.Surface(PLAYER_BOOST_NORMAL_SIZE, pygame.SRCALPHA)
                 img.fill((0, 255, 255, 180)) 
                 self.raw_hyper_frames.append(img)
             
         self.current_frame = 0
         self.animation_timer = 0
-        self.animation_delay = 4 
+        self.animation_delay = PLAYER_HYPERBOOST_ANIMATION_DELAY 
         self.hyper_progress = 0.0 
         
         self.image = pygame.Surface((1,1)) 
@@ -157,9 +162,9 @@ class PlayerBoost(pygame.sprite.Sprite):
         
     def update(self, is_hyperboosting=False, *args, **kwargs):
         if is_hyperboosting:
-            self.hyper_progress = min(1.0, self.hyper_progress + 0.05) 
+            self.hyper_progress = min(1.0, self.hyper_progress + PLAYER_HYPERBOOST_PROGRESS_UP) 
         else:
-            self.hyper_progress = max(0.0, self.hyper_progress - 0.08) 
+            self.hyper_progress = max(0.0, self.hyper_progress - PLAYER_HYPERBOOST_PROGRESS_DOWN) 
             
         self.animation_timer += 1
         if self.animation_timer >= self.animation_delay:
@@ -170,30 +175,27 @@ class PlayerBoost(pygame.sprite.Sprite):
         
         self.rect.centerx = self.player.rect.centerx
         
-        # WICHTIG: Überlappung (OVERLAP) berechnen
-        # Mit MINUS zieht er sich ins Schiff hoch, wie von dir festgelegt!
-        overlap = int(5 + 8 * self.hyper_progress) 
+        # WICHTIG: Überlappung berechnen
+        overlap = int(PLAYER_HYPERBOOST_OVERLAP_BASE + PLAYER_HYPERBOOST_OVERLAP_MULT * self.hyper_progress) 
         overlap = int(overlap * self.player.current_scale)
+        
+        # MINUS statt Plus! Zieht den Boost nach oben ins Schiff hinein
         self.rect.top = self.player.rect.bottom - overlap
         
     def update_image(self):
         if self.hyper_progress > 0.1:
             idx = self.current_frame % len(self.raw_hyper_frames)
             base_img = self.raw_hyper_frames[idx]
-            
-            target_w = 76
-            target_h = 56
+            target_w, target_h = PLAYER_HYPERBOOST_SIZE
         else:
             idx = self.current_frame % len(self.raw_normal_frames)
             base_img = self.raw_normal_frames[idx]
+            target_w, target_h = PLAYER_BOOST_NORMAL_SIZE
             
-            target_w = 16
-            target_h = 24
-            
-        current_w = int(16 + (target_w - 16) * self.hyper_progress)
-        current_h = int(24 + (target_h - 24) * self.hyper_progress)
+        current_w = int(PLAYER_BOOST_NORMAL_SIZE[0] + (target_w - PLAYER_BOOST_NORMAL_SIZE[0]) * self.hyper_progress)
+        current_h = int(PLAYER_BOOST_NORMAL_SIZE[1] + (target_h - PLAYER_BOOST_NORMAL_SIZE[1]) * self.hyper_progress)
         
-        # Multipliziere Boost-Größe mit dem aktuellen Player Zoom-Faktor
+        # Multipliziere Boost-Größe mit dem aktuellen Player Zoom-Faktor!
         current_w = int(current_w * self.player.current_scale)
         current_h = int(current_h * self.player.current_scale)
         
