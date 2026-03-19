@@ -1,0 +1,18 @@
+# Visual Studio
+.vs/
+[Bb]in/
+[Dd]ebug/
+[Oo]bj/
+[Rr]elease/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+bin/
+obj/
+# Rider
+.idea/
+
+# User-specific files
+*.rsuser
+.venv

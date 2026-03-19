@@ -15,7 +15,16 @@ from src.config.config import (
     POWERUP_SPEED_DURATION, POWERUP_DOUBLESHOT_DURATION, POWERUP_TRIPLESHOT_DURATION,
         POWERUP_SPEED_MULTIPLIER, TIE_FIGHTER_SPEED, TIE_FIGHTER_SIZE, TIE_FIGHTER_ROTATION_SPEED,
         AMPLIFY_STEP, DECEL_STEP, AMPLIFY_MAX_FACTOR, THRESHOLD_FACTOR, TRANSITION_HOLD_FRAMES,
-        PLANET_SCROLL_FACTOR
+        PLANET_SCROLL_FACTOR,
+        TRANSITION_PLAYER_SCALE_MAX, TRANSITION_PLAYER_SCALE_NORMAL,
+        TRANSITION_PLAYER_SCALE_EASING, TRANSITION_BUNKER_Y_DOWN,
+        TRANSITION_BUNKER_Y_UP, TRANSITION_BUNKER_EASING,
+        TRANSITION_PLAYER_Y_AMPLIFY_PCT, TRANSITION_PLAYER_Y_HOLD_PCT,
+        TRANSITION_PLAYER_Y_NORMAL_OFFSET, TRANSITION_PLAYER_EASING_UP,
+        TRANSITION_PLAYER_EASING_DOWN, TRANSITION_PLAYER_EASING_RETURN,
+        TRANSITION_PLAYER_EASING_PLAYING,
+        FIST_EXPLOSION_OFFSET_LARGE, FIST_EXPLOSION_OFFSET_SMALL,
+        FIST_EXPLOSION_SIZE_LARGE, FIST_EXPLOSION_SIZE_SMALL
     )
 from src.game.player import Player, PlayerBoost
 from src.game.enemy import Enemy
@@ -34,6 +43,7 @@ from src.game.headerbar import HeaderBar
 from src.game.powerup import PowerUp, Comet
 from src.game.mainmenue import MainMenu
 from src.game.endscreen import EndScreen
+from src.game.led_controller import LedController
 from src.game.explosion import Explosion
 
 # Helper function to slice sprites
@@ -54,6 +64,9 @@ class Game:
         pygame.init()
         pygame.mixer.init()
 
+        self.leds = LedController("ws://localhost:8765")
+        self.leds.attract_pause()
+        self.warning_led_active = False#
         # --- MAUSZEIGER VERSTECKEN ---
         pygame.mouse.set_visible(False)
 
@@ -231,11 +244,30 @@ class Game:
                 # Remove the glob itself
                 bullet.kill()
                 return
+            
             # Fist has its own special effect
-            if isinstance(bullet, Fist) or isinstance(bullet, PoisonGlob):
-                exp = Explosion(bullet.rect.centerx, bullet.rect.centery, size=64)
-                self.explosions.add(exp)
-                self.all_sprites.add(exp)
+            if isinstance(bullet, Fist):
+                # 1. Große Explosion zufällig auf dem Bunker
+                offset_x1 = random.randint(-FIST_EXPLOSION_OFFSET_LARGE, FIST_EXPLOSION_OFFSET_LARGE)
+                offset_y1 = random.randint(-FIST_EXPLOSION_OFFSET_LARGE, FIST_EXPLOSION_OFFSET_LARGE)
+                exp1_x = hit_bunker.rect.centerx + offset_x1
+                exp1_y = hit_bunker.rect.centery + offset_y1
+                
+                exp1 = Explosion(exp1_x, exp1_y, size=FIST_EXPLOSION_SIZE_LARGE)
+                self.explosions.add(exp1)
+                self.all_sprites.add(exp1)
+                
+                # 2. Zweite, kleinere Explosion (gegenüberliegend, damit sie nicht überlappen)
+                # Wir negieren den ersten Offset und addieren etwas Zufall
+                offset_x2 = -offset_x1 + random.randint(-FIST_EXPLOSION_OFFSET_SMALL, FIST_EXPLOSION_OFFSET_SMALL)
+                offset_y2 = -offset_y1 + random.randint(-FIST_EXPLOSION_OFFSET_SMALL, FIST_EXPLOSION_OFFSET_SMALL)
+                exp2_x = hit_bunker.rect.centerx + offset_x2
+                exp2_y = hit_bunker.rect.centery + offset_y2
+                
+                exp2 = Explosion(exp2_x, exp2_y, size=FIST_EXPLOSION_SIZE_SMALL)
+                self.explosions.add(exp2)
+                self.all_sprites.add(exp2)
+                
                 hit_bunker.take_damage()
             else:
                 damage = getattr(bullet, "damage", 1)
@@ -297,6 +329,7 @@ class Game:
 
     def _reset(self):
         # Reset for a fresh game (menu start or full restart)
+        self.leds.send_effect("A", "pulse", 99, 0, 255, 0, speed=50, repeat=0, priority=1)
         self.score = 0
         self.level = TEST_START_LEVEL
         self.planet_index = 0  # reset planet sequence for a fresh game (planet_0 visible)
@@ -398,6 +431,9 @@ class Game:
         if not self.is_transition_active:
             self.is_transition_active = True
             self.transition_state = "amplify"
+
+            self.leds.send_effect("A", "chase", 0, 255, 255, 255, speed=22, repeat=13, priority=2)
+
             # start from the normal per‑layer factors
             self.current_speed_factors = list(PARALLAX_SPEED_FACTORS)
             self.decel_normal_frames = 0
@@ -414,19 +450,19 @@ class Game:
         # Ziele für Animationen basierend auf Transition Phase
         # ---------------------------------------------------------------
         if self.transition_state == "amplify":
-            target_scale = 1.8   # Zoomt auf 180% Größe
-            target_bunker_y = 250 # Bunker rutschen 250px aus dem Bild nach unten
+            target_scale = TRANSITION_PLAYER_SCALE_MAX   
+            target_bunker_y = TRANSITION_BUNKER_Y_DOWN 
         elif self.transition_state in ("hold", "decel_to_thresh"):
-            target_scale = 1.8
-            target_bunker_y = 250
+            target_scale = TRANSITION_PLAYER_SCALE_MAX
+            target_bunker_y = TRANSITION_BUNKER_Y_DOWN
         else: # "decel_to_normal"
-            target_scale = 1.0   # Zoomt zurück auf Normalgröße
-            target_bunker_y = 0  # Bunker kommen zurück
+            target_scale = TRANSITION_PLAYER_SCALE_NORMAL   
+            target_bunker_y = TRANSITION_BUNKER_Y_UP  
 
         # Easing anwenden auf Scale und Bunker-Offset
-        self.player.current_scale += (target_scale - self.player.current_scale) * 0.05
+        self.player.current_scale += (target_scale - self.player.current_scale) * TRANSITION_PLAYER_SCALE_EASING
         
-        self.bunker_transition_y += (target_bunker_y - self.bunker_transition_y) * 0.05
+        self.bunker_transition_y += (target_bunker_y - self.bunker_transition_y) * TRANSITION_BUNKER_EASING
         for b in self.bunkers:
             b.transition_y = self.bunker_transition_y
 
@@ -435,6 +471,7 @@ class Game:
         # A – Amplify phase: increase speed until the peak factor is hit
         # ---------------------------------------------------------------
         if self.transition_state == "amplify":
+    
             self.current_speed_factors = _ramp_up(
                 self.current_speed_factors, AMPLIFY_STEP, AMPLIFY_MAX_FACTOR
             )
@@ -533,7 +570,6 @@ class Game:
                 self.current_speed_factors = list(PARALLAX_SPEED_FACTORS)
             return
 
-
     def _play_music(self, trak_path, volume = 0.2):
         if self.current_track != trak_path:
             pygame.mixer.music.load(trak_path)
@@ -599,6 +635,8 @@ class Game:
         hits = pygame.sprite.groupcollide(self.enemies, self.player_bullets, True, False)
         if hits:
             self.enemy_explosion.play()
+            for seg in range(1, 5):
+                self.leds.send_effect("A", "blink", seg, 200, 255, 0, speed=1, repeat=10, priority=2)
             for enemy, bullets in hits.items():
                 explosion = Explosion(enemy.rect.centerx, enemy.rect.centery)
                 self.explosions.add(explosion)
@@ -624,6 +662,8 @@ class Game:
         # UFO vs player bullet
         bonushits = pygame.sprite.groupcollide(self.ufo_group, self.player_bullets, True, False)
         if bonushits:
+            for seg in range(1, 6):
+                self.leds.send_effect("A", "blink", seg, 255, 0, 0, speed=2, repeat=2, priority=4)
             for ufo, bullets in bonushits.items():
                 self.score += random.choice(UFO_SCORE_OPTIONS)
                 explosion = Explosion(ufo.rect.centerx, ufo.rect.centery, size=48)
@@ -662,6 +702,13 @@ class Game:
                 player_hit = True
                 dmg = getattr(bullet, "damage", 1)
                 self.lives -= dmg
+                
+                # NEU: Explosion wenn die Faust den Spieler trifft
+                if isinstance(bullet, Fist):
+                    exp = Explosion(bullet.rect.centerx, bullet.rect.centery, size=64)
+                    self.explosions.add(exp)
+                    self.all_sprites.add(exp)
+                    
                 bullet.kill()
                 # ----- Poison puddles (area denial) -----
                 for puddle in list(self.puddle_group):
@@ -671,8 +718,13 @@ class Game:
                             self.player_invuln_timer = 30  # ~0.5 sec
                         player_hit = True
         if player_hit:
-            if self.lives <= 0:
+            if self.lives > 0:
+                for seg in range(1, 5):
+                    self.leds.send_effect("A", "blink", seg, 255, 0, 0, speed=1, repeat=10, priority=2)
+            else:
                 self.game_over.play()
+                self.leds.send_effect("A", "wipe", 99, 255, 0, 0, speed=50, repeat=1, priority=4)
+                
                 explosion = Explosion(self.player.rect.centerx, self.player.rect.centery)
                 self.explosions.add(explosion)
                 self.all_sprites.add(explosion)
@@ -686,6 +738,8 @@ class Game:
             for b in hits:
                 hit_explosion = Explosion(boss.rect.centerx, boss.rect.centery, size=48)
                 self.explosions.add(hit_explosion)
+                for seg in range(1, 6):
+                    self.leds.send_effect("A", "blink", seg, 255, 255, 255, speed=1, repeat=2, priority=3)
                 self.all_sprites.add(hit_explosion)
                 boss.hit()
                 if not boss.alive() and isinstance(boss, BossSmall2):
@@ -704,6 +758,7 @@ class Game:
         # POWERUP SAMMELN
         powerup_hits = pygame.sprite.spritecollide(self.player, self.powerups, True)
         if powerup_hits:
+            self.leds.send_effect("A", "blink", 1, 0, 255, 255, speed=10, repeat=5, priority=5)
             for pu in powerup_hits:
                 if pu.type == "comet":
                     comet = Comet(SCREEN_WIDTH, COMET_SPEED, COMET_ROTATION_SPEED, TIE_FIGHTER_SPEED, TIE_FIGHTER_ROTATION_SPEED, TIE_FIGHTER_SIZE)
@@ -867,14 +922,18 @@ class Game:
         if isinstance(extra, dict):
             for k, v in extra.items():
                 setattr(boss, k, v)
-        if hasattr(boss, "fist_group"):
-            self.all_sprites.add(boss.fist_group)
+        
         self.miniboss_group.add(boss)
         self.all_sprites.add(boss)
+        
+        # WICHTIG: NACH dem Boss hinzufügen, damit die Fäuste VOR ihm gezeichnet werden!
+        if hasattr(boss, "fist_group"):
+            self.all_sprites.add(boss.fist_group)
 
     def advance_level(self):
         self.level += 1
         if self.level > self.MAX_LEVEL:
+            self.leds.send_effect("A", "blink", 99, 255, 255, 0, speed=5, repeat=10, priority=3)
             self.state = self.STATE_VICTORY
             return
         self.headerbar.sprite.set_level(self.level)
@@ -889,6 +948,10 @@ class Game:
         self.player_shots = 0
         self.level_cleared_timer = 0
         self.state = self.STATE_PLAYING
+        self.leds.send_effect("A", "pulse", 99, 0, 255, 0, speed=50, repeat=0, priority=1)
+        
+        # NEU: Spieler fliegt zurück auf seine "Linie" unten (Easing)
+        self.transitioning_back_timer = 2 * FPS # Dauer des Rückflugs
 
     def increase_level(self):
         if self.mini_boss_spawned:
@@ -901,8 +964,15 @@ class Game:
             self.layer_offsets = [INITIAL_SCROLL] * PARALLAX_LAYERS
 
     def run(self):
+        self.led_heartbeat_timer = 0
+
         while True:
             self.clock.tick(FPS)
+            self.led_heartbeat_timer -= 1
+            if self.led_heartbeat_timer <= 0:
+                # Sendet den Standard-Effekt (Pulsieren Grün)
+                self.leds.send_effect("A", "pulse", 99, 0, 255, 0, speed=50, repeat=0, priority=1)
+                self.led_heartbeat_timer = 1
             
             # --- 1. EVENT HANDLING (NUR EINGABEN) ---
             for event in pygame.event.get():
@@ -912,6 +982,7 @@ class Game:
                 
                 if self.state == self.STATE_MENU:
                     self._play_music(self.music_intro, 0.7)
+                    self.leds.send_effect("A", "pulse", 99, 0, 255, 0, speed=20, repeat=10, priority=1)
                     if event.type == pygame.KEYDOWN:
                         if event.key == pygame.K_1:
                             self.game_mode = "story"
@@ -1008,9 +1079,9 @@ class Game:
                     self._play_music(self.music_level, 0.7)
 
                 # --- 1. Y-Achsen Easing (Nach Transition weich zurück auf Normalhöhe) ---
-                target_y = SCREEN_HEIGHT - 46 # Normalhöhe
+                target_y = SCREEN_HEIGHT - TRANSITION_PLAYER_Y_NORMAL_OFFSET # Normalhöhe
                 if abs(self.player.exact_y - target_y) > 0.5:
-                    self.player.exact_y += (target_y - self.player.exact_y) * 0.08
+                    self.player.exact_y += (target_y - self.player.exact_y) * TRANSITION_PLAYER_EASING_PLAYING
                 
                 # --- 2. Spieler-Logik & Buffs ---
                 keys = pygame.key.get_pressed()
@@ -1103,36 +1174,41 @@ class Game:
                 
                 # Warning Icon Logik
                 if self.lives == 1:
-                        if not self.warning_played:
-                            self.warning_sound.play()
-                            self.warning_played = True
+                    # 1. Sound Trigger
+                    if not self.warning_played:
+                        self.warning_sound.play()
+                        self.warning_played = True
 
-                        is_visible = (pygame.time.get_ticks() // 400) % 2 == 0
-                        if is_visible:
-                            for bar in self.headerbar:
-                                warning_x = bar.rect.right + 15
-                                warning_y = bar.rect.centery - (bar.warning_icon.get_height() // 2)
-                                self.screen.blit(bar.warning_icon, (warning_x, warning_y))
+                    # 2. Visuelles Icon Blinken
+                    is_visible = (pygame.time.get_ticks() // 400) % 2 == 0
+                    if is_visible:
+                        for bar in self.headerbar:
+                            warning_x = bar.rect.right + 15
+                            warning_y = bar.rect.centery - (bar.warning_icon.get_height() // 2)
+                            self.screen.blit(bar.warning_icon, (warning_x, warning_y))
                 else:
                     self.warning_played = False
                 
                 self._present()
 
             elif self.state == self.STATE_LEVEL_CLEARED:
+                self.explosions.update()      # Lässt Explosionen zu Ende animieren
+                self.player_bullets.update()  # Lässt Schüsse aus dem Bild fliegen
+                self.powerups.update(SCREEN_HEIGHT)
                 
                 # --- Y-Achsen Easing für den Cinematic Flight ---
                 if self.transition_state == "amplify":
                     # Schießt sanft hoch auf 20% des Bildschirms (ca. 80% hoch)
-                    target_y = SCREEN_HEIGHT * 0.2
-                    easing_speed_y = 0.03  # Sehr weich
+                    target_y = SCREEN_HEIGHT * TRANSITION_PLAYER_Y_AMPLIFY_PCT
+                    easing_speed_y = TRANSITION_PLAYER_EASING_UP  # Sehr weich
                 elif self.transition_state in ("hold", "decel_to_thresh"):
                     # Fällt sanft zurück auf 50% der Bildschirmmitte
-                    target_y = SCREEN_HEIGHT * 0.5
-                    easing_speed_y = 0.02  # Noch weicher
+                    target_y = SCREEN_HEIGHT * TRANSITION_PLAYER_Y_HOLD_PCT
+                    easing_speed_y = TRANSITION_PLAYER_EASING_DOWN  # Noch weicher
                 else: # "decel_to_normal"
                     # Fliegt extrem weich zurück in die Ausgangsposition
-                    target_y = SCREEN_HEIGHT - 46 
-                    easing_speed_y = 0.04
+                    target_y = SCREEN_HEIGHT - TRANSITION_PLAYER_Y_NORMAL_OFFSET 
+                    easing_speed_y = TRANSITION_PLAYER_EASING_RETURN
                     
                 self.player.exact_y += (target_y - self.player.exact_y) * easing_speed_y
                 
