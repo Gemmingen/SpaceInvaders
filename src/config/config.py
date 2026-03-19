@@ -22,8 +22,6 @@ ENEMY_SHOOT_CHANCE = 0.001                           # Chance per frame that an 
 BULLET_SPEED = 10
 
 # Enemy wave per level – can be tweaked later
-TEST_AMOUNT = 3
-TEST_START_LEVEL = 3
 TEST_AMOUNT = 1
 TEST_START_LEVEL = 1
 ENEMY_WAVE_SETTINGS = {
@@ -273,3 +271,10 @@ ENDBOSS_DEATH_MINI_EXP_INTERVAL = 10 # Alle 10 Frames eine kleine Explosion
 MINIBOSS_SPAWN_FRAMES = 60          # Frames pro Phase (60 Warten, 60 Zoom)
 MINIBOSS_SPAWNER_SIZE = 250         # Größe des Spawners
 MINIBOSS_SPAWNER_ROT_SPEED = 6      # Rotationsgeschwindigkeit
+
+# --- Boss Healthbar Settings ---
+BOSS_HEALTHBAR_WIDTH = 130
+BOSS_HEALTHBAR_HEIGHT = 25
+BOSS_HEALTHBAR_OFFSET_Y = 5        # Abstand über dem Boss
+BOSS_HEALTHBAR_INNER_OFFSET_X = 13  
+BOSS_HEALTHBAR_INNER_OFFSET_Y = 8
