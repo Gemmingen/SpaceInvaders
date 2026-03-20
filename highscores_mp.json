@@ -9,5 +9,30 @@
             "score": 1800
         }
     ],
-    "endless": []
+    "endless": [],
+    "mp_versus": [
+        {
+            "name": "LO",
+            "score": 0,
+            "wave": 1
+        },
+        {
+            "name": "MA",
+            "score": 0,
+            "wave": 1
+        }
+    ],
+    "mp_story": [
+        {
+            "name": "AAA & ABB",
+            "score": 300
+        }
+    ],
+    "mp_endless": [
+        {
+            "name": "AA & BB",
+            "score": 1900,
+            "wave": 1
+        }
+    ]
 }

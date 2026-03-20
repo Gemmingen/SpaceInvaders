@@ -15,7 +15,7 @@ class EndScreen:
         self.overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
         self.overlay.fill((0, 0, 0, 220))
 
-    def draw(self, surface, state, score, p1_name, p2_name, sel_p1, sel_p2, p1_done, p2_done, num_players=1, is_victory=False, game_mode="story", wave_number=1):
+    def draw(self, surface, state, score, p1_name, p2_name, sel_p1, sel_p2, p1_done, p2_done, num_players=1, is_victory=False, game_mode="story", wave_number=1, score_p2=0, wave_p2=1):
         surface.blit(self.overlay, (0, 0))
         current_time = pygame.time.get_ticks()
         title_visible = (current_time // 800) % 2 == 0
@@ -28,7 +28,13 @@ class EndScreen:
             title_surf = self.title_font.render(msg, True, color)
             surface.blit(title_surf, title_surf.get_rect(center=(SCREEN_WIDTH // 2, 120)))
 
-        score_txt = f"WAVE:{wave_number}  SCORE:{score}" if game_mode == "endless" else f"SCORE:{score}"
+        if game_mode == "versus":
+            score_txt = f"P1 W:{wave_number} S:{score} | P2 W:{wave_p2} S:{score_p2}"
+        elif game_mode == "endless":
+            score_txt = f"WAVE:{wave_number}  SCORE:{score}"
+        else:
+            score_txt = f"SCORE:{score}"
+            
         score_surf = self.key_font.render(score_txt, True, (255, 215, 0))
         surface.blit(score_surf, score_surf.get_rect(center=(SCREEN_WIDTH // 2, 200)))
 
@@ -55,10 +61,10 @@ class EndScreen:
         surface.blit(label_surf, label_surf.get_rect(center=(center_x, 290)))
 
         if is_done:
-            return  # Hide keyboard if player is finished typing
+            return
 
         start_y = 350
-        key_spacing_x = 55  # Reduced spacing so dual keyboards fit
+        key_spacing_x = 55
         key_spacing_y = 60
         sel_col, sel_row = sel_coords
         row_width = (len(self.keys[0]) - 1) * key_spacing_x
