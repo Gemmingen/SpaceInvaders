@@ -536,7 +536,7 @@ class Game:
             self.decel_normal_frames += 1
             
             # Start sliding the next planet into view slightly before deceleration finishes
-            if self.decel_normal_frames == 340 and not self.next_planet_sliding:
+            if self.decel_normal_frames == 160 and not self.next_planet_sliding:
                 next_idx = self.planet_index + 1
                 if next_idx in self.planets:
                     self.next_planet_index = next_idx
@@ -929,7 +929,7 @@ class Game:
             return
         rect = planet_img.get_rect()
         rect.centerx = SCREEN_WIDTH // 2.5
-        base_target_y = SCREEN_HEIGHT
+        base_target_y = SCREEN_HEIGHT 
         
         try:
             scroll_offset = self.layer_offsets[1] * PLANET_SCROLL_FACTOR
