@@ -23,7 +23,7 @@ BULLET_SPEED = 10
 
 # Enemy wave per level – can be tweaked later
 TEST_AMOUNT = 1
-TEST_START_LEVEL = 4
+TEST_START_LEVEL = 5
 ENEMY_WAVE_SETTINGS = {
     1: dict(rows=TEST_AMOUNT, cols=TEST_AMOUNT, speed=ENEMY_SPEED, shoot_chance=ENEMY_SHOOT_CHANCE),
     2: dict(rows=TEST_AMOUNT, cols=TEST_AMOUNT, speed=ENEMY_SPEED, shoot_chance=ENEMY_SHOOT_CHANCE),
