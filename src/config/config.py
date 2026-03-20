@@ -41,6 +41,11 @@ BOSS3_POISON_PUDDLE_FRAME_SKIP = 3
 BOSS3_POISON_PUDDLE_ANIMATION_SPEED = 1
 BOSS3_POISON_PUDDLE_SIZE = (500, 500)
 
+# --- NEW: Poison Puddle Debuff Settings ---
+POISON_DAMAGE_DELAY = 30
+POISON_DEBUFF_DURATION = 600
+POISON_SPEED_MULTIPLIER = 0.2
+
 FIST_SETTINGS = {
     "cooldown": 120,  # frames between fist launches
     "speed": 4,       # movement speed of launched fists

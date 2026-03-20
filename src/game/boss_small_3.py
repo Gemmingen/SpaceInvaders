@@ -24,7 +24,7 @@ INACCURACY_PIXELS = 30  # +/- 30 px random offset for dx/dy
 
 class PoisonGlob(pygame.sprite.Sprite):
     """Simple bomb that falls vertically."""
-    def __init__(self, x, y, speed=GLOB_SPEED, puddle_group=None, player=None, splits=False):
+    def __init__(self, x, y, speed=GLOB_SPEED, puddle_group=None, effect_group=None, player=None, splits=False):
         super().__init__()
         img = pygame.image.load('assets/boss-attack1.png').convert_alpha()
         self.image = pygame.transform.scale(img, (30, 30))
@@ -35,6 +35,7 @@ class PoisonGlob(pygame.sprite.Sprite):
         self.exact_y = float(self.rect.y)
         # Reference to the group where puddles should be added
         self.puddle_group = puddle_group
+        self.effect_group = effect_group
         self.has_spawned = False
         self.player = player
         self.damage = 1  # reduced damage for this weaker homing bullet
@@ -70,6 +71,7 @@ class PoisonGlob(pygame.sprite.Sprite):
                 child = PoisonGlob(self.rect.centerx, self.rect.centery,
                                    speed=self.speed,
                                    puddle_group=self.puddle_group,
+                                   effect_group=None,
                                    player=self.player,
                                    splits=False)
                 child.image = pygame.transform.scale(child.image, (25, 25))
@@ -101,7 +103,7 @@ class PoisonGlob(pygame.sprite.Sprite):
             puddle_y = min(self.player.rect.bottom + PUDDLE_OFFSET, SCREEN_HEIGHT - 20)
             #else:
             #    puddle_y = min(self.rect.bottom + PUDDLE_OFFSET, SCREEN_HEIGHT - 20)
-            self.puddle_group.add(PoisonPuddle(puddle_x, puddle_y, BOSS3_POISON_PUDDLE_FRAME_SKIP, BOSS3_POISON_PUDDLE_ANIMATION_SPEED, BOSS3_POISON_PUDDLE_SIZE))
+            self.puddle_group.add(PoisonPuddle(puddle_x, puddle_y, BOSS3_POISON_PUDDLE_FRAME_SKIP, BOSS3_POISON_PUDDLE_ANIMATION_SPEED, BOSS3_POISON_PUDDLE_SIZE, effect_group=self.effect_group))
             self.has_spawned = True
         super().kill()
 
@@ -113,9 +115,10 @@ class PoisonPuddle(pygame.sprite.Sprite):
     def __init__(self, x, y, 
                  frame_skip=BOSS3_POISON_PUDDLE_FRAME_SKIP, 
                  animation_speed=BOSS3_POISON_PUDDLE_ANIMATION_SPEED, 
-                 target_size=BOSS3_POISON_PUDDLE_SIZE):
+                 target_size=BOSS3_POISON_PUDDLE_SIZE,
+                 effect_group=None):
         super().__init__()
-        
+        self.effect_group = effect_group
         # 1. Load and scale frames ONLY if the cache is empty
         if PoisonPuddle._frame_cache is None:
             PoisonPuddle._frame_cache = []
@@ -169,15 +172,15 @@ class PoisonPuddle(pygame.sprite.Sprite):
                 self.effects_to_spawn -= 1
                 
                 # Calculate a random position within the general width of the puddle
-                offset_x = random.randint(-self.rect.width // 4, self.rect.width // 4)
+                offset_x = random.randint(-self.rect.width // 6, self.rect.width // 6)
                 # Position it near the centre/bottom area
                 offset_y = random.randint(0, self.rect.height // 5)
                 
                 effect = PoisonEffect(self.rect.centerx + offset_x, self.rect.centery + offset_y)
                 
                 # Automatically add the effect to the same sprite groups as the puddle
-                for group in self.groups():
-                    group.add(effect)
+                if self.effect_group is not None:
+                    self.effect_group.add(effect)
 
 class PoisonEffect(pygame.sprite.Sprite):
     """Small poison effect particle that rises and fades."""
@@ -245,7 +248,7 @@ class BossSmall3(MiniBossBase):
         self.drop_timer = self.drop_interval
         self.poison_group = pygame.sprite.Group()
         self.puddle_group = pygame.sprite.Group()
-
+        self.effect_group = pygame.sprite.Group()
     def update(self, player=None, *args, **kwargs):  # Expected args: all_sprites, enemy_bullets, explosions, screen_width, screen_height, puddles_group
         """Update movement and drop PoisonGlob.
 
@@ -326,6 +329,7 @@ class BossSmall3(MiniBossBase):
             glob = PoisonGlob(self.rect.centerx, self.rect.bottom,
                                speed=speed,
                                puddle_group=self.puddle_group,
+                               effect_group=self.effect_group,
                                player=player,
                                splits=True)
             # Straight‑down velocity
@@ -336,19 +340,22 @@ class BossSmall3(MiniBossBase):
 
         # --- Update poison globs (pass puddle group and player) ---
         self.poison_group.update()
-
+        self.effect_group.update()
         # --- Sync globs and puddles with external groups ---
         if 'all_sprites' in kwargs:
             for p in self.poison_group:
                 kwargs['all_sprites'].add(p)
             for pd in self.puddle_group:
                 kwargs['all_sprites'].add(pd)
+            for e in self.effect_group:          # <--- NEU: Effekte hinzufügen
+                kwargs['all_sprites'].add(e)
         if 'enemy_bullets' in kwargs:
             for p in self.poison_group:
                 kwargs['enemy_bullets'].add(p)
         if 'puddles' in kwargs:
             for pd in self.puddle_group:
                 kwargs['puddles'].add(pd)
+        
 
     def hit(self):
         # Im Intro unverwundbar
