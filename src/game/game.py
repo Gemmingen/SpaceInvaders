@@ -26,7 +26,12 @@ from src.config.config import (
     FIST_EXPLOSION_OFFSET_LARGE, FIST_EXPLOSION_OFFSET_SMALL,
     FIST_EXPLOSION_SIZE_LARGE, FIST_EXPLOSION_SIZE_SMALL,
     POISON_DAMAGE_DELAY, POISON_DEBUFF_DURATION, POISON_SPEED_MULTIPLIER,
-    BONUS_ITEM_SPEED, BONUS_ITEM_PROBABILITIES
+    BONUS_ITEM_SPEED, BONUS_ITEM_PROBABILITIES,
+    STORY_ENEMY_BASE_MOVE_DOWN, STORY_ENEMY_MOVE_DOWN_INCREMENT,
+    ENDLESS_ENEMY_BASE_MOVE_DOWN, ENDLESS_ENEMY_MOVE_DOWN_INCREMENT,
+    ENDLESS_BASE_COLS, ENDLESS_BASE_ROWS, ENDLESS_MAX_ROWS,
+    ENDLESS_ROW_INCREMENT_WAVES, ENDLESS_SPEED_INCREMENT,
+    ENDLESS_BASE_SHOOT_CHANCE, ENDLESS_SHOOT_CHANCE_INCREMENT
 )
 from src.game.player import Player, PlayerBoost
 from src.game.enemy import Enemy
@@ -383,7 +388,6 @@ class Game:
 
         self.create_enemy_wave()
         self.enemy_direction = 1
-        self.enemy_move_down = 10
         self.headerbar.add(HeaderBar(self.screen, self.font))
         if self.game_mode in ["endless", "versus"]:
             self.headerbar.sprite.set_wave(self.wave_number)
@@ -620,11 +624,21 @@ class Game:
             cols = settings["cols"]
             self.enemy_speed = settings.get("speed", ENEMY_SPEED)
             self.enemy_shoot_chance = settings.get("shoot_chance", ENEMY_SHOOT_CHANCE)
+            
+            # Story Mode Drop-Skalierung
+            self.enemy_move_down = int(STORY_ENEMY_BASE_MOVE_DOWN + (self.level - 1) * STORY_ENEMY_MOVE_DOWN_INCREMENT)
+            
         else:
-            rows = min(6, 3 + (self.wave_number // 5)) 
-            cols = 8
-            self.enemy_speed = ENEMY_SPEED + (self.wave_number * 0.2)
-            self.enemy_shoot_chance = ENEMY_SHOOT_CHANCE + (self.wave_number * 0.005)
+            # Procedural scaling for endless survival mode
+            rows = min(ENDLESS_MAX_ROWS, ENDLESS_BASE_ROWS + (self.wave_number // ENDLESS_ROW_INCREMENT_WAVES)) 
+            cols = ENDLESS_BASE_COLS
+            self.enemy_speed = ENEMY_SPEED + (self.wave_number * ENDLESS_SPEED_INCREMENT)
+            
+            # Hier nutzen wir jetzt die neue Basis-Wahrscheinlichkeit:
+            self.enemy_shoot_chance = ENDLESS_BASE_SHOOT_CHANCE + (self.wave_number * ENDLESS_SHOOT_CHANCE_INCREMENT)
+            
+            # Endless Mode Drop-Skalierung
+            self.enemy_move_down = int(ENDLESS_ENEMY_BASE_MOVE_DOWN + (self.wave_number - 1) * ENDLESS_ENEMY_MOVE_DOWN_INCREMENT)
         
         x_margin, y_margin = 50, 100
         spacing_x, spacing_y = 80, 60
@@ -1307,6 +1321,97 @@ class Game:
                             self.explosions.update()
                             self._draw_board_frozen()
                         self._save_context(b_id)
+                self.player.move(keys, SCREEN_WIDTH)
+                self.player.update_buffs()      
+                self.player_boost.update(is_hyperboosting=False)  
+
+                # Update state of all physical entities in the scene
+                self.player_bullets.update()
+                self.enemy_bullets.update()
+                self.bunkers.update()
+                self.miniboss_group.update(self.player,
+                               self.all_sprites,
+                               self.enemy_bullets,
+                               self.explosions,
+                               SCREEN_WIDTH,
+                               SCREEN_HEIGHT,
+                               self.puddle_group)
+                self.puddle_group.update()
+                self.explosions.update()
+                self.powerups.update(SCREEN_HEIGHT)
+                self.comets.update(SCREEN_WIDTH, SCREEN_HEIGHT)
+                self.enemies.update()
+                self.ufo_group.update()
+                self.bonus_items.update() # NEU: Bonus Items updaten, falls sie noch ins Level ragen
+                
+                # Perform continuous collision checks for bunkers against active projectiles
+                for bullet in self.player_bullets:
+                    self.handle_bunker_collision(bullet, self.bunkers)
+                for bomb in self.enemy_bullets:
+                    self.handle_bunker_collision(bomb, self.bunkers)
+
+                # Execute enemy behaviors
+                self._handle_enemy_movement()
+                self._enemy_shooting()
+                
+                # Control the mystery UFO appearance
+                self.ufo_timer -= 1
+                if self.ufo_timer <= 0 or self.player_shots >= UFO_SHOT_THRESHOLD:
+                    self._spawn_ufo()
+                    self.ufo_timer = int(UFO_SPAWN_TIME * FPS)
+                    self.player_shots = 0
+                
+                # Process core interactions (damage, scores, etc)
+                self._check_collisions()
+                
+                # Determine state flow based on remaining enemies and active explosions
+                if not self.enemies and not self.explosions:
+                    if self.game_mode == "story":
+                        # Transition to cinematic state if wave cleared, progress level if boss cleared
+                        if not self.mini_boss_spawned:
+                            self.state = self.STATE_LEVEL_CLEARED
+                            self.level_cleared_timer = 5 * FPS
+                        elif self.mini_boss_spawned and not self.miniboss_group:
+                            self.advance_level()
+                    elif self.game_mode == "endless":
+                        # Instantly loop to the next wave and increase difficulty variables in Endless mode
+                        if not getattr(self, '_endless_wave_spawned', False):
+                            self.wave_number += 1
+                            self.create_enemy_wave()
+                            self.score += 500
+                            self._endless_wave_spawned = True
+                            
+                            # Visuelles Update für die Headerbar
+                            if self.headerbar.sprite:
+                                self.headerbar.sprite.set_level(self.wave_number)
+                            
+                            # Shift backgrounds every 5 waves
+                            if self.wave_number % 5 == 0:
+                                self.planet_index = (self.planet_index + 1) % self.MAX_LEVEL
+                                if self.planet_index in self.planets:
+                                    self.planet_y = -self.planets[self.planet_index].get_height()
+                                    self.planet_sliding = True
+                                self.current_background_layers = self.level_backgrounds[(self.planet_index % self.MAX_LEVEL) + 1]
+                                self.layer_offsets = [INITIAL_SCROLL] * PARALLAX_LAYERS
+                else:
+                    if self.game_mode == "endless":
+                        self._endless_wave_spawned = False
+
+                # Render background images utilizing parallax offsets
+                for idx, layer_img in enumerate(self.current_background_layers):
+                    offset = self.layer_offsets[idx]
+                    layer_h = layer_img.get_height()
+                    self.screen.blit(layer_img, (0, offset))
+                    self.screen.blit(layer_img, (0, offset - layer_h))
+                    self.layer_offsets[idx] = (offset + BASE_SCROLL_SPEED * self.current_speed_factors[idx]) % layer_h
+                
+                # Rendering active frame components
+                self._draw_planet()
+                self.bunkers.draw(self.screen)
+                self.all_sprites.draw(self.screen)
+                self.headerbar.update(self.score, self.lives)
+                self.headerbar.draw(self.screen)
+                
                         
                     self._present_versus()
                 else:
