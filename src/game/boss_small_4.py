@@ -1,9 +1,3 @@
-"""BossSmall4 – player‑chasing drone with laser attack.
-
-Appears on level 4. Continuously moves toward the player and fires a laser
-(sprite ``boss-attack2.png``) toward the player every ``attack_cooldown``
-frames.
-"""
 import pygame
 import math
 from src.config.config import (
@@ -21,6 +15,7 @@ from src.game.miniboss_base import MiniBossBase
 from src.game.explosion import Explosion
 from src.utils.helpers import load_image
 
+# ... (Keep BossClone class entirely unchanged) ...
 class BossClone(pygame.sprite.Sprite):
     """Die 'Kinder' des Bosses. Sie umkreisen ihn und greifen dann an."""
     def __init__(self, owner, angle_offset):
@@ -144,7 +139,6 @@ class BossClone(pygame.sprite.Sprite):
                 self.silent_kill = True
                 self.kill()
 
-
 class BossSmall4(MiniBossBase):
     STATE_INTRO = "intro"
     STATE_FLYING = "flying"
@@ -178,9 +172,11 @@ class BossSmall4(MiniBossBase):
         # NEU: Flag, das festlegt, ob der Boss gerade abbremst
         self.is_decelerating = False
 
-    def spawn_children(self):
-        for i in range(BOSS4_CHILDREN_COUNT):
-            angle = (2 * math.pi / BOSS4_CHILDREN_COUNT) * i
+    def spawn_children(self, is_multiplayer=False):
+        # DOUBLE the children if in multiplayer mode
+        count = BOSS4_CHILDREN_COUNT * 2 if is_multiplayer else BOSS4_CHILDREN_COUNT
+        for i in range(count):
+            angle = (2 * math.pi / count) * i
             child = BossClone(self, angle)
             self.children.add(child)
             # Kinder in die gleichen Gruppen pushen wie den Boss (macht sie für den Spieler abknallbar!)
@@ -195,6 +191,11 @@ class BossSmall4(MiniBossBase):
         enemy_bullets = kwargs.get('enemy_bullets')
         if enemy_bullets is None and len(args) >= 2:
             enemy_bullets = args[1]
+            
+        active_players = kwargs.get('active_players', [player])
+        is_multiplayer = len(active_players) > 1
+        p1 = active_players[0] if active_players else player
+        p2 = active_players[1] if is_multiplayer else p1
 
         # ========================================================
         # 0. INTRO / SPAWN ANIMATION
@@ -276,7 +277,7 @@ class BossSmall4(MiniBossBase):
         
         elif self.state == self.STATE_SPAWNING:
             self.rect.center = self.center_pos
-            self.spawn_children()
+            self.spawn_children(is_multiplayer=is_multiplayer)
             self.state = self.STATE_ORBITING
             self.t = 0
 
@@ -293,9 +294,24 @@ class BossSmall4(MiniBossBase):
             if self.attack_queue:
                 self.launch_delay -= 1
                 if self.launch_delay <= 0:
-                    child = self.attack_queue.pop(0)
-                    if child.alive() and player:
-                        child.launch(player.rect.center, enemy_bullets)
+                    
+                    if is_multiplayer and len(self.attack_queue) >= 2:
+                        # Multiplayer: Launch TWO clones at once, one for each player
+                        child1 = self.attack_queue.pop(0)
+                        child2 = self.attack_queue.pop(0)
+                        
+                        target1 = p1 if p1.alive() else p2
+                        target2 = p2 if p2.alive() else p1
+                        
+                        if child1.alive(): child1.launch(target1.rect.center, enemy_bullets)
+                        if child2.alive(): child2.launch(target2.rect.center, enemy_bullets)
+                    else:
+                        # Single Player or trailing clone fallback
+                        child = self.attack_queue.pop(0)
+                        target = p1 if p1.alive() else p2
+                        if child.alive() and target:
+                            child.launch(target.rect.center, enemy_bullets)
+                            
                     self.launch_delay = BOSS4_LAUNCH_DELAY
             
             if len(self.children) == 0:

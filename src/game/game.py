@@ -343,7 +343,7 @@ class Game:
         # Reset primary stats
         self.score = 0
         self.level = TEST_START_LEVEL
-        self.lives = 3
+        self.lives = 6 if self.num_players == 2 else 3
         self.wave_number = 1
         self.poison_tick_timer = POISON_DAMAGE_DELAY
 
@@ -1262,7 +1262,8 @@ class Game:
                                self.explosions,
                                SCREEN_WIDTH,
                                SCREEN_HEIGHT,
-                               self.puddle_group)
+                               self.puddle_group,
+                               active_players=self.active_players)
                 self.puddle_group.update()
                 self.explosions.update()
                 self.powerups.update(SCREEN_HEIGHT)

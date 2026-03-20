@@ -1,11 +1,3 @@
-"""BossSmall1 – level‑1 miniboss (the *fist* boss).
-
-Features:
-- Orbits around the centre of the screen.
-- Carries two fist sprites that are attached to its body.
-- On a cooldown the fists launch, home toward the player and are removed when off‑screen.
-- When both fists have been destroyed they re‑attach to the boss.
-"""
 import pygame
 import math
 from src.config.config import (
@@ -71,8 +63,12 @@ class BossSmall1(MiniBossBase):
         if len(args) >= 5 and 'screen_height' not in kwargs:
             kwargs['screen_height'] = args[4]
             
+        active_players = kwargs.get('active_players', [player])
+        p1 = active_players[0] if active_players else player
+        p2 = active_players[1] if len(active_players) > 1 else p1
+        
         # store player reference for fists
-        self._player = player
+        self._player = p1
 
         # ========================================================
         # 1. INTRO / SPAWN ANIMATION
@@ -112,8 +108,8 @@ class BossSmall1(MiniBossBase):
                 self.mask = pygame.mask.from_surface(self.image)
                 
                 # Fäuste spawnen exakt wenn das Intro durch ist!
-                self.left_fist = Fist('left', self.rect, self._player, FIST_SETTINGS['speed'])
-                self.right_fist = Fist('right', self.rect, self._player, FIST_SETTINGS['speed'])
+                self.left_fist = Fist('left', self.rect, None, FIST_SETTINGS['speed'])
+                self.right_fist = Fist('right', self.rect, None, FIST_SETTINGS['speed'])
                 self.fists.add(self.left_fist, self.right_fist)
                 
             return # Blockiert normale Updates bis das Intro durch ist!
@@ -130,7 +126,13 @@ class BossSmall1(MiniBossBase):
             # start charging one attached fist (prefer left then right)
             for f in self.fists:
                 if f.state == "attached":
-                    f.start_charge(self._player)    
+                    # Multiplayer Targeting: Left targets P1, Right targets P2.
+                    target = p1 if f.side == 'left' else p2
+                    # Fallback to the other player if the primary target is dead
+                    if not target.alive():
+                        target = p1 if p1.alive() else p2
+                        
+                    f.start_charge(target)    
                     self.fists_launched += 1
                     break
             self.fist_timer = self.fist_cooldown
@@ -155,8 +157,8 @@ class BossSmall1(MiniBossBase):
         # --- respawn fists when all have been destroyed ---
         if len(self.fists) == 0:
             # recreate fists attached to the current boss rect
-            self.left_fist = Fist('left', self.rect, self._player, FIST_SETTINGS['speed'])
-            self.right_fist = Fist('right', self.rect, self._player, FIST_SETTINGS['speed'])
+            self.left_fist = Fist('left', self.rect, None, FIST_SETTINGS['speed'])
+            self.right_fist = Fist('right', self.rect, None, FIST_SETTINGS['speed'])
             self.fists.add(self.left_fist, self.right_fist)
             self.fists_launched = 0
 
