@@ -12,78 +12,95 @@ class MainMenu:
         self.overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
         self.overlay.fill((0, 0, 0, 180)) 
 
-    def load_top_scores(self, mode="story"):
-        # EXAKT die gleiche Pfad-Logik wie in game.py verwenden!
+    def load_top_scores(self, filename, mode_key):
         base_path = os.path.dirname(os.path.abspath(__file__))
         root_path = os.path.dirname(os.path.dirname(base_path))
-        filename = os.path.join(root_path, "highsscores.json")
+        filepath = os.path.join(root_path, filename)
         
-        if os.path.exists(filename):
-            with open(filename, "r") as f:
+        if os.path.exists(filepath):
+            with open(filepath, "r") as f:
                 try:
                     data = json.load(f)
                     if isinstance(data, dict):
-                        scores = data.get(mode, [])
+                        scores = data.get(mode_key, [])
                     else:
                         scores = []
                     scores.sort(key=lambda x: x["score"], reverse=True)
-                    return scores[:3] # Top 3 anzeigen
+                    return scores[:5]
                 except:
                     return []
         return []
 
-    def draw(self, surface):
+    def draw(self, surface, selected_index=0):
         surface.blit(self.overlay, (0, 0))
 
-        # Titel
         title_surf = self.title_font.render("SPACE INVADERS", True, (0, 255, 0))
-        surface.blit(title_surf, title_surf.get_rect(center=(SCREEN_WIDTH // 2, 120)))
+        surface.blit(title_surf, title_surf.get_rect(center=(SCREEN_WIDTH // 2, 100)))
         
-        # Start-Prompt
-        if (pygame.time.get_ticks() // 500) % 2 == 0:
-            prompt_surf = self.font.render("PRESS 1: STORY   2: ENDLESS", True, (255, 255, 255))
-            surface.blit(prompt_surf, prompt_rect := prompt_surf.get_rect(center=(SCREEN_WIDTH // 2, 220)))
-
-        # --- SCOREBOARD ZEICHNEN ---
-        # Story Mode Scores
-        header_surf = self.score_font.render("--- TOP 3 STORY PILOTS ---", True, (255, 215, 0))
-        surface.blit(header_surf, header_surf.get_rect(center=(SCREEN_WIDTH // 2, 300)))
-
-        scores = self.load_top_scores("story")
-        if not scores:
-            no_score = self.score_font.render("NO RECORDS YET", True, (100, 100, 100))
-            surface.blit(no_score, no_score.get_rect(center=(SCREEN_WIDTH // 2, 360)))
-        else:
-            for i, entry in enumerate(scores):
+        # --- Interactive Gamemode Selection Boxes ---
+        options = ["SP STORY", "SP ENDLESS", "MP STORY", "MP ENDLESS", "MP VERSUS"]
+        box_width = 180
+        box_height = 35
+        
+        # Grid positions for the boxes
+        positions = [
+            (SCREEN_WIDTH // 2 - 110, 160), # 0: SP STORY
+            (SCREEN_WIDTH // 2 + 110, 160), # 1: SP ENDLESS
+            (SCREEN_WIDTH // 2 - 110, 210), # 2: MP STORY
+            (SCREEN_WIDTH // 2 + 110, 210), # 3: MP ENDLESS
+            (SCREEN_WIDTH // 2, 260)        # 4: MP VERSUS
+        ]
+        
+        for i, text in enumerate(options):
+            rect = pygame.Rect(0, 0, box_width, box_height)
+            rect.center = positions[i]
+            
+            if i == selected_index:
+                # Highlighted Box
+                color = (0, 255, 0)
+                border_thickness = 3
+                fill_surf = pygame.Surface((box_width, box_height), pygame.SRCALPHA)
+                fill_surf.fill((0, 255, 0, 40))  # Light green transparent fill
+                surface.blit(fill_surf, rect.topleft)
+            else:
+                # Normal Box
                 color = (255, 255, 255)
-                if i == 0: color = (255, 215, 0) # Gold für Platz 1
+                border_thickness = 1
                 
-                txt = f"{i+1}. {entry['name']} - {entry['score']}"
-                s_surf = self.score_font.render(txt, True, color)
-                surface.blit(s_surf, s_surf.get_rect(center=(SCREEN_WIDTH // 2, 350 + (i * 35))))
+            pygame.draw.rect(surface, color, rect, border_thickness)
+            text_surf = self.font.render(text, True, color)
+            surface.blit(text_surf, text_surf.get_rect(center=rect.center))
+        # --------------------------------------------
 
-        # Endless Mode Scores
-        endless_header_surf = self.score_font.render("--- TOP 3 ENDLESS PILOTS ---", True, (0, 200, 255))
-        surface.blit(endless_header_surf, endless_header_surf.get_rect(center=(SCREEN_WIDTH // 2, 520)))
+        def render_leaderboard(title, filename, mode_key, y_start, color, highlight_color, x_pos):
+            header = self.score_font.render(title, True, highlight_color)
+            surface.blit(header, header.get_rect(center=(x_pos, y_start)))
+            scores = self.load_top_scores(filename, mode_key)
+            
+            if not scores:
+                no_score = self.score_font.render("NO RECORDS YET", True, (100, 100, 100))
+                surface.blit(no_score, no_score.get_rect(center=(x_pos, y_start + 40)))
+            else:
+                for i, entry in enumerate(scores[:5]):
+                    c = highlight_color if i == 0 else color
+                    
+                    wave_info = f" W{entry.get('wave', 1)}" if 'wave' in entry else ""
+                    txt = f"{i+1}. {entry.get('name', 'Unknown')} - {entry.get('score', 0)}{wave_info}"
+                    
+                    s_surf = self.font.render(txt, True, c)
+                    surface.blit(s_surf, s_surf.get_rect(center=(x_pos, y_start + 45 + (i * 22))))
 
-        endless_scores = self.load_top_scores("endless")
-        if not endless_scores:
-            no_endless_score = self.score_font.render("NO RECORDS YET", True, (100, 100, 100))
-            surface.blit(no_endless_score, no_endless_score.get_rect(center=(SCREEN_WIDTH // 2, 580)))
-        else:
-            for i, entry in enumerate(endless_scores):
-                color = (255, 255, 255)
-                if i == 0: color = (0, 200, 255) # Blau für Platz 1
-                
-                wave_info = f" W{entry.get('wave', 1)}" if 'wave' in entry else ""
-                txt = f"{i+1}. {entry['name']} - {entry['score']}{wave_info}"
-                s_surf = self.score_font.render(txt, True, color)
-                surface.blit(s_surf, s_surf.get_rect(center=(SCREEN_WIDTH // 2, 570 + (i * 35))))
+        render_leaderboard("SP STORY", "highscores_sp.json", "sp_story", 320, (255, 255, 255), (255, 215, 0), SCREEN_WIDTH // 4)
+        render_leaderboard("SP ENDLESS", "highscores_sp.json", "sp_endless", 320, (255, 255, 255), (255, 215, 0), (SCREEN_WIDTH * 3) // 4)
+        
+        render_leaderboard("MP STORY", "highscores_mp.json", "mp_story", 480, (255, 255, 255), (0, 200, 255), SCREEN_WIDTH // 4)
+        render_leaderboard("MP ENDLESS", "highscores_mp.json", "mp_endless", 480, (255, 255, 255), (0, 200, 255), (SCREEN_WIDTH * 3) // 4)
+        
+        render_leaderboard("MP VERSUS", "highscores_mp.json", "mp_versus", 640, (255, 255, 255), (255, 50, 50), SCREEN_WIDTH // 2)
 
         credits = self.credits_font.render("--- GAME MADE BY ---", True, (255, 215, 0))
-        surface.blit(credits, credits.get_rect(center=(SCREEN_WIDTH // 2, 800)))
+        surface.blit(credits, credits.get_rect(center=(SCREEN_WIDTH // 2, 840)))
         credit_names = ["Macid Askar", "Santino Brauch", "Louis Edwell"]
         for i, name in enumerate(credit_names):
             name_surf = self.credits_font.render(name, True, (192, 192, 192))
-            # Start rendering names at Y = 715, spacing them by 30 pixels
-            surface.blit(name_surf, name_surf.get_rect(center=(SCREEN_WIDTH // 2, 840 + (i * 30))))
+            surface.blit(name_surf, name_surf.get_rect(center=(SCREEN_WIDTH // 2, 880 + (i * 30))))

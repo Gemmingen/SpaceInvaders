@@ -1,0 +1,23 @@
+{
+    "story": [],
+    "endless": [
+        {
+            "name": "BBBB",
+            "score": 9412,
+            "wave": 3
+        }
+    ],
+    "sp_story": [
+        {
+            "name": "LOUIS",
+            "score": 800
+        }
+    ],
+    "sp_endless": [
+        {
+            "name": "LOUS",
+            "score": 0,
+            "wave": 1
+        }
+    ]
+}
