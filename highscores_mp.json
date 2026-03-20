@@ -17,6 +17,10 @@
             "score": 700
         },
         {
+            "name": "AA & FF",
+            "score": 400
+        },
+        {
             "name": "AAA & ABB",
             "score": 300
         }
@@ -34,6 +38,11 @@
         },
         {
             "name": "AAA & SSSS",
+            "score": 0,
+            "wave": 1
+        },
+        {
+            "name": "JJ & AA",
             "score": 0,
             "wave": 1
         }
