@@ -23,7 +23,7 @@ BULLET_SPEED = 10
 
 # Enemy wave per level – can be tweaked later
 TEST_AMOUNT = 1
-TEST_START_LEVEL = 3
+TEST_START_LEVEL = 2
 ENEMY_WAVE_SETTINGS = {
     1: dict(rows=TEST_AMOUNT, cols=TEST_AMOUNT, speed=ENEMY_SPEED, shoot_chance=ENEMY_SHOOT_CHANCE),
     2: dict(rows=TEST_AMOUNT, cols=TEST_AMOUNT, speed=ENEMY_SPEED, shoot_chance=ENEMY_SHOOT_CHANCE),
@@ -284,3 +284,12 @@ BOSS_HEALTHBAR_HEIGHT = 25
 BOSS_HEALTHBAR_OFFSET_Y = 5        # Abstand über dem Boss
 BOSS_HEALTHBAR_INNER_OFFSET_X = 13  
 BOSS_HEALTHBAR_INNER_OFFSET_Y = 8
+
+# --- Bonus Items Settings (Transition Minigame) ---
+BONUS_ITEM_SPEED = 6
+BONUS_ITEM_PROBABILITIES = {
+    100: 0.40,  # 40% Chance
+    200: 0.30,  # 30% Chance
+    300: 0.20,  # 20% Chance
+    400: 0.10   # 10% Chance
+}
