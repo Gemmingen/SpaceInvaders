@@ -17,4 +17,9 @@ obj/
 *.rsuser
 *.venv
 *.pytest_cache
-*__pycache__/
+__pycache__
+/__pycache__
+*/__pycache__
+**/__pycache__
+*src/game/__pycache__/
+*src/config/__pycache__/

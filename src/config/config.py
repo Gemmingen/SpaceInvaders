@@ -39,7 +39,13 @@ BOSS3_GLOB_SPLIT_ANGLE_DEGREES = 10          # degrees offset for side bullets (
 BOSS3_GLOB_SPLIT_HEIGHT = SCREEN_HEIGHT // 2  # y‑position where the bullet splits
 BOSS3_POISON_PUDDLE_FRAME_SKIP = 3
 BOSS3_POISON_PUDDLE_ANIMATION_SPEED = 1
-BOSS3_POISON_PUDDLE_SIZE = (1000, 1000)
+BOSS3_POISON_PUDDLE_SIZE = (500, 500)
+BOSS3_POISON_PUDDLE_HITBOX_WIDTH = 100   # The actual hazardous width
+BOSS3_POISON_PUDDLE_HITBOX_HEIGHT = 100  # The actual hazardous height
+# --- NEW: Poison Puddle Debuff Settings ---
+POISON_DAMAGE_DELAY = 15
+POISON_DEBUFF_DURATION = 300
+POISON_SPEED_MULTIPLIER = 0.4
 
 FIST_SETTINGS = {
     "cooldown": 120,  # frames between fist launches
