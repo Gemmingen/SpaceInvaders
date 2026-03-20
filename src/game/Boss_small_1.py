@@ -20,7 +20,7 @@ class BossSmall1(MiniBossBase):
     def __init__(self, health=3, speed=2):
         super().__init__('assets/boss-small1.png', health, speed)
         # --- orbit parameters -------------------------------------------------
-        self.orbit_center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
+        self.orbit_center = (SCREEN_WIDTH // 2, (SCREEN_HEIGHT // 2) - 150)
         self.radius = 150                     # distance from centre (pixels)
         self.angular_speed = self.speed * 0.015
         self.angle = -math.pi / 2             # start at top of the circle
