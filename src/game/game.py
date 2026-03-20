@@ -1250,12 +1250,6 @@ class Game:
                 self.headerbar.update(self.score, self.lives)
                 self.headerbar.draw(self.screen)
                 
-                for puddle in self.puddle_group:
-                    if hasattr(puddle, 'hitbox'):
-                        pygame.draw.rect(self.screen, (255, 0, 0), puddle.hitbox, 2)
-                    else:
-                        pygame.draw.rect(self.screen, (255, 255, 0), puddle.rect, 2)
-
                         
                 if getattr(self, 'boss_healthbar', None):
                     self.boss_healthbar.draw(self.screen)
