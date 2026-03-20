@@ -147,7 +147,7 @@ class PoisonPuddle(pygame.sprite.Sprite):
         self.rect = self.image.get_rect(center=(x, y))
         
         # --- NEW: Effect spawning variables ---
-        self.effects_to_spawn = 8
+        self.effects_to_spawn = 5
         # Calculate roughly how many frames to wait between spawns
         self.effect_interval = max(1, len(self.frames) // (self.effects_to_spawn + 1))
         self.last_effect_frame = 0
@@ -196,7 +196,7 @@ class PoisonEffect(pygame.sprite.Sprite):
                 surf.fill((0, 255, 0, 180))
                 PoisonEffect._image_cache = surf
                 
-        self.original_image = pygame.transform.scale(PoisonEffect._image_cache, (100, 100))
+        self.original_image = pygame.transform.scale(PoisonEffect._image_cache, (75, 75))
         self.image = self.original_image.copy()
         self.rect = self.image.get_rect(center=(x, y))
         self.alpha = 255

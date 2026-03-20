@@ -23,7 +23,7 @@ BULLET_SPEED = 10
 
 # Enemy wave per level – can be tweaked later
 TEST_AMOUNT = 1
-TEST_START_LEVEL = 4
+TEST_START_LEVEL = 3
 ENEMY_WAVE_SETTINGS = {
     1: dict(rows=TEST_AMOUNT, cols=TEST_AMOUNT, speed=ENEMY_SPEED, shoot_chance=ENEMY_SHOOT_CHANCE),
     2: dict(rows=TEST_AMOUNT, cols=TEST_AMOUNT, speed=ENEMY_SPEED, shoot_chance=ENEMY_SHOOT_CHANCE),
@@ -39,7 +39,7 @@ BOSS3_GLOB_SPLIT_ANGLE_DEGREES = 10          # degrees offset for side bullets (
 BOSS3_GLOB_SPLIT_HEIGHT = SCREEN_HEIGHT // 2  # y‑position where the bullet splits
 BOSS3_POISON_PUDDLE_FRAME_SKIP = 3
 BOSS3_POISON_PUDDLE_ANIMATION_SPEED = 1
-BOSS3_POISON_PUDDLE_SIZE = (1000, 1000)
+BOSS3_POISON_PUDDLE_SIZE = (500, 500)
 
 FIST_SETTINGS = {
     "cooldown": 120,  # frames between fist launches
