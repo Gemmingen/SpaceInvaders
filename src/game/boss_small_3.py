@@ -317,7 +317,7 @@ class BossSmall3(MiniBossBase):
         # ========================================================
         # --- Sine wave vertical movement ---
         self.time_ticker += 0.05
-        self.rect.centery = int(self.base_y + 100 - abs(math.sin(self.time_ticker)) * 100)
+        self.rect.centery = int(self.base_y - abs(math.sin(self.time_ticker)) * 100)
 
         # --- Horizontal movement (bounce) ---
         self.rect.x += self.direction * self.speed
