@@ -8,7 +8,7 @@ class MainMenu:
         self.font = font
         self.title_font = pygame.font.Font("assets/headerbar/PressStart2P-Regular.ttf", 40)
         self.score_font = pygame.font.Font("assets/headerbar/PressStart2P-Regular.ttf", 15)
-        
+        self.credits_font = pygame.font.Font("assets/headerbar/PressStart2P-Regular.ttf", 25)
         self.overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
         self.overlay.fill((0, 0, 0, 180)) 
 
@@ -79,3 +79,11 @@ class MainMenu:
                 txt = f"{i+1}. {entry['name']} - {entry['score']}{wave_info}"
                 s_surf = self.score_font.render(txt, True, color)
                 surface.blit(s_surf, s_surf.get_rect(center=(SCREEN_WIDTH // 2, 570 + (i * 35))))
+
+        credits = self.credits_font.render("--- GAME MADE BY ---", True, (255, 215, 0))
+        surface.blit(credits, credits.get_rect(center=(SCREEN_WIDTH // 2, 800)))
+        credit_names = ["Macid Askar", "Santino Brauch", "Louis Edwell"]
+        for i, name in enumerate(credit_names):
+            name_surf = self.credits_font.render(name, True, (192, 192, 192))
+            # Start rendering names at Y = 715, spacing them by 30 pixels
+            surface.blit(name_surf, name_surf.get_rect(center=(SCREEN_WIDTH // 2, 840 + (i * 30))))
