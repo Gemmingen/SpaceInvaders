@@ -21,6 +21,23 @@ ENEMY_SPEED = 3
 ENEMY_SHOOT_CHANCE = 0.001                           # Chance per frame that an enemy will shoot (adjust for difficulty)
 BULLET_SPEED = 10
 
+# Story Mode Enemy Step Settings
+STORY_ENEMY_BASE_MOVE_DOWN = 10                      # Initialer Schritt nach unten in Level 1
+STORY_ENEMY_MOVE_DOWN_INCREMENT = 6                  # Zuwachs der Schrittgröße pro Level
+
+# Endless Mode Enemy Step Settings
+ENDLESS_ENEMY_BASE_MOVE_DOWN = 10                    # Initialer Schritt nach unten in Wave 1
+ENDLESS_ENEMY_MOVE_DOWN_INCREMENT = 3                # Zuwachs der Schrittgröße pro Wave 
+
+# Endless Mode General Scaling Settings
+ENDLESS_BASE_COLS = 8                                # Startanzahl der Spalten
+ENDLESS_BASE_ROWS = 3                                # Startanzahl der Reihen
+ENDLESS_MAX_ROWS = 6                                 # Maximale Anzahl der Reihen, die spawnen können
+ENDLESS_ROW_INCREMENT_WAVES = 5                      # Alle X Wellen kommt eine neue Reihe dazu
+ENDLESS_SPEED_INCREMENT = 0                          # Geschwindigkeitszuwachs der Gegner pro Welle
+ENDLESS_BASE_SHOOT_CHANCE = 0.001                    # Basis-Schusswahrscheinlichkeit für Wave 1
+ENDLESS_SHOOT_CHANCE_INCREMENT = 0.001               # Erhöhung der Schusswahrscheinlichkeit pro Welle                      
+
 # Enemy wave per level – can be tweaked later
 TEST_AMOUNT = 1
 TEST_START_LEVEL = 1
@@ -42,6 +59,7 @@ BOSS3_POISON_PUDDLE_ANIMATION_SPEED = 1
 BOSS3_POISON_PUDDLE_SIZE = (500, 500)
 BOSS3_POISON_PUDDLE_HITBOX_WIDTH = 100   # The actual hazardous width
 BOSS3_POISON_PUDDLE_HITBOX_HEIGHT = 100  # The actual hazardous height
+
 # --- NEW: Poison Puddle Debuff Settings ---
 POISON_DAMAGE_DELAY = 15
 POISON_DEBUFF_DURATION = 300

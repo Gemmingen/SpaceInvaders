@@ -26,7 +26,12 @@ from src.config.config import (
     FIST_EXPLOSION_OFFSET_LARGE, FIST_EXPLOSION_OFFSET_SMALL,
     FIST_EXPLOSION_SIZE_LARGE, FIST_EXPLOSION_SIZE_SMALL,
     POISON_DAMAGE_DELAY, POISON_DEBUFF_DURATION, POISON_SPEED_MULTIPLIER,
-    BONUS_ITEM_SPEED, BONUS_ITEM_PROBABILITIES
+    BONUS_ITEM_SPEED, BONUS_ITEM_PROBABILITIES,
+    STORY_ENEMY_BASE_MOVE_DOWN, STORY_ENEMY_MOVE_DOWN_INCREMENT,
+    ENDLESS_ENEMY_BASE_MOVE_DOWN, ENDLESS_ENEMY_MOVE_DOWN_INCREMENT,
+    ENDLESS_BASE_COLS, ENDLESS_BASE_ROWS, ENDLESS_MAX_ROWS,
+    ENDLESS_ROW_INCREMENT_WAVES, ENDLESS_SPEED_INCREMENT,
+    ENDLESS_BASE_SHOOT_CHANCE, ENDLESS_SHOOT_CHANCE_INCREMENT
 )
 from src.game.player import Player, PlayerBoost
 from src.game.enemy import Enemy
@@ -398,8 +403,13 @@ class Game:
         # Generate the first wave of enemies
         self.create_enemy_wave()
         self.enemy_direction = 1
-        self.enemy_move_down = 10
         self.headerbar.add(HeaderBar(self.screen, self.font))
+        
+        # Direkt beim Start den richtigen Wert ans UI übergeben
+        if self.game_mode == "endless":
+            self.headerbar.sprite.set_level(self.wave_number)
+        else:
+            self.headerbar.sprite.set_level(self.level)
         
         # Generate the starting set of bunkers
         angles = [0, 90, 180, 270]
@@ -653,12 +663,21 @@ class Game:
             cols = settings["cols"]
             self.enemy_speed = settings.get("speed", ENEMY_SPEED)
             self.enemy_shoot_chance = settings.get("shoot_chance", ENEMY_SHOOT_CHANCE)
+            
+            # Story Mode Drop-Skalierung
+            self.enemy_move_down = int(STORY_ENEMY_BASE_MOVE_DOWN + (self.level - 1) * STORY_ENEMY_MOVE_DOWN_INCREMENT)
+            
         else:
             # Procedural scaling for endless survival mode
-            rows = min(6, 3 + (self.wave_number // 5)) 
-            cols = 8
-            self.enemy_speed = ENEMY_SPEED + (self.wave_number * 0.2)
-            self.enemy_shoot_chance = ENEMY_SHOOT_CHANCE + (self.wave_number * 0.005)
+            rows = min(ENDLESS_MAX_ROWS, ENDLESS_BASE_ROWS + (self.wave_number // ENDLESS_ROW_INCREMENT_WAVES)) 
+            cols = ENDLESS_BASE_COLS
+            self.enemy_speed = ENEMY_SPEED + (self.wave_number * ENDLESS_SPEED_INCREMENT)
+            
+            # Hier nutzen wir jetzt die neue Basis-Wahrscheinlichkeit:
+            self.enemy_shoot_chance = ENDLESS_BASE_SHOOT_CHANCE + (self.wave_number * ENDLESS_SHOOT_CHANCE_INCREMENT)
+            
+            # Endless Mode Drop-Skalierung
+            self.enemy_move_down = int(ENDLESS_ENEMY_BASE_MOVE_DOWN + (self.wave_number - 1) * ENDLESS_ENEMY_MOVE_DOWN_INCREMENT)
         
         # Enemy grid generation
         x_margin, y_margin = 50, 100
@@ -1222,6 +1241,10 @@ class Game:
                             self.create_enemy_wave()
                             self.score += 500
                             self._endless_wave_spawned = True
+                            
+                            # Visuelles Update für die Headerbar
+                            if self.headerbar.sprite:
+                                self.headerbar.sprite.set_level(self.wave_number)
                             
                             # Shift backgrounds every 5 waves
                             if self.wave_number % 5 == 0:
