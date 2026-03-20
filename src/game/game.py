@@ -131,7 +131,7 @@ class Game:
         self.clock = pygame.time.Clock()
         self.main_menu = MainMenu(self.font)
         self.end_screen = EndScreen(self.font)
-
+        self.menu_selection = 0
         self.state = self.STATE_MENU
         self.running = True
         self.MAX_LEVEL = 5
@@ -1123,10 +1123,9 @@ class Game:
                 
             # --- Bestimme den globalen Zustand sicher ---
             current_state = self.state
-            if self.game_mode == "versus" and hasattr(self, 'boards') and self.boards:
+            if self.state != self.STATE_MENU and self.game_mode == "versus" and hasattr(self, 'boards') and self.boards:
                 b1_state = self.boards.get(1, {}).get('state', self.STATE_GAME_OVER)
                 b2_state = self.boards.get(2, {}).get('state', self.STATE_GAME_OVER)
-                
                 # Das Spiel läuft weiter, solange noch MINDESTENS EIN Spieler lebt
                 if b1_state == self.STATE_PLAYING or b2_state == self.STATE_PLAYING:
                     current_state = self.STATE_PLAYING
@@ -1147,28 +1146,47 @@ class Game:
                     self._play_music(self.music_intro, 0.7)
                     self.leds.send_effect("A", "pulse", 99, 0, 255, 0, speed=20, repeat=10, priority=1)
                     if event.type == pygame.KEYDOWN:
-                        if event.key == pygame.K_1:
-                            self.game_mode, self.num_players = "story", 1
-                            self._reset()
-                            current_state = self.STATE_PLAYING
-                        elif event.key == pygame.K_2:
-                            self.game_mode, self.num_players = "endless", 1
-                            self.wave_number = 1
-                            self._reset()
-                            current_state = self.STATE_PLAYING
-                        elif event.key == pygame.K_3:
-                            self.game_mode, self.num_players = "story", 2
-                            self._reset()
-                            current_state = self.STATE_PLAYING
-                        elif event.key == pygame.K_4:
-                            self.game_mode, self.num_players = "endless", 2
-                            self.wave_number = 1
-                            self._reset()
-                            current_state = self.STATE_PLAYING
-                        elif event.key == pygame.K_5:
-                            self.game_mode, self.num_players = "versus", 2
-                            self._reset()
-                            current_state = self.STATE_PLAYING
+                        
+                        # --- Navigation Logic ---
+                        if event.key in (pygame.K_w, pygame.K_UP):
+                            if self.menu_selection == 2: self.menu_selection = 0
+                            elif self.menu_selection == 3: self.menu_selection = 1
+                            elif self.menu_selection == 4: self.menu_selection = 2
+                        elif event.key in (pygame.K_s, pygame.K_DOWN):
+                            if self.menu_selection == 0: self.menu_selection = 2
+                            elif self.menu_selection == 1: self.menu_selection = 3
+                            elif self.menu_selection in (2, 3): self.menu_selection = 4
+                        elif event.key in (pygame.K_a, pygame.K_LEFT):
+                            if self.menu_selection == 1: self.menu_selection = 0
+                            elif self.menu_selection == 3: self.menu_selection = 2
+                        elif event.key in (pygame.K_d, pygame.K_RIGHT):
+                            if self.menu_selection == 0: self.menu_selection = 1
+                            elif self.menu_selection == 2: self.menu_selection = 3
+                            
+                        # --- Selection Confirmation ---
+                        elif event.key in (pygame.K_SPACE, pygame.K_KP0):
+                            if self.menu_selection == 0:
+                                self.game_mode, self.num_players = "story", 1
+                                self._reset()
+                                current_state = self.STATE_PLAYING
+                            elif self.menu_selection == 1:
+                                self.game_mode, self.num_players = "endless", 1
+                                self.wave_number = 1
+                                self._reset()
+                                current_state = self.STATE_PLAYING
+                            elif self.menu_selection == 2:
+                                self.game_mode, self.num_players = "story", 2
+                                self._reset()
+                                current_state = self.STATE_PLAYING
+                            elif self.menu_selection == 3:
+                                self.game_mode, self.num_players = "endless", 2
+                                self.wave_number = 1
+                                self._reset()
+                                current_state = self.STATE_PLAYING
+                            elif self.menu_selection == 4:
+                                self.game_mode, self.num_players = "versus", 2
+                                self._reset()
+                                current_state = self.STATE_PLAYING
                         
                 elif current_state == self.STATE_PLAYING: 
                     if event.type == pygame.KEYDOWN:
@@ -1263,10 +1281,13 @@ class Game:
                         if (self.num_players == 1 and self.p1_done) or (self.num_players == 2 and self.p1_done and self.p2_done):
                             self.save_highscore()
                             self.state = self.STATE_MENU 
+                            current_state = self.STATE_MENU
+                            self.p1_done = False
+                            self.p2_done = False
 
             if current_state == self.STATE_MENU:
                 self._draw_planet()
-                self.main_menu.draw(self.screen)
+                self.main_menu.draw(self.screen, getattr(self, 'menu_selection', 0))
                 self._present()
 
             elif current_state == self.STATE_PLAYING:
@@ -1420,19 +1441,20 @@ class Game:
             data[mode_key] = []
         
         if self.game_mode == "versus":
-            name_entry = f"{self.player1_name} vs {self.player2_name}"
-            # Das Spiel mit dem höheren Score der beiden Spieler wird für die Sortierung herangezogen
-            max_score = max(self.boards[1]['score'], self.boards[2]['score'])
-            entry = {
-                "name": name_entry,
-                "score": max_score, 
-                "p1_score": self.boards[1]['score'],
-                "p2_score": self.boards[2]['score'],
-                "p1_wave": self.boards[1]['wave_number'],
-                "p2_wave": self.boards[2]['wave_number'],
-                "is_versus": True
+            # Save Player 1 as a separate entry
+            entry_p1 = {
+                "name": self.player1_name,
+                "score": self.boards[1]['score'],
+                "wave": self.boards[1]['wave_number']
             }
-            data[mode_key].append(entry)
+            # Save Player 2 as a separate entry
+            entry_p2 = {
+                "name": self.player2_name,
+                "score": self.boards[2]['score'],
+                "wave": self.boards[2]['wave_number']
+            }
+            data[mode_key].append(entry_p1)
+            data[mode_key].append(entry_p2)
         else:
             if self.num_players == 1: 
                 name_entry = self.player1_name
@@ -1444,7 +1466,8 @@ class Game:
                 entry["wave"] = self.wave_number
             data[mode_key].append(entry)
         
-        data[mode_key].sort(key=lambda x: x["score"], reverse=True)
+        # Sort and keep top 5
+        data[mode_key].sort(key=lambda x: x.get("score", 0), reverse=True)
         data[mode_key] = data[mode_key][:5]
         
         with open(filename, "w") as f:

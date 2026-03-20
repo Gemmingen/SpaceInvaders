@@ -1,28 +1,21 @@
 {
-    "story": [
-        {
-            "name": "LOUIS & SAN",
-            "score": 4900
-        },
-        {
-            "name": "EDDY",
-            "score": 1800
-        }
-    ],
-    "endless": [],
     "mp_versus": [
         {
-            "name": "LO",
-            "score": 0,
-            "wave": 1
+            "name": "ABI",
+            "score": 3000,
+            "wave": 2
         },
         {
-            "name": "MA",
+            "name": "DES",
             "score": 0,
             "wave": 1
         }
     ],
     "mp_story": [
+        {
+            "name": "AM & AD",
+            "score": 700
+        },
         {
             "name": "AAA & ABB",
             "score": 300
@@ -32,6 +25,11 @@
         {
             "name": "AA & BB",
             "score": 1900,
+            "wave": 1
+        },
+        {
+            "name": "AAA & SSSS",
+            "score": 0,
             "wave": 1
         }
     ]
