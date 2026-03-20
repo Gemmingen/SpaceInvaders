@@ -46,7 +46,6 @@ from src.game.powerup import PowerUp, Comet
 from src.game.mainmenue import MainMenu
 from src.game.endscreen import EndScreen
 from src.game.led_controller import LedController
-from src.game.explosion import Explosion
 from src.game.boss_healthbar import BossHealthBar
 from src.game.bonus_points import BonusPointItem, CollectEffect
 
@@ -83,9 +82,15 @@ class Game:
         # Hide mouse cursor for arcade/fullscreen experience
         pygame.mouse.set_visible(False)
 
-        # Leaderboard and highscore variables
-        self.player_name = ""
-        self.selected_key_coords = [0, 0]
+        # Leaderboard, multiplayer, and highscore variables
+        self.num_players = 1
+        self.player1_name = ""
+        self.player2_name = ""
+        self.selected_key_coords_p1 = [0, 0]
+        self.selected_key_coords_p2 = [0, 0]
+        self.p1_done = False
+        self.p2_done = False
+        self.active_players = []
         
         # Music tracks setup
         self.music_intro = ("assets/music/intro.mp3")
@@ -344,10 +349,6 @@ class Game:
 
         self._endless_wave_spawned = True
         self.player_shots = 0
-        
-        # Pre-initialize player to avoid NoneType errors during group cleanup
-        self.player = Player(SCREEN_WIDTH // 2, SCREEN_HEIGHT - 30)
-        self.player.current_scale = 1.0 
         self.bunker_transition_y = 0.0  
         
         # 3. Sprite Group Cleanup
@@ -373,16 +374,37 @@ class Game:
         self.bonus_items = pygame.sprite.Group() 
         self.headerbar = pygame.sprite.GroupSingle()
 
-        # Properly initialize main player character
-        self.player = Player(SCREEN_WIDTH // 2, SCREEN_HEIGHT - 30)
-        self.player.current_scale = 1.0 
-        self.player.exact_y = float(SCREEN_HEIGHT - TRANSITION_PLAYER_Y_NORMAL_OFFSET)
-        self.player_invuln_timer = 0
+        # Reset Player States and UI Variables
+        self.player1_name = ""
+        self.player2_name = ""
+        self.p1_done = False
+        self.p2_done = False
+        self.selected_key_coords_p1 = [0, 0]
+        self.selected_key_coords_p2 = [0, 0]
+        self.active_players = []
+
+        # Properly initialize main player character (Player 1)
+        p1_x = SCREEN_WIDTH // 2 - (50 if self.num_players == 2 else 0)
+        self.player1 = Player(p1_x, SCREEN_HEIGHT - 30, player_id=1)
+        self.player1.current_scale = 1.0 
+        self.player1.exact_y = float(SCREEN_HEIGHT - TRANSITION_PLAYER_Y_NORMAL_OFFSET)
+        self.active_players.append(self.player1)
         
         # Setup player engine boost effect
-        self.player_boost = PlayerBoost(self.player)
-        self.all_sprites.add(self.player_boost)
-        self.all_sprites.add(self.player)
+        self.player1_boost = PlayerBoost(self.player1)
+        self.all_sprites.add(self.player1_boost, self.player1)
+
+        # Properly initialize Player 2 if multiplayer
+        if self.num_players == 2:
+            self.player2 = Player(SCREEN_WIDTH // 2 + 50, SCREEN_HEIGHT - 30, player_id=2)
+            self.player2.current_scale = 1.0
+            self.player2.exact_y = float(SCREEN_HEIGHT - TRANSITION_PLAYER_Y_NORMAL_OFFSET)
+            self.active_players.append(self.player2)
+            
+            self.player2_boost = PlayerBoost(self.player2)
+            self.all_sprites.add(self.player2_boost, self.player2)
+
+        self.player_invuln_timer = 0
 
         # Reset environmental variables
         self.SCROLL = INITIAL_SCROLL
@@ -493,7 +515,9 @@ class Game:
             target_bunker_y = TRANSITION_BUNKER_Y_UP  
 
         # Apply easing algorithms to smoothly interpolate current scales/offsets towards targets
-        self.player.current_scale += (target_scale - self.player.current_scale) * TRANSITION_PLAYER_SCALE_EASING
+        for player in self.active_players:
+            player.current_scale += (target_scale - player.current_scale) * TRANSITION_PLAYER_SCALE_EASING
+            
         self.bunker_transition_y += (target_bunker_y - self.bunker_transition_y) * TRANSITION_BUNKER_EASING
         for b in self.bunkers:
             b.transition_y = self.bunker_transition_y
@@ -774,7 +798,12 @@ class Game:
                 laser_objects.append(bullet)
                 
         for laser in laser_objects:
-            if any(self.player.rect.colliderect(hitbox) for hitbox in laser.get_hitboxes()):
+            hit_this_frame = False
+            for player in self.active_players:
+                if any(player.rect.colliderect(hitbox) for hitbox in laser.get_hitboxes()):
+                    hit_this_frame = True
+            
+            if hit_this_frame:
                 player_hit = True
                 self.lives -= getattr(laser, "damage", 1)  
                 self.ufo_damage.play()
@@ -784,25 +813,36 @@ class Game:
         for bullet in list(self.enemy_bullets):
             if self._is_laser_line(bullet):
                 continue 
-            if pygame.sprite.collide_rect(bullet, self.player):
-                player_hit = True
-                dmg = getattr(bullet, "damage", 1)
-                self.lives -= dmg
-                
-                # Special explosion effect for the large Boss 1/5 fist
-                if isinstance(bullet, Fist):
-                    exp = Explosion(bullet.rect.centerx, bullet.rect.centery, size=64)
-                    self.explosions.add(exp)
-                    self.all_sprites.add(exp)
+            
+            for player in self.active_players:
+                if pygame.sprite.collide_rect(bullet, player):
+                    player_hit = True
+                    dmg = getattr(bullet, "damage", 1)
+                    self.lives -= dmg
                     
-                bullet.kill()
+                    # Special explosion effect for the large Boss 1/5 fist
+                    if isinstance(bullet, Fist):
+                        exp = Explosion(bullet.rect.centerx, bullet.rect.centery, size=64)
+                        self.explosions.add(exp)
+                        self.all_sprites.add(exp)
+                        
+                    bullet.kill()
+                    break # Only hit one player per non-piercing bullet
 
         # 5. Poison Puddle Area Denial (Damage over time)
         in_puddle = False
         for puddle in list(self.puddle_group):
             active_rect = getattr(puddle, 'hitbox', puddle.rect)
-            if active_rect.colliderect(self.player.rect):
-                in_puddle = True
+            for player in self.active_players:
+                if active_rect.colliderect(player.rect):
+                    in_puddle = True
+                    
+                    # Apply slow and weapon-lock debuffs specific to the player standing in it
+                    if getattr(self, 'poison_tick_timer', POISON_DAMAGE_DELAY) <= 1:
+                        player.poison_debuff_timer = POISON_DEBUFF_DURATION
+                        player.speed = int(player.base_speed * POISON_SPEED_MULTIPLIER)
+                    break
+            if in_puddle:
                 break
                 
         if in_puddle:
@@ -816,10 +856,6 @@ class Game:
                 self.lives -= 1
                 player_hit = True
                 self.poison_tick_timer = 300
-                
-                # Apply slow and weapon-lock debuffs
-                self.player.poison_debuff_timer = POISON_DEBUFF_DURATION
-                self.player.speed = int(self.player.base_speed * POISON_SPEED_MULTIPLIER)
         else:
             # Reset timer instantly when leaving the puddle
             self.poison_tick_timer = POISON_DAMAGE_DELAY
@@ -833,11 +869,16 @@ class Game:
                 self.game_over.play()
                 self.leds.send_effect("A", "wipe", 99, 255, 0, 0, speed=50, repeat=1, priority=4)
                 
-                explosion = Explosion(self.player.rect.centerx, self.player.rect.centery)
-                self.explosions.add(explosion)
-                self.all_sprites.add(explosion)
-                self.player.kill()
-                self.player_boost.kill()
+                for player in self.active_players:
+                    explosion = Explosion(player.rect.centerx, player.rect.centery)
+                    self.explosions.add(explosion)
+                    self.all_sprites.add(explosion)
+                    player.kill()
+                    
+                self.player1_boost.kill()
+                if hasattr(self, 'player2_boost'):
+                    self.player2_boost.kill()
+                    
                 self.state = self.STATE_GAME_OVER
 
         # 6. Player Bullets vs MiniBoss
@@ -861,39 +902,42 @@ class Game:
 
         # 7. Enemy physically reaches player's position vertically (Instant Game Over condition)
         for enemy in self.enemies:
-            if enemy.rect.bottom >= self.player.rect.top:
-                self.state = self.STATE_GAME_OVER
+            for player in self.active_players:
+                if enemy.rect.bottom >= player.rect.top:
+                    self.state = self.STATE_GAME_OVER
+                    break
 
         # 8. Player collects Powerups
-        powerup_hits = pygame.sprite.spritecollide(self.player, self.powerups, True)
-        if powerup_hits:
-            self.leds.send_effect("A", "blink", 1, 0, 255, 255, speed=10, repeat=5, priority=5)
-            for pu in powerup_hits:
-                
-                # --- NEU: Collect-Effekt auch für normale Items spawnen ---
-                effect = CollectEffect(pu.rect.centerx, pu.rect.centery)
-                self.explosions.add(effect)
-                self.all_sprites.add(effect)
-                # ----------------------------------------------------------
-                
-                if pu.type == "comet":
-                    # Spawns a friendly attack entity traveling across the screen
-                    comet = Comet(SCREEN_WIDTH, COMET_SPEED, COMET_ROTATION_SPEED, TIE_FIGHTER_SPEED, TIE_FIGHTER_ROTATION_SPEED, TIE_FIGHTER_SIZE)
-                    self.comets.add(comet)
-                    self.all_sprites.add(comet)
-                elif pu.type == "bunker":
-                    self.rebuild_bunkers()
-                elif pu.type == "hp":
-                    self.lives += 1
-                elif pu.type == "speed":
-                    self.player.speed = int(self.player.base_speed * POWERUP_SPEED_MULTIPLIER)
-                    self.player.speed_timer = FPS * POWERUP_SPEED_DURATION
-                elif pu.type == "doubleshot":
-                    self.player.weapon_type = "double"
-                    self.player.weapon_timer = FPS * POWERUP_DOUBLESHOT_DURATION
-                elif pu.type == "trippleshot":
-                    self.player.weapon_type = "triple"
-                    self.player.weapon_timer = FPS * POWERUP_TRIPLESHOT_DURATION
+        for player in self.active_players:
+            powerup_hits = pygame.sprite.spritecollide(player, self.powerups, True)
+            if powerup_hits:
+                self.leds.send_effect("A", "blink", 1, 0, 255, 255, speed=10, repeat=5, priority=5)
+                for pu in powerup_hits:
+                    
+                    # --- NEU: Collect-Effekt auch für normale Items spawnen ---
+                    effect = CollectEffect(pu.rect.centerx, pu.rect.centery)
+                    self.explosions.add(effect)
+                    self.all_sprites.add(effect)
+                    # ----------------------------------------------------------
+                    
+                    if pu.type == "comet":
+                        # Spawns a friendly attack entity traveling across the screen
+                        comet = Comet(SCREEN_WIDTH, COMET_SPEED, COMET_ROTATION_SPEED, TIE_FIGHTER_SPEED, TIE_FIGHTER_ROTATION_SPEED, TIE_FIGHTER_SIZE)
+                        self.comets.add(comet)
+                        self.all_sprites.add(comet)
+                    elif pu.type == "bunker":
+                        self.rebuild_bunkers()
+                    elif pu.type == "hp":
+                        self.lives += 1
+                    elif pu.type == "speed":
+                        player.speed = int(player.base_speed * POWERUP_SPEED_MULTIPLIER)
+                        player.speed_timer = FPS * POWERUP_SPEED_DURATION
+                    elif pu.type == "doubleshot":
+                        player.weapon_type = "double"
+                        player.weapon_timer = FPS * POWERUP_DOUBLESHOT_DURATION
+                    elif pu.type == "trippleshot":
+                        player.weapon_type = "triple"
+                        player.weapon_timer = FPS * POWERUP_TRIPLESHOT_DURATION
 
         # 9. Comet vs Enemy collision
         for comet in self.comets:
@@ -998,8 +1042,13 @@ class Game:
             self.screen, 
             self.state, 
             self.score, 
-            self.player_name,
-            self.selected_key_coords,
+            self.player1_name,
+            self.player2_name,
+            self.selected_key_coords_p1,
+            self.selected_key_coords_p2,
+            self.p1_done,
+            self.p2_done,
+            num_players=self.num_players,
             is_victory=is_victory,
             game_mode=self.game_mode,
             wave_number=self.wave_number
@@ -1079,11 +1128,20 @@ class Game:
                     self.leds.send_effect("A", "pulse", 99, 0, 255, 0, speed=20, repeat=10, priority=1)
                     if event.type == pygame.KEYDOWN:
                         if event.key == pygame.K_1:
-                            self.game_mode = "story"
+                            self.game_mode, self.num_players = "story", 1
                             self._reset()
                             self.state = self.STATE_PLAYING
                         elif event.key == pygame.K_2:
-                            self.game_mode = "endless"
+                            self.game_mode, self.num_players = "endless", 1
+                            self.wave_number = 1
+                            self._reset()
+                            self.state = self.STATE_PLAYING
+                        elif event.key == pygame.K_3:
+                            self.game_mode, self.num_players = "story", 2
+                            self._reset()
+                            self.state = self.STATE_PLAYING
+                        elif event.key == pygame.K_4:
+                            self.game_mode, self.num_players = "endless", 2
                             self.wave_number = 1
                             self._reset()
                             self.state = self.STATE_PLAYING
@@ -1091,8 +1149,15 @@ class Game:
                 # Input handling during actual gameplay
                 elif self.state == self.STATE_PLAYING: 
                     if event.type == pygame.KEYDOWN:
-                        if event.key == pygame.K_SPACE:
-                            bullet = self.player.shoot()
+                        if event.key == pygame.K_SPACE and self.player1.alive():
+                            bullet = self.player1.shoot()
+                            if bullet:
+                                self.laser_sound.play()
+                                self.player_bullets.add(bullet)
+                                self.all_sprites.add(bullet)
+                                self.player_shots += 1
+                        if event.key == pygame.K_KP0 and self.num_players == 2 and self.player2.alive():
+                            bullet = self.player2.shoot()
                             if bullet:
                                 self.laser_sound.play()
                                 self.player_bullets.add(bullet)
@@ -1112,36 +1177,51 @@ class Game:
                 elif self.state in (self.STATE_GAME_OVER, self.STATE_VICTORY):
                     if event.type == pygame.KEYDOWN:
                         if event.key == pygame.K_r:
-                            self.player_name = ""
                             self._reset()
                             self.state = self.STATE_PLAYING
 
-                        # Virtual keyboard positional movement logic
-                        elif event.key == pygame.K_LEFT:
-                            self.selected_key_coords[0] = (self.selected_key_coords[0] - 1) % 7
-                        elif event.key == pygame.K_RIGHT:
-                            self.selected_key_coords[0] = (self.selected_key_coords[0] + 1) % 7
-                        elif event.key == pygame.K_UP:
-                            self.selected_key_coords[1] = (self.selected_key_coords[1] - 1) % 4
-                        elif event.key == pygame.K_DOWN:
-                            self.selected_key_coords[1] = (self.selected_key_coords[1] + 1) % 4
-                        
-                        # Apply currently selected virtual key
-                        elif event.key in (pygame.K_RETURN, pygame.K_SPACE):
-                            col, row = self.selected_key_coords
-                            char = self.end_screen.keys[row][col]
+                        # PLAYER 1 (WASD/SPACE) Keyboard logic
+                        if not self.p1_done:
+                            if event.key == pygame.K_a: self.selected_key_coords_p1[0] = (self.selected_key_coords_p1[0] - 1) % 7
+                            elif event.key == pygame.K_d: self.selected_key_coords_p1[0] = (self.selected_key_coords_p1[0] + 1) % 7
+                            elif event.key == pygame.K_w: self.selected_key_coords_p1[1] = (self.selected_key_coords_p1[1] - 1) % 4
+                            elif event.key == pygame.K_s: self.selected_key_coords_p1[1] = (self.selected_key_coords_p1[1] + 1) % 4
+                            elif event.key == pygame.K_SPACE:
+                                col, row = self.selected_key_coords_p1
+                                char = self.end_screen.keys[row][col]
 
-                            if char == '<':
-                                self.player_name = self.player_name[:-1] 
-                            elif char == 'OK':
-                                if len(self.player_name) > 0:
-                                    self.save_highscore(self.game_mode)
-                                    self.player_name = ""
-                                    self.state = self.STATE_MENU 
-                            else:
-                                if len(self.player_name) < 12: 
-                                    self.player_name += char
-                        
+                                if char == '<':
+                                    self.player1_name = self.player1_name[:-1] 
+                                elif char == 'OK':
+                                    if len(self.player1_name) > 0:
+                                        self.p1_done = True
+                                else:
+                                    if len(self.player1_name) < 12: 
+                                        self.player1_name += char
+                                        
+                        # PLAYER 2 (Arrows/NUM0) Keyboard logic
+                        if self.num_players == 2 and not self.p2_done:
+                            if event.key == pygame.K_LEFT: self.selected_key_coords_p2[0] = (self.selected_key_coords_p2[0] - 1) % 7
+                            elif event.key == pygame.K_RIGHT: self.selected_key_coords_p2[0] = (self.selected_key_coords_p2[0] + 1) % 7
+                            elif event.key == pygame.K_UP: self.selected_key_coords_p2[1] = (self.selected_key_coords_p2[1] - 1) % 4
+                            elif event.key == pygame.K_DOWN: self.selected_key_coords_p2[1] = (self.selected_key_coords_p2[1] + 1) % 4
+                            elif event.key == pygame.K_KP0:
+                                col, row = self.selected_key_coords_p2
+                                char = self.end_screen.keys[row][col]
+
+                                if char == '<':
+                                    self.player2_name = self.player2_name[:-1] 
+                                elif char == 'OK':
+                                    if len(self.player2_name) > 0:
+                                        self.p2_done = True
+                                else:
+                                    if len(self.player2_name) < 12: 
+                                        self.player2_name += char
+
+                        # Check if all done saving
+                        if (self.num_players == 1 and self.p1_done) or (self.num_players == 2 and self.p1_done and self.p2_done):
+                            self.save_highscore(self.game_mode)
+                            self.state = self.STATE_MENU 
 
             # Render Logic depending on application state
             if self.state == self.STATE_MENU:
@@ -1158,20 +1238,25 @@ class Game:
 
                 # Return the player smoothly to the default Y axis after flying in transition
                 target_y = SCREEN_HEIGHT - TRANSITION_PLAYER_Y_NORMAL_OFFSET 
-                if abs(self.player.exact_y - target_y) > 0.5:
-                    self.player.exact_y += (target_y - self.player.exact_y) * TRANSITION_PLAYER_EASING_PLAYING
+                for player in self.active_players:
+                    if abs(player.exact_y - target_y) > 0.5:
+                        player.exact_y += (target_y - player.exact_y) * TRANSITION_PLAYER_EASING_PLAYING
                 
                 # Execute primary player behaviors
                 keys = pygame.key.get_pressed()
-                self.player.move(keys, SCREEN_WIDTH)
-                self.player.update_buffs()      
-                self.player_boost.update(is_hyperboosting=False)  
+                for player in self.active_players:
+                    player.move(keys, SCREEN_WIDTH)
+                    player.update_buffs()      
+                
+                self.player1_boost.update(is_hyperboosting=False)  
+                if hasattr(self, 'player2_boost'):
+                    self.player2_boost.update(is_hyperboosting=False)
 
                 # Update state of all physical entities in the scene
                 self.player_bullets.update()
                 self.enemy_bullets.update()
                 self.bunkers.update()
-                self.miniboss_group.update(self.player,
+                self.miniboss_group.update(self.player1,
                                self.all_sprites,
                                self.enemy_bullets,
                                self.explosions,
@@ -1305,17 +1390,18 @@ class Game:
                 self.bonus_items.update()     # Lässt die Bonus Items fallen
                 
                # --- Bonus Items einsammeln ---
-                collected_bonus = pygame.sprite.spritecollide(self.player, self.bonus_items, True)
-                for item in collected_bonus:
-                    self.score += item.points
-                    
-                    # --- NEU: Effekt spawnen ---
-                    effect = CollectEffect(item.rect.centerx, item.rect.centery)
-                    self.explosions.add(effect)
-                    self.all_sprites.add(effect)
-                    
-                    # Kleiner visueller Indikator auf den LEDs
-                    self.leds.send_effect("A", "blink", 1, 255, 255, 0, speed=10, repeat=3, priority=5)
+                for player in self.active_players:
+                    collected_bonus = pygame.sprite.spritecollide(player, self.bonus_items, True)
+                    for item in collected_bonus:
+                        self.score += item.points
+                        
+                        # --- NEU: Effekt spawnen ---
+                        effect = CollectEffect(item.rect.centerx, item.rect.centery)
+                        self.explosions.add(effect)
+                        self.all_sprites.add(effect)
+                        
+                        # Kleiner visueller Indikator auf den LEDs
+                        self.leds.send_effect("A", "blink", 1, 255, 255, 0, speed=10, repeat=3, priority=5)
                 
                 # Calculate Y-axis easing for the player's ship (fly towards top center screen)
                 if self.transition_state == "amplify":
@@ -1328,15 +1414,19 @@ class Game:
                     target_y = SCREEN_HEIGHT - TRANSITION_PLAYER_Y_NORMAL_OFFSET 
                     easing_speed_y = TRANSITION_PLAYER_EASING_RETURN
                     
-                self.player.exact_y += (target_y - self.player.exact_y) * easing_speed_y
+                for player in self.active_players:
+                    player.exact_y += (target_y - player.exact_y) * easing_speed_y
                 
                 # Still allow X-axis maneuvering during warp
                 keys = pygame.key.get_pressed()
-                self.player.move(keys, SCREEN_WIDTH)
-                self.player.update_buffs()
+                for player in self.active_players:
+                    player.move(keys, SCREEN_WIDTH)
+                    player.update_buffs()
                 
                 # Engage special hyperboost graphic logic
-                self.player_boost.update(is_hyperboosting=True)
+                self.player1_boost.update(is_hyperboosting=True)
+                if hasattr(self, 'player2_boost'):
+                    self.player2_boost.update(is_hyperboosting=True)
                 
                 # Push transition sequence logic
                 self._run_transition()
@@ -1370,9 +1460,11 @@ class Game:
         Saves the resulting points from an ended run into a structured local JSON file
         based on the game mode, maintaining a sorted top 5 array.
         """
+        filename_base = "highscores_sp.json" if self.num_players == 1 else "highscores_mp.json"
+        
         base_path = os.path.dirname(os.path.abspath(__file__))
         root_path = os.path.dirname(os.path.dirname(base_path))
-        filename = os.path.join(root_path, "highsscores.json")
+        filename = os.path.join(root_path, filename_base)
         
         data = {}
         
@@ -1391,8 +1483,14 @@ class Game:
         if "endless" not in data:
             data["endless"] = []
         
+        # Determine name to save
+        if self.num_players == 1: 
+            name_entry = self.player1_name
+        else: 
+            name_entry = f"{self.player1_name} & {self.player2_name}"
+            
         # Prepare the new record
-        entry = {"name": self.player_name, "score": self.score}
+        entry = {"name": name_entry, "score": self.score}
         if self.game_mode == "endless":
             entry["wave"] = self.wave_number
         

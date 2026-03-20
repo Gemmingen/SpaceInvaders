@@ -6,26 +6,27 @@ from src.config.config import (
     PLAYER_SPEED, PLAYER_PATCH_COLOR, PLAYER_PATCH_RECT,
     PLAYER_BOOST_NORMAL_SIZE, PLAYER_HYPERBOOST_SIZE,
     PLAYER_HYPERBOOST_ANIMATION_DELAY, PLAYER_HYPERBOOST_PROGRESS_UP,
-    PLAYER_HYPERBOOST_PROGRESS_DOWN, PLAYER_HYPERBOOST_OVERLAP_BASE,
-    PLAYER_HYPERBOOST_OVERLAP_MULT, 
-    POWERUP_SPEED_MULTIPLIER, POISON_SPEED_MULTIPLIER
+    PLAYER_HYPERBOOST_OVERLAP_BASE, PLAYER_HYPERBOOST_OVERLAP_MULT, 
+    POWERUP_SPEED_MULTIPLIER, POISON_SPEED_MULTIPLIER, PLAYER_HYPERBOOST_PROGRESS_DOWN
 )
 
 class Player(pygame.sprite.Sprite):
-    def __init__(self, x, y):
+    def __init__(self, x, y, player_id=1):
         super().__init__()
+        self.player_id = player_id
         
-        # 1. Lade Basis-Grafiken und skaliere sie erst einmal roh
-        raw_idle = pygame.transform.scale(load_image("assets/player-idle.png").convert_alpha(), (32, 32))
-        raw_left = pygame.transform.scale(load_image("assets/player-left.png").convert_alpha(), (32, 32))
-        raw_right = pygame.transform.scale(load_image("assets/player-right.png").convert_alpha(), (32, 32))
+        # Determine prefix for assets based on player_id
+        prefix = "player" if player_id == 1 else "player2"
         
-        # --- PIXEL-PATCH FÜR FEHLENDE PIXEL ---
+        # Load base graphics
+        raw_idle = pygame.transform.scale(load_image(f"assets/{prefix}-idle.png").convert_alpha(), (32, 32))
+        raw_left = pygame.transform.scale(load_image(f"assets/{prefix}-left.png").convert_alpha(), (32, 32))
+        raw_right = pygame.transform.scale(load_image(f"assets/{prefix}-right.png").convert_alpha(), (32, 32))
+        
+        # Patch missing pixels
         def patch_image(img):
             patched = pygame.Surface(img.get_size(), pygame.SRCALPHA)
-            patch_color = PLAYER_PATCH_COLOR 
-            patch_rect = pygame.Rect(*PLAYER_PATCH_RECT) 
-            pygame.draw.rect(patched, patch_color, patch_rect)
+            pygame.draw.rect(patched, PLAYER_PATCH_COLOR, pygame.Rect(*PLAYER_PATCH_RECT))
             patched.blit(img, (0, 0))
             return patched
             
@@ -49,27 +50,18 @@ class Player(pygame.sprite.Sprite):
         self.weapon_timer = 0
         self.last_shot_time = 0
         self.shot_cooldown = 300
-        self.lives = 3
     
     def update_buffs(self):
-        """Zählt die Timer für PowerUps und Debuffs runter."""
+        # Keep your existing update_buffs implementation...
         if self.poison_debuff_timer > 0:
             self.poison_debuff_timer -= 1
             if self.poison_debuff_timer <= 0:
-                # Poison over: Restore standard or boosted speed based on timers
-                if self.speed_timer > 0:
-                    self.speed = int(self.base_speed * POWERUP_SPEED_MULTIPLIER)
-                else:
-                    self.speed = self.base_speed
+                self.speed = int(self.base_speed * POWERUP_SPEED_MULTIPLIER) if self.speed_timer > 0 else self.base_speed
 
         if self.speed_timer > 0:
             self.speed_timer -= 1
             if self.speed_timer <= 0:
-                # Speed boost over: Return to base, or stay slowed if poison is active
-                if self.poison_debuff_timer > 0:
-                    self.speed = int(self.base_speed * POISON_SPEED_MULTIPLIER)
-                else:
-                    self.speed = self.base_speed
+                self.speed = int(self.base_speed * POISON_SPEED_MULTIPLIER) if self.poison_debuff_timer > 0 else self.base_speed
                 
         if self.weapon_timer > 0:
             self.weapon_timer -= 1
@@ -79,48 +71,50 @@ class Player(pygame.sprite.Sprite):
     def move(self, keys, screen_width):
         state = "idle"
         
-        if keys[pygame.K_LEFT] or keys[pygame.K_a]:
+        # Check controls based on player ID
+        if self.player_id == 1:
+            move_left = keys[pygame.K_a]
+            move_right = keys[pygame.K_d]
+        else:
+            move_left = keys[pygame.K_LEFT]
+            move_right = keys[pygame.K_RIGHT]
+            
+        if move_left:
             self.exact_x -= self.speed
             state = "left"
-        if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
+        if move_right:
             self.exact_x += self.speed
             state = "right"
             
         half_width = (32 * self.current_scale) / 2
-        if self.exact_x - half_width < 0:
-            self.exact_x = half_width
-        if self.exact_x + half_width > screen_width:
-            self.exact_x = screen_width - half_width
+        if self.exact_x - half_width < 0: self.exact_x = half_width
+        if self.exact_x + half_width > screen_width: self.exact_x = screen_width - half_width
 
-        if state == "idle":
-            base_img = self.base_image_idle
-        elif state == "left":
-            base_img = self.base_image_left
-        else:
-            base_img = self.base_image_right
+        if state == "idle": base_img = self.base_image_idle
+        elif state == "left": base_img = self.base_image_left
+        else: base_img = self.base_image_right
        
         new_size = (max(1, int(32 * self.current_scale)), max(1, int(32 * self.current_scale)))
         self.image = pygame.transform.scale(base_img, new_size)
         if self.poison_debuff_timer > 0:
             tint = pygame.Surface(self.image.get_size(), pygame.SRCALPHA)
-            # (R, G, B, Alpha). Try (100, 255, 100) for a sickly green that doesn't destroy the original colors
             tint.fill((100, 255, 100, 255)) 
-            # Multiply the colors together while preserving transparency
             self.image.blit(tint, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+            
         self.rect = self.image.get_rect()
         self.rect.centerx = round(self.exact_x)
         self.rect.centery = round(self.exact_y)
     
     def shoot(self):
-        """Erstellt ein Projektil, falls der Cooldown abgelaufen ist und der Spieler nicht poisoned ist."""
-        if getattr(self, 'poison_debuff_timer', 0) > 0:
-            return None # Locked out from shooting due to poison
-            
+        # Keep existing shoot logic
+        if getattr(self, 'poison_debuff_timer', 0) > 0: return None 
         current_time = pygame.time.get_ticks()
         if current_time - self.last_shot_time >= self.shot_cooldown:
             self.last_shot_time = current_time
             return Bullet(self.rect.centerx, self.rect.top, direction=-1, bullet_type=self.weapon_type)
         return None
+
+# Keep your existing PlayerBoost class here...
 
 class PlayerBoost(pygame.sprite.Sprite):
     def __init__(self, player):
