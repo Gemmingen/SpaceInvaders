@@ -24,7 +24,8 @@ from src.config.config import (
         TRANSITION_PLAYER_EASING_DOWN, TRANSITION_PLAYER_EASING_RETURN,
         TRANSITION_PLAYER_EASING_PLAYING, TRANSITION_WARP_OUT_ACCEL,
         FIST_EXPLOSION_OFFSET_LARGE, FIST_EXPLOSION_OFFSET_SMALL,
-        FIST_EXPLOSION_SIZE_LARGE, FIST_EXPLOSION_SIZE_SMALL
+        FIST_EXPLOSION_SIZE_LARGE, FIST_EXPLOSION_SIZE_SMALL,
+        BONUS_ITEM_SPEED, BONUS_ITEM_PROBABILITIES
     )
 from src.game.player import Player, PlayerBoost
 from src.game.enemy import Enemy
@@ -46,6 +47,7 @@ from src.game.endscreen import EndScreen
 from src.game.led_controller import LedController
 from src.game.explosion import Explosion
 from src.game.boss_healthbar import BossHealthBar
+from src.game.bonus_points import BonusPointItem, CollectEffect
 
 # Helper function to slice sprites
 def get_image(sheet, x, y, width, height):
@@ -191,9 +193,10 @@ class Game:
         self.mini_boss_spawned = False
         self.level_cleared_timer = 0
         
-        # Initialisiere miniboss_group hier sauber
+        # Initialisiere Sprite-Groups
         self.miniboss_group = pygame.sprite.Group()
         self.boss_healthbar = None 
+        self.bonus_items = pygame.sprite.Group() 
         
         # Transition related flags
         self.is_transition_active = False
@@ -353,7 +356,6 @@ class Game:
         self.bunker_transition_y = 0.0  # Reset bunker offset
         
         # 3. Sprite Group Cleanup
-        # FIX: Sauberes Killen der alten Bosse, um Reste (Klone, Laser, Fäuste) zu vernichten
         if hasattr(self, 'miniboss_group'):
             for boss in self.miniboss_group:
                 boss.kill()
@@ -375,6 +377,7 @@ class Game:
 
         self.powerups = pygame.sprite.Group()
         self.comets = pygame.sprite.Group()
+        self.bonus_items = pygame.sprite.Group() 
         self.headerbar = pygame.sprite.GroupSingle()
 
         # 4. Player Initialization
@@ -443,15 +446,27 @@ class Game:
         self.display.blit(scaled_surf, ((sw - nw) // 2, (sh - nh) // 2))
         pygame.display.flip()
 
+    def _spawn_bonus_item(self):
+        """Spawnt ein zufälliges Bonus Item (100, 200, 300, 400) oben am Bildschirm."""
+        roll = random.random()
+        cumulative = 0.0
+        chosen_points = 100
+        
+        for points, chance in BONUS_ITEM_PROBABILITIES.items():
+            cumulative += chance
+            if roll <= cumulative:
+                chosen_points = points
+                break
+                
+        # Zufällige X-Position im spielbaren Bereich
+        x_pos = random.randint(100, SCREEN_WIDTH - 100)
+        item = BonusPointItem(x_pos, -50, BONUS_ITEM_SPEED, chosen_points)
+        
+        self.bonus_items.add(item)
+        self.all_sprites.add(item)
+
     def _run_transition(self):
-        """Handle the multi‑stage transition background when a level is cleared.
-        This method is called every frame while self.state == self.STATE_LEVEL_CLEARED.
-        It manipulates self.current_speed_factors, swaps backgrounds, and
-        advances the internal sub‑state machine.
-        """
-        # -----------------------------------------------------------------
-        # Initialise the transition on the first call after entering the state
-        # -----------------------------------------------------------------
+        """Handle the multi‑stage transition background when a level is cleared."""
         if not self.is_transition_active:
             self.is_transition_active = True
             self.transition_state = "amplify"
@@ -495,7 +510,6 @@ class Game:
         # A – Amplify phase: increase speed until the peak factor is hit
         # ---------------------------------------------------------------
         if self.transition_state == "amplify":
-    
             self.current_speed_factors = _ramp_up(
                 self.current_speed_factors, AMPLIFY_STEP, AMPLIFY_MAX_FACTOR
             )
@@ -510,6 +524,15 @@ class Game:
         # B – Hold phase: keep the transition background for a fixed time
         # ---------------------------------------------------------------
         if self.transition_state == "hold":
+            # FIX: Items spawnen jetzt früher, damit sie Zeit zum Fallen haben!
+            # Item 1 ganz am Anfang der Flugphase
+            if self.transition_timer == TRANSITION_HOLD_FRAMES - 10:
+                self._spawn_bonus_item()
+                
+            # Item 2 in der Mitte der Flugphase
+            if self.transition_timer == TRANSITION_HOLD_FRAMES - 90:
+                self._spawn_bonus_item()
+                
             self.transition_timer -= 1
             if self.transition_timer <= 0:
                 self.transition_state = "decel_to_thresh"
@@ -533,7 +556,6 @@ class Game:
             # Track frames in decel_to_normal phase
             self.decel_normal_frames += 1
             
-            # Total frames in this phase: (40 - 0) / 0.1 = 400 frames
             # Initialize next planet 60 frames (1 second) before end
             if self.decel_normal_frames == 340 and not self.next_planet_sliding:
                 next_idx = self.planet_index + 1
@@ -542,8 +564,7 @@ class Game:
                     self.next_planet_y = -self.planets[next_idx].get_height()
                     self.next_planet_sliding = True
             
-            # 1. Sicherstellen, dass die neuen Layer gesetzt sind
-            # self.level_backgrounds[self.level] MUSS eine Liste von z.B. 4 Images sein
+            # Sicherstellen, dass die neuen Layer gesetzt sind
             if self.current_background_layers != self.level_backgrounds[self.level]:
                 self.current_background_layers = self.level_backgrounds[self.level]
 
@@ -551,8 +572,7 @@ class Game:
                 self.transition_timer -= 1
                 return
 
-            # 2. Sanftes Abbremsen auf die Ziel-Faktoren der einzelnen Layer
-            # Wir nutzen hier direkt PARALLAX_SPEED_FACTORS als Zielwerte
+            # Sanftes Abbremsen auf die Ziel-Faktoren der einzelnen Layer
             new_factors = []
             all_reached = True
             for i, current_f in enumerate(self.current_speed_factors):
@@ -560,7 +580,7 @@ class Game:
                 if current_f > target_f:
                     next_f = max(current_f - DECEL_STEP, target_f)
                 else:
-                    next_f = target_f # Falls er schon drunter war
+                    next_f = target_f 
                 
                 new_factors.append(next_f)
                 if abs(next_f - target_f) > 1e-5:
@@ -568,7 +588,7 @@ class Game:
                     
             self.current_speed_factors = new_factors
 
-            # 3. Wenn alle Layer ihre Normalgeschwindigkeit erreicht haben
+            # Wenn alle Layer ihre Normalgeschwindigkeit erreicht haben
             if all_reached:
                 self._spawn_miniboss()
                 self.mini_boss_spawned = True
@@ -810,11 +830,18 @@ class Game:
             if enemy.rect.bottom >= self.player.rect.top:
                 self.state = self.STATE_GAME_OVER
 
-        # POWERUP SAMMELN
+        # POWERUP SAMMELN (jetzt richtig eingerückt!)
         powerup_hits = pygame.sprite.spritecollide(self.player, self.powerups, True)
         if powerup_hits:
             self.leds.send_effect("A", "blink", 1, 0, 255, 255, speed=10, repeat=5, priority=5)
             for pu in powerup_hits:
+                
+                # --- NEU: Collect-Effekt auch für normale Items spawnen ---
+                effect = CollectEffect(pu.rect.centerx, pu.rect.centery)
+                self.explosions.add(effect)
+                self.all_sprites.add(effect)
+                # ----------------------------------------------------------
+                
                 if pu.type == "comet":
                     comet = Comet(SCREEN_WIDTH, COMET_SPEED, COMET_ROTATION_SPEED, TIE_FIGHTER_SPEED, TIE_FIGHTER_ROTATION_SPEED, TIE_FIGHTER_SIZE)
                     self.comets.add(comet)
@@ -967,6 +994,7 @@ class Game:
         self.mini_boss_spawned = False
         
         self.boss_healthbar = None # Healthbar beim Levelwechsel löschen
+        self.bonus_items.empty() # Auch restliche Bonuspunkte sicherheitshalber löschen
         self.miniboss_group.empty()
         self.enemies.empty()
         # Update background for the new level
@@ -1133,6 +1161,7 @@ class Game:
                 self.comets.update(SCREEN_WIDTH, SCREEN_HEIGHT)
                 self.enemies.update()
                 self.ufo_group.update()
+                self.bonus_items.update() # NEU: Bonus Items updaten, falls sie noch ins Level ragen
                 
                 # --- 4. Kollisionen mit Bunkern prüfen ---
                 for bullet in self.player_bullets:
@@ -1244,6 +1273,20 @@ class Game:
                 self.comets.update(SCREEN_WIDTH, SCREEN_HEIGHT)
                 self.ufo_group.update()
                 self.puddle_group.update()
+                self.bonus_items.update()     # Lässt die Bonus Items fallen
+                
+               # --- Bonus Items einsammeln ---
+                collected_bonus = pygame.sprite.spritecollide(self.player, self.bonus_items, True)
+                for item in collected_bonus:
+                    self.score += item.points
+                    
+                    # --- NEU: Effekt spawnen ---
+                    effect = CollectEffect(item.rect.centerx, item.rect.centery)
+                    self.explosions.add(effect)
+                    self.all_sprites.add(effect)
+                    
+                    # Kleiner visueller Indikator auf den LEDs
+                    self.leds.send_effect("A", "blink", 1, 255, 255, 0, speed=10, repeat=3, priority=5)
                 
                 # --- Y-Achsen Easing für den Cinematic Flight ---
                 if self.transition_state == "amplify":
