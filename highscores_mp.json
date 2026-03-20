@@ -23,6 +23,11 @@
     ],
     "mp_endless": [
         {
+            "name": "LUK & ELS",
+            "score": 3000,
+            "wave": 2
+        },
+        {
             "name": "AA & BB",
             "score": 1900,
             "wave": 1

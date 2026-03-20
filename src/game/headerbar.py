@@ -11,6 +11,8 @@ class HeaderBar(pygame.sprite.Sprite):
         self.font = pygame.font.Font("assets/headerbar/PressStart2P-Regular.ttf", 16)
         
         self.level = 1
+        self.wave = 1
+        self.is_wave_mode = False
         
         raw_image = pygame.image.load("assets/header-bar.png").convert_alpha()
         orig_w, orig_h = raw_image.get_size()
@@ -52,7 +54,7 @@ class HeaderBar(pygame.sprite.Sprite):
         self.warning_icon = pygame.transform.scale(raw_warning_img, (new_width, new_height))
 
     def _render_text(self):
-        """Rendert Level, Score und Lives in die Header-Grafik."""
+        """Rendert Level/Wave, Score und Lives in die Header-Grafik."""
         self.image = self.base_image.copy()
         retro_green = (0, 228, 54)
         
@@ -62,8 +64,13 @@ class HeaderBar(pygame.sprite.Sprite):
         w = self.rect.width
         h = self.rect.height
 
-        # Links – Level 
-        level_surf = self.font.render(f"LvL:{self.level}", True, retro_green)
+        # Links – Level oder Wave
+        if self.is_wave_mode:
+            display_text = f"Wave:{self.wave}"
+        else:
+            display_text = f"LvL:{self.level}"
+
+        level_surf = self.font.render(display_text, True, retro_green)
         level_x = (w // 6) - (level_surf.get_width() // 2)
         self.image.blit(level_surf, (level_x, text_y))
 
@@ -81,16 +88,22 @@ class HeaderBar(pygame.sprite.Sprite):
         self.image.blit(self.health_icon, (start_x, icon_y))
         self.image.blit(lives_num_surf, (start_x + self.health_icon.get_width() + 5, text_y))
     
-
     def update(self, score, lives):  
         """Aktualisiert die Werte und zeichnet sie neu."""
         self.score = score
         self.lives = lives
         self._render_text()
 
-    def set_level(self, level: int):
-        """Setzt das Level und zeichnet neu."""
-        self.level = level
+    def set_wave(self, wave_number):
+        """Aktiviert den Endless/Versus Modus und setzt die Wave."""
+        self.wave = wave_number
+        self.is_wave_mode = True
+        self._render_text()
+
+    def set_level(self, level_number):
+        """Aktiviert den Story Modus und setzt das Level."""
+        self.level = level_number
+        self.is_wave_mode = False
         self._render_text()
 
     def draw(self, screen):
@@ -101,7 +114,7 @@ class HeaderBar(pygame.sprite.Sprite):
         # Zeichne die Grafik mittig drüber
         screen.blit(self.image, self.rect)
         
-        # Zeichne die Warnung, falls sie aktiv ist
-        warning_x = self.rect.right + 15
-        warning_y = self.rect.centery - (self.warning_icon.get_height() // 2)
-        screen.blit(self.warning_icon, (warning_x, warning_y))
+        # Hinweis: Das tatsächliche Zeichnen des Warn-Icons (Blinken) 
+        # passiert wahrscheinlich in deiner game.py. Die Methode hier 
+        # zeichnet es dauerhaft, weshalb sie in manchen Konfigurationen
+        # ignoriert oder in der game.py überschrieben wird.

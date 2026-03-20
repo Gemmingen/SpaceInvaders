@@ -385,7 +385,10 @@ class Game:
         self.enemy_direction = 1
         self.enemy_move_down = 10
         self.headerbar.add(HeaderBar(self.screen, self.font))
-        
+        if self.game_mode in ["endless", "versus"]:
+            self.headerbar.sprite.set_wave(self.wave_number)
+        else:
+            self.headerbar.sprite.set_level(self.level)
         angles = [0, 90, 180, 270]
         variants = ["satellite", "satellit2", "satellit3", "satellit4"]
         for i, variant in enumerate(variants):
@@ -1059,6 +1062,7 @@ class Game:
             elif self.game_mode == "endless" or self.game_mode == "versus":
                 if not getattr(self, '_endless_wave_spawned', False):
                     self.wave_number += 1
+                    self.headerbar.sprite.set_wave(self.wave_number)  # <--- NEUE ZEILE
                     self.create_enemy_wave()
                     self.score += 500
                     self._endless_wave_spawned = True
