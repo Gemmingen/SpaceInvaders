@@ -12,7 +12,7 @@ from src.config.config import (
     BOSS3_GLOB_SPLIT_HEIGHT, BOSS3_POISON_PUDDLE_FRAME_SKIP, 
     BOSS3_POISON_PUDDLE_ANIMATION_SPEED, BOSS3_POISON_PUDDLE_SIZE,
     MINIBOSS_SPAWN_FRAMES, MINIBOSS_SPAWNER_SIZE, MINIBOSS_SPAWNER_ROT_SPEED,
-    BOSS3_POISON_PUDDLE_HITBOX_WIDTH, BOSS3_POISON_PUDDLE_HITBOX_HEIGHT # <-- ADDED
+    BOSS3_POISON_PUDDLE_HITBOX_WIDTH, BOSS3_POISON_PUDDLE_HITBOX_HEIGHT 
 )
 from src.game.miniboss_base import MiniBossBase
 from src.utils.helpers import load_image
@@ -253,7 +253,8 @@ class BossSmall3(MiniBossBase):
         self.poison_group = pygame.sprite.Group()
         self.puddle_group = pygame.sprite.Group()
         self.effect_group = pygame.sprite.Group()
-    def update(self, player=None, *args, **kwargs):  # Expected args: all_sprites, enemy_bullets, explosions, screen_width, screen_height, puddles_group
+
+    def update(self, player=None, *args, **kwargs):  
         """Update movement and drop PoisonGlob.
 
         Compatibility shim: accept positional arguments from Game.update.
@@ -305,7 +306,7 @@ class BossSmall3(MiniBossBase):
             self.rect = self.image.get_rect(center=(round(self.exact_x), round(self.exact_y)))
             
             if self.intro_timer >= MINIBOSS_SPAWN_FRAMES * 2:
-                self.state = "orbiting"
+                self.state = "flying"
                 self.image = self.boss_base.copy()
                 self.rect = self.image.get_rect(center=(round(self.exact_x), round(self.exact_y)))
                 self.mask = pygame.mask.from_surface(self.image)
@@ -317,10 +318,16 @@ class BossSmall3(MiniBossBase):
         # ========================================================
         # --- Sine wave vertical movement ---
         self.time_ticker += 0.05
-        self.rect.centery = int(self.base_y + 100 - abs(math.sin(self.time_ticker)) * 100)
+        
+        # FIX: Sinus Kurve ist jetzt so gebaut, dass sie exakt bei self.base_y (220) startet
+        # und dann auf 320 abtaucht. Kein Ruckeln beim Start mehr!
+        self.rect.centery = int(self.base_y + abs(math.sin(self.time_ticker)) * 100)
 
         # --- Horizontal movement (bounce) ---
-        self.rect.x += self.direction * self.speed
+        # FIX: exact_x nutzen, damit auch hier beim Wechsel vom Intro nichts zuckt
+        self.exact_x += self.direction * self.speed
+        self.rect.centerx = round(self.exact_x)
+        
         if self.rect.right >= SCREEN_WIDTH or self.rect.left <= 0:
             self.direction *= -1
 
@@ -351,7 +358,7 @@ class BossSmall3(MiniBossBase):
                 kwargs['all_sprites'].add(p)
             for pd in self.puddle_group:
                 kwargs['all_sprites'].add(pd)
-            for e in self.effect_group:          # <--- NEU: Effekte hinzufügen
+            for e in self.effect_group:          
                 kwargs['all_sprites'].add(e)
         if 'enemy_bullets' in kwargs:
             for p in self.poison_group:

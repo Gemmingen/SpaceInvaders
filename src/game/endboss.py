@@ -405,6 +405,13 @@ class EndBoss(MiniBossBase):
         if self.state in (self.STATE_SPAWNING, self.STATE_DYING):
             return 
             
+        # FIX: Unverwundbar, wenn er in Phase 5 exakt in der Mitte steht und feuert
+        if self.state == self.STATE_FLYING and self.phase == 5:
+            target_x = self.center_pos.x
+            target_y = ENDBOSS_TOP_Y
+            if abs(self.exact_x - target_x) < ENDBOSS_CENTER_TOLERANCE and abs(self.exact_y - target_y) < ENDBOSS_CENTER_TOLERANCE:
+                return
+
         self.health -= 1
         if self.health <= 0:
             # Projektile lautlos zerstören
