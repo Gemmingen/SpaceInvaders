@@ -23,7 +23,7 @@ BULLET_SPEED = 10
 
 # Enemy wave per level – can be tweaked later
 TEST_AMOUNT = 1
-TEST_START_LEVEL = 2
+TEST_START_LEVEL = 1
 ENEMY_WAVE_SETTINGS = {
     1: dict(rows=TEST_AMOUNT, cols=TEST_AMOUNT, speed=ENEMY_SPEED, shoot_chance=ENEMY_SHOOT_CHANCE),
     2: dict(rows=TEST_AMOUNT, cols=TEST_AMOUNT, speed=ENEMY_SPEED, shoot_chance=ENEMY_SHOOT_CHANCE),
@@ -177,8 +177,8 @@ ENDBOSS_SPAWNER_ROT_SPEED = 6      # Rotationsgeschwindigkeit des Spawner-Portal
 # EndBoss Pattern / Bewegungsvariablen
 ENDBOSS_BURSTS_PER_CYCLE = 4       # Anzahl der Salven im Zentrum
 ENDBOSS_EASING_SPEED = 0.08        # Weichheit der Bewegungen (kleiner = weicher)
-ENDBOSS_CENTER_Y = 250             # Y-Mittelpunkt für Kreise/Achten
-ENDBOSS_TOP_Y = 150                # Y-Zielpunkt für das Pendel-Pattern und Zentrum
+ENDBOSS_CENTER_Y = 350             # Y-Mittelpunkt für Kreise/Achten
+ENDBOSS_TOP_Y = 250                # Y-Zielpunkt für das Pendel-Pattern und Zentrum
 ENDBOSS_PATTERN_AMP_X = 250        # X-Amplitude für das Kreisen
 ENDBOSS_PATTERN_AMP_Y = 100        # Y-Amplitude für das Kreisen
 ENDBOSS_PATTERN_WIDE_X = 350       # X-Amplitude für weite Bewegungen (Pendeln, Welle)
@@ -206,8 +206,8 @@ BOSS4_CLONE_ORBIT_SPEED = 0.05
 BOSS4_FLASH_COLOR_1 = (255, 0, 0)
 BOSS4_FLASH_COLOR_2 = (255, 255, 255)
 
-BOSS4_START_Y = 200
-BOSS4_CENTER_Y = 250
+BOSS4_START_Y = 300
+BOSS4_CENTER_Y = 350
 BOSS4_MAX_ROUTES = 2
 BOSS4_CHILDREN_COUNT = 6
 BOSS4_BASE_SPEED = 0.03
