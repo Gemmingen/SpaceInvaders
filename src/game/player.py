@@ -98,10 +98,15 @@ class Player(pygame.sprite.Sprite):
             base_img = self.base_image_left
         else:
             base_img = self.base_image_right
-            
+       
         new_size = (max(1, int(32 * self.current_scale)), max(1, int(32 * self.current_scale)))
         self.image = pygame.transform.scale(base_img, new_size)
-        
+        if self.poison_debuff_timer > 0:
+            tint = pygame.Surface(self.image.get_size(), pygame.SRCALPHA)
+            # (R, G, B, Alpha). Try (100, 255, 100) for a sickly green that doesn't destroy the original colors
+            tint.fill((100, 255, 100, 255)) 
+            # Multiply the colors together while preserving transparency
+            self.image.blit(tint, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
         self.rect = self.image.get_rect()
         self.rect.centerx = round(self.exact_x)
         self.rect.centery = round(self.exact_y)
@@ -146,7 +151,7 @@ class PlayerBoost(pygame.sprite.Sprite):
                 img = pygame.Surface(PLAYER_BOOST_NORMAL_SIZE, pygame.SRCALPHA)
                 img.fill((0, 255, 255, 180)) 
                 self.raw_hyper_frames.append(img)
-            
+     
         self.current_frame = 0
         self.animation_timer = 0
         self.animation_delay = PLAYER_HYPERBOOST_ANIMATION_DELAY 
@@ -187,6 +192,10 @@ class PlayerBoost(pygame.sprite.Sprite):
         current_w = int(PLAYER_BOOST_NORMAL_SIZE[0] + (target_w - PLAYER_BOOST_NORMAL_SIZE[0]) * self.hyper_progress)
         current_h = int(PLAYER_BOOST_NORMAL_SIZE[1] + (target_h - PLAYER_BOOST_NORMAL_SIZE[1]) * self.hyper_progress)
         
+        if getattr(self.player, 'poison_debuff_timer', 0) > 0:
+            current_w = int(current_w * 0.5)
+            current_h = int(current_h * 0.5)
+            
         current_w = int(current_w * self.player.current_scale)
         current_h = int(current_h * self.player.current_scale)
         

@@ -11,7 +11,8 @@ from src.config.config import (
     SCREEN_WIDTH, SCREEN_HEIGHT, BOSS3_GLOB_SPLIT_ANGLE_DEGREES, 
     BOSS3_GLOB_SPLIT_HEIGHT, BOSS3_POISON_PUDDLE_FRAME_SKIP, 
     BOSS3_POISON_PUDDLE_ANIMATION_SPEED, BOSS3_POISON_PUDDLE_SIZE,
-    MINIBOSS_SPAWN_FRAMES, MINIBOSS_SPAWNER_SIZE, MINIBOSS_SPAWNER_ROT_SPEED
+    MINIBOSS_SPAWN_FRAMES, MINIBOSS_SPAWNER_SIZE, MINIBOSS_SPAWNER_ROT_SPEED,
+    BOSS3_POISON_PUDDLE_HITBOX_WIDTH, BOSS3_POISON_PUDDLE_HITBOX_HEIGHT # <-- ADDED
 )
 from src.game.miniboss_base import MiniBossBase
 from src.utils.helpers import load_image
@@ -149,6 +150,9 @@ class PoisonPuddle(pygame.sprite.Sprite):
         self.image = self.frames[0]
         self.rect = self.image.get_rect(center=(x, y))
         
+        self.hitbox = pygame.Rect(0, 0, BOSS3_POISON_PUDDLE_HITBOX_WIDTH, BOSS3_POISON_PUDDLE_HITBOX_HEIGHT)
+        # Center the hitbox exactly in the middle of the visual sprite
+        self.hitbox.center = self.rect.center
         # --- NEW: Effect spawning variables ---
         self.effects_to_spawn = 5
         # Calculate roughly how many frames to wait between spawns
@@ -313,7 +317,7 @@ class BossSmall3(MiniBossBase):
         # ========================================================
         # --- Sine wave vertical movement ---
         self.time_ticker += 0.05
-        self.rect.centery = int(self.base_y - abs(math.sin(self.time_ticker)) * 50)
+        self.rect.centery = int(self.base_y + 100 - abs(math.sin(self.time_ticker)) * 100)
 
         # --- Horizontal movement (bounce) ---
         self.rect.x += self.direction * self.speed

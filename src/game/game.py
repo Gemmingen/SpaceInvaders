@@ -764,7 +764,8 @@ class Game:
         # 5. Poison Puddle Area Denial (Damage over time)
         in_puddle = False
         for puddle in list(self.puddle_group):
-            if pygame.sprite.collide_rect(puddle, self.player):
+            active_rect = getattr(puddle, 'hitbox', puddle.rect)
+            if active_rect.colliderect(self.player.rect):
                 in_puddle = True
                 break
                 
@@ -1203,6 +1204,13 @@ class Game:
                 self.headerbar.update(self.score, self.lives)
                 self.headerbar.draw(self.screen)
                 
+                for puddle in self.puddle_group:
+                    if hasattr(puddle, 'hitbox'):
+                        pygame.draw.rect(self.screen, (255, 0, 0), puddle.hitbox, 2)
+                    else:
+                        pygame.draw.rect(self.screen, (255, 255, 0), puddle.rect, 2)
+
+                        
                 if getattr(self, 'boss_healthbar', None):
                     self.boss_healthbar.draw(self.screen)
                 

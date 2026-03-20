@@ -18,6 +18,7 @@ obj/
 *.venv
 *.pytest_cache
 __pycache__
+/__pycache__
 */__pycache__
 **/__pycache__
 *src/game/__pycache__/
