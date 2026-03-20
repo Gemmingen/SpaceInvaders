@@ -159,7 +159,7 @@ class BossSmall4(MiniBossBase):
         self.spawner_base = load_image('assets/boss4-spawner.png').convert_alpha()
         
         self.exact_x = float(SCREEN_WIDTH // 2)
-        self.exact_y = float(BOSS4_START_Y)
+        self.exact_y = float(BOSS4_CENTER_Y) 
         
         # Unsichtbarer Start
         self.image = pygame.Surface((1, 1), pygame.SRCALPHA)
@@ -174,6 +174,9 @@ class BossSmall4(MiniBossBase):
         self.children = pygame.sprite.Group()
         self.attack_queue = []
         self.launch_delay = 0
+        
+        # NEU: Flag, das festlegt, ob der Boss gerade abbremst
+        self.is_decelerating = False
 
     def spawn_children(self):
         for i in range(BOSS4_CHILDREN_COUNT):
@@ -189,7 +192,6 @@ class BossSmall4(MiniBossBase):
         if player is None and not args and not kwargs:
             return
             
-        # Akzeptiert Keywords ODER die unbenannten Argumente aus deinem Merge!
         enemy_bullets = kwargs.get('enemy_bullets')
         if enemy_bullets is None and len(args) >= 2:
             enemy_bullets = args[1]
@@ -237,23 +239,40 @@ class BossSmall4(MiniBossBase):
             target_t = 2 * math.pi * self.max_routes
             remaining = target_t - self.t
             
-            # Basisgeschwindigkeit
             base_speed = BOSS4_BASE_SPEED
             
-            # Sehr weiches "Smooth Easing" im letzten Halbbogen (pi) vor dem Anhalten
-            if remaining < math.pi:
-                ratio = remaining / math.pi
-                speed = max(BOSS4_MIN_SPEED, base_speed * math.sin(ratio * math.pi / 2))
+            # Sehr kurze Beschleunigungszone -> Gibt extrem schnell Gas
+            ease_in_window = 0.5 
+            # Deutlich kürzere Bremszone -> Rollt erst auf den letzten Metern aus
+            ease_out_window = 1.2 
+            
+            # Grundsätzlich ist er im Flug verwundbar, außer er bremst
+            self.is_decelerating = False
+            
+            if self.t < ease_in_window:
+                # Zieht knackig an
+                ratio = self.t / ease_in_window
+                speed = max(0.01, base_speed * math.sin(ratio * math.pi / 2))
+            elif remaining < ease_out_window:
+                # MELDUNG: Boss bremst ab -> Unverwundbarkeit greift!
+                self.is_decelerating = True
+                
+                # Sanftes Ausrollen mit Sinus-Kurve (sinkt nicht so extrem ab wie quadratisch)
+                ratio = remaining / ease_out_window
+                speed = max(0.008, base_speed * math.sin(ratio * math.pi / 2))
             else:
+                # Volle Fahrt im Mittelteil
                 speed = base_speed
             
             self.t += speed
+            
+            # Ziel erreicht
             if self.t >= target_t:
                 self.t = target_t
                 self.state = self.STATE_SPAWNING
 
-            self.rect.centerx = self.center_pos.x + BOSS4_FLIGHT_AMP_X * math.sin(self.t)
-            self.rect.centery = self.center_pos.y + BOSS4_FLIGHT_AMP_Y * math.sin(BOSS4_FREQ_MULT_Y * self.t)
+            self.rect.centerx = round(self.center_pos.x + BOSS4_FLIGHT_AMP_X * math.sin(self.t))
+            self.rect.centery = round(self.center_pos.y + BOSS4_FLIGHT_AMP_Y * math.sin(BOSS4_FREQ_MULT_Y * self.t))
         
         elif self.state == self.STATE_SPAWNING:
             self.rect.center = self.center_pos
@@ -284,11 +303,14 @@ class BossSmall4(MiniBossBase):
                 self.t = 0
 
     def hit(self):
-        # Boss ist UNVERWUNDBAR, solange er im Intro ist, Kinder spawnt oder diese existieren
-        if self.state != self.STATE_FLYING:
+        # Boss ist UNVERWUNDBAR:
+        # 1. Im Intro
+        # 2. Wenn er spawnt/orbited/attackiert (nicht im STATE_FLYING)
+        # 3. Wenn er im Anflug auf die Mitte bremst (is_decelerating)
+        if self.state != self.STATE_FLYING or getattr(self, 'is_decelerating', False):
             return 
             
-        # Normaler Schaden, wenn im Flugmodus
+        # Normaler Schaden, wenn im freien Flug
         self.health -= 1
         if self.health <= 0:
             for child in self.children:
