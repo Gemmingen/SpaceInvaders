@@ -236,22 +236,22 @@ class Game:
         )
         if hit_bunker:
             # Special case: PoisonGlob instantly destroys bunker
-            if isinstance(bullet, PoisonGlob):
-                # Explosion at the bunker location
-                exp = Explosion(hit_bunker.rect.centerx, hit_bunker.rect.centery, size=96)
-                self.explosions.add(exp)
-                self.all_sprites.add(exp)
-                # Destroy the bunker
-                hit_bunker.kill()
-                # Suppress the poison puddle (cloud) from spawning
-                bullet.puddle_group = None
-                bullet.has_spawned = True
-                # Remove the glob itself
-                bullet.kill()
-                return
+            # if isinstance(bullet, PoisonGlob):
+            #     # Explosion at the bunker location
+            #     exp = Explosion(hit_bunker.rect.centerx, hit_bunker.rect.centery, size=96)
+            #     self.explosions.add(exp)
+            #     self.all_sprites.add(exp)
+            #     # Destroy the bunker
+            #     hit_bunker.take_damage()
+            #     # Suppress the poison puddle (cloud) from spawning
+            #     bullet.puddle_group = False #False
+            #     bullet.has_spawned = True
+            #     # Remove the glob itself
+            #     bullet.kill()
+            #     return
             
-            # Fist has its own special effect
-            if isinstance(bullet, Fist):
+            # Fist and Glob has its own special effect
+            if isinstance(bullet, Fist) or isinstance(bullet, PoisonGlob):
                 # 1. Große Explosion zufällig auf dem Bunker
                 offset_x1 = random.randint(-FIST_EXPLOSION_OFFSET_LARGE, FIST_EXPLOSION_OFFSET_LARGE)
                 offset_y1 = random.randint(-FIST_EXPLOSION_OFFSET_LARGE, FIST_EXPLOSION_OFFSET_LARGE)
@@ -272,7 +272,10 @@ class Game:
                 exp2 = Explosion(exp2_x, exp2_y, size=FIST_EXPLOSION_SIZE_SMALL)
                 self.explosions.add(exp2)
                 self.all_sprites.add(exp2)
-                
+                if isinstance(bullet, PoisonGlob):
+                    bullet.puddle_group = False 
+                    bullet.has_spawned = True
+                    bullet.kill()
                 hit_bunker.take_damage()
             else:
                 damage = getattr(bullet, "damage", 1)
