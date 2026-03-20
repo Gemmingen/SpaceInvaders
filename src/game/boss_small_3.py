@@ -318,7 +318,10 @@ class BossSmall3(MiniBossBase):
         # ========================================================
         # --- Sine wave vertical movement ---
         self.time_ticker += 0.05
-        self.rect.centery = int(self.base_y - abs(math.sin(self.time_ticker)) * 100)
+        
+        # FIX: Sinus Kurve ist jetzt so gebaut, dass sie exakt bei self.base_y (220) startet
+        # und dann auf 320 abtaucht. Kein Ruckeln beim Start mehr!
+        self.rect.centery = int(self.base_y + abs(math.sin(self.time_ticker)) * 100)
 
         # --- Horizontal movement (bounce) ---
         # FIX: exact_x nutzen, damit auch hier beim Wechsel vom Intro nichts zuckt
