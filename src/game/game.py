@@ -238,7 +238,11 @@ class Game:
                     hit_any = True
             if hit_any:
                 # Clear all remaining bunkers in the line of the laser and kill the laser segment
-                bunker_group.empty()
+                for b in list(bunker_group):
+                    exp = Explosion(b.rect.centerx, b.rect.centery, size=96)
+                    self.explosions.add(exp)
+                    self.all_sprites.add(exp)
+                    b.kill()
                 bullet.kill()
                 return
 
