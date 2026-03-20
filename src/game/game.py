@@ -85,7 +85,11 @@ class Game:
         
         self.music_intro = ("assets/music/intro.mp3")
         self.music_level = ("assets/music/02 Pluto.mp3")
-        self.music_boss = ("assets/music/03 Pluto Boss.mp3")
+        self.music_boss_1 = ("assets/music/03 Pluto Boss.mp3")
+        self.music_boss_2 = ("assets/music/secondboss.mp3")
+        self.music_boss_3 = ("assets/music/thirdboss.mp3")
+        self.music_boss_4 = ("assets/music/fourthboss.mp3")
+        self.music_boss_5 = ("assets/music/endboss.mp3")
         
         self.laser_sound = pygame.mixer.Sound("assets/music/lasershot.mp3")
         self.enemy_explosion = pygame.mixer.Sound("assets/music/enemyexplosion.mp3")
@@ -1013,7 +1017,15 @@ class Game:
 
     def _update_gameplay(self, keys):
         if self.mini_boss_spawned:
-            self._play_music(self.music_boss, 0.7)
+            boss_tracks = {
+                        1: self.music_boss_1,
+                        2: self.music_boss_2,
+                        3: self.music_boss_3,
+                        4: self.music_boss_4,
+                        5: self.music_boss_5
+                    }
+            current_boss_music = boss_tracks.get(self.level, self.music_boss_1)
+            self._play_music(current_boss_music, 0.7)
         else:
             self._play_music(self.music_level, 0.7)
 

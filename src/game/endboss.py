@@ -167,7 +167,11 @@ class EndBoss(MiniBossBase):
         # Lade Originalbilder für die Intro-Animation
         self.boss_base = load_image('assets/endboss.png').convert_alpha()
         self.spawner_base = load_image('assets/endboss-spawner.png').convert_alpha()
-        
+        #cluster Explosionen
+        self.death_explosion_sound = pygame.mixer.Sound("assets/music/enemyexplosion.mp3")
+        self.death_explosion_sound.set_volume(0.3)
+        self.final_explosion_sound = pygame.mixer.Sound("assets/music/enemyexplosion.mp3")
+        self.final_explosion_sound.set_volume(1)
         # Start-Setup (Mitte oben)
         self.center_pos = pygame.math.Vector2(SCREEN_WIDTH // 2, ENDBOSS_CENTER_Y)
         self.exact_x = float(self.center_pos.x)
@@ -240,12 +244,15 @@ class EndBoss(MiniBossBase):
                     if explosions is not None:
                         mini_x = self.rect.centerx + random.randint(-ENDBOSS_WIDTH // 2, ENDBOSS_WIDTH // 2)
                         mini_y = self.rect.centery + random.randint(-ENDBOSS_HEIGHT // 2, ENDBOSS_HEIGHT // 2)
+                        self.death_explosion_sound.play()
                         mini_exp = Explosion(mini_x, mini_y, size=64)
                         explosions.add(mini_exp)
                         if all_sprites is not None:
                             all_sprites.add(mini_exp)
             else:
                 # 4. Am Ende die gigantische Explosion spawnen
+                for _ in range(15):
+                    self.final_explosion_sound.play()
                 if explosions is not None:
                     exp = Explosion(
                         round(self.base_x), round(self.base_y), 
