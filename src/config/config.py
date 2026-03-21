@@ -24,10 +24,12 @@ BULLET_SPEED = 10
 # Story Mode Enemy Step Settings
 STORY_ENEMY_BASE_MOVE_DOWN = 10                      # Initialer Schritt nach unten in Level 1
 STORY_ENEMY_MOVE_DOWN_INCREMENT = 6                  # Zuwachs der Schrittgröße pro Level
+STORY_ENEMY_MAX_MOVE_DOWN = 40                       # Maximaler Drop im Story-Mode
 
 # Endless Mode Enemy Step Settings
 ENDLESS_ENEMY_BASE_MOVE_DOWN = 10                    # Initialer Schritt nach unten in Wave 1
 ENDLESS_ENEMY_MOVE_DOWN_INCREMENT = 3                # Zuwachs der Schrittgröße pro Wave 
+ENDLESS_ENEMY_MAX_MOVE_DOWN = 50                     # Maximaler Drop im Endless-Mode
 
 # Endless Mode General Scaling Settings
 ENDLESS_BASE_COLS = 8                                # Startanzahl der Spalten

@@ -27,8 +27,8 @@ from src.config.config import (
     FIST_EXPLOSION_SIZE_LARGE, FIST_EXPLOSION_SIZE_SMALL,
     POISON_DAMAGE_DELAY, POISON_DEBUFF_DURATION, POISON_SPEED_MULTIPLIER,
     BONUS_ITEM_SPEED, BONUS_ITEM_PROBABILITIES,
-    STORY_ENEMY_BASE_MOVE_DOWN, STORY_ENEMY_MOVE_DOWN_INCREMENT,
-    ENDLESS_ENEMY_BASE_MOVE_DOWN, ENDLESS_ENEMY_MOVE_DOWN_INCREMENT,
+    STORY_ENEMY_BASE_MOVE_DOWN, STORY_ENEMY_MOVE_DOWN_INCREMENT, STORY_ENEMY_MAX_MOVE_DOWN,
+    ENDLESS_ENEMY_BASE_MOVE_DOWN, ENDLESS_ENEMY_MOVE_DOWN_INCREMENT, ENDLESS_ENEMY_MAX_MOVE_DOWN,
     ENDLESS_BASE_COLS, ENDLESS_BASE_ROWS, ENDLESS_MAX_ROWS,
     ENDLESS_ROW_INCREMENT_WAVES, ENDLESS_SPEED_INCREMENT,
     ENDLESS_BASE_SHOOT_CHANCE, ENDLESS_SHOOT_CHANCE_INCREMENT
@@ -631,6 +631,10 @@ class Game:
             self.current_track = trak_path
 
     def create_enemy_wave(self):
+        """
+        Populates the board with standard enemies based on game mode.
+        Story mode pulls from predefined maps, Endless mode scales difficulty infinitely.
+        """
         if self.game_mode == "story":
             settings = ENEMY_WAVE_SETTINGS.get(self.level, ENEMY_WAVE_SETTINGS[1])
             rows = settings["rows"]
@@ -638,21 +642,22 @@ class Game:
             self.enemy_speed = settings.get("speed", ENEMY_SPEED)
             self.enemy_shoot_chance = settings.get("shoot_chance", ENEMY_SHOOT_CHANCE)
             
-            # Story Mode Drop-Skalierung
-            self.enemy_move_down = int(STORY_ENEMY_BASE_MOVE_DOWN + (self.level - 1) * STORY_ENEMY_MOVE_DOWN_INCREMENT)
+            # Story Mode Drop-Skalierung MIT CAP
+            calculated_drop = STORY_ENEMY_BASE_MOVE_DOWN + (self.level - 1) * STORY_ENEMY_MOVE_DOWN_INCREMENT
+            self.enemy_move_down = int(min(calculated_drop, STORY_ENEMY_MAX_MOVE_DOWN))
             
         else:
             # Procedural scaling for endless survival mode
             rows = min(ENDLESS_MAX_ROWS, ENDLESS_BASE_ROWS + (self.wave_number // ENDLESS_ROW_INCREMENT_WAVES)) 
             cols = ENDLESS_BASE_COLS
             self.enemy_speed = ENEMY_SPEED + (self.wave_number * ENDLESS_SPEED_INCREMENT)
-            
-            # Hier nutzen wir jetzt die neue Basis-Wahrscheinlichkeit:
             self.enemy_shoot_chance = ENDLESS_BASE_SHOOT_CHANCE + (self.wave_number * ENDLESS_SHOOT_CHANCE_INCREMENT)
             
-            # Endless Mode Drop-Skalierung
-            self.enemy_move_down = int(ENDLESS_ENEMY_BASE_MOVE_DOWN + (self.wave_number - 1) * ENDLESS_ENEMY_MOVE_DOWN_INCREMENT)
+            # Endless Mode Drop-Skalierung MIT CAP
+            calculated_drop = ENDLESS_ENEMY_BASE_MOVE_DOWN + (self.wave_number - 1) * ENDLESS_ENEMY_MOVE_DOWN_INCREMENT
+            self.enemy_move_down = int(min(calculated_drop, ENDLESS_ENEMY_MAX_MOVE_DOWN))
         
+        # Enemy grid generation
         x_margin, y_margin = 50, 100
         spacing_x, spacing_y = 80, 60
         for row in range(int(rows)):
