@@ -93,10 +93,16 @@ class Game:
         
         self.laser_sound = pygame.mixer.Sound("assets/music/lasershot.mp3")
         self.enemy_explosion = pygame.mixer.Sound("assets/music/enemyexplosion.mp3")
-        self.ufo_damage = pygame.mixer.Sound("assets/music/ufodamage.mp3")
+        self.sfx_ufo_damage = pygame.mixer.Sound("assets/music/ufodamage.mp3")
         self.warning_sound = pygame.mixer.Sound("assets/music/warning.mp3")
         self.game_over = pygame.mixer.Sound("assets/music/gameover.mp3")
+        self.boss_spawn_sound = pygame.mixer.Sound("assets/music/bossspawn.mp3")
+        self.collect_points_sound  = pygame.mixer.Sound("assets/music/powerupsound.mp3")
+        self.victory_voice = pygame.mixer.Sound("assets/music/youwin.mp3")
+        self.music_victory = ("assets/music/winbackround.mp3")
+        self.boss_death_sound = pygame.mixer.Sound("assets/music/enemyexplosion.mp3")
         self.warning_sound.set_volume(0.4)
+        self.boss_death_sound.set_volume(0.4)
         
         self.current_track = None
         self.music_playing = False
@@ -590,6 +596,7 @@ class Game:
         self.all_sprites.add(ufo)
 
     def _spawn_miniboss(self):
+        
         boss_map = {
             1: BossSmall1,
             2: BossSmall2,
@@ -605,7 +612,7 @@ class Game:
         if isinstance(extra, dict):
             for k, v in extra.items():
                 setattr(boss, k, v)
-        
+        self.boss_spawn_sound.play()
         self.miniboss_group.add(boss)
         self.all_sprites.add(boss)
         
@@ -741,11 +748,12 @@ class Game:
             for player in self.active_players:
                 if any(player.rect.colliderect(hitbox) for hitbox in laser.get_hitboxes()):
                     hit_this_frame = True
+                    
             
             if hit_this_frame:
                 player_hit = True
                 self.lives -= getattr(laser, "damage", 1)  
-                self.ufo_damage.play()
+                self.sfx_ufo_damage.play()
                 laser.kill()
             
         for bullet in list(self.enemy_bullets):
@@ -816,6 +824,7 @@ class Game:
             for b in hits:
                 hit_explosion = Explosion(boss.rect.centerx, boss.rect.centery, size=48)
                 self.explosions.add(hit_explosion)
+                self.boss_death_sound.play()
                 for seg in range(1, 6):
                     self.leds.send_effect("A", "blink", seg, 255, 255, 255, speed=1, repeat=2, priority=3)
                 self.all_sprites.add(hit_explosion)
@@ -966,6 +975,9 @@ class Game:
     def advance_level(self):
         self.level += 1
         if self.level > self.MAX_LEVEL:
+            pygame.mixer.music.stop()
+            self._play_music(self.music_victory, 0.7) 
+            self.victory_voice.play()
             self.leds.send_effect("A", "blink", 99, 255, 255, 0, speed=5, repeat=10, priority=3)
             self.state = self.STATE_VICTORY
             return
@@ -1364,6 +1376,7 @@ class Game:
                 for player in self.active_players:
                     collected_bonus = pygame.sprite.spritecollide(player, self.bonus_items, True)
                     for item in collected_bonus:
+                        self.collect_points_sound.play()
                         self.score += item.points
                         effect = CollectEffect(item.rect.centerx, item.rect.centery)
                         self.explosions.add(effect)
