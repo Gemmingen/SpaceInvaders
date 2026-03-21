@@ -260,6 +260,8 @@ class Game:
                     bullet.has_spawned = True
                     bullet.kill()
                 hit_bunker.take_damage()
+                hit_bunker.take_damage()
+                hit_bunker.take_damage() #Damit die bissle mehr schaden machen, macht ja irgendwie nur sinn 
             else:
                 damage = getattr(bullet, "damage", 1)
                 for _ in range(damage):
@@ -821,6 +823,7 @@ class Game:
 
         for boss in list(self.miniboss_group):
             hits = pygame.sprite.spritecollide(boss, self.player_bullets, False)
+            self.score += len(hits) * 100 #Damit die grünen Wixer auch punkte geben 
             for b in hits:
                 hit_explosion = Explosion(boss.rect.centerx, boss.rect.centery, size=48)
                 self.explosions.add(hit_explosion)
@@ -836,6 +839,7 @@ class Game:
                 b.pierce -= 1
                 if b.pierce <= 0:
                     b.kill()
+
 
         for enemy in self.enemies:
             for player in self.active_players:
