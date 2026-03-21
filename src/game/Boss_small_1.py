@@ -47,8 +47,8 @@ class BossSmall1(MiniBossBase):
 
     def _update_position(self):
         cx, cy = self.orbit_center
-        self.rect.centerx = cx + self.radius * math.cos(self.angle)
-        self.rect.centery = cy + self.radius * math.sin(self.angle)
+        self.rect.centerx = cx + self.radius * 2 * math.cos(self.angle) # Neue bewegungs logik, der ist jetzt bissle schwerer
+        self.rect.centery = cy + (self.radius * 0.9) * math.sin(3 * self.angle)
 
     def update(self, player=None, *args, **kwargs):
         # --- Map positional arguments to kwargs ---
