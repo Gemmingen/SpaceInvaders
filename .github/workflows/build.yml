@@ -1,12 +1,13 @@
 name: Build-Space-Invaders-Release
 
+# Definiert die Auslöser (Triggers) für diese Pipeline.
 on:
   push:
     branches:
       - main
     tags:
-      - 'v*'
-  workflow_dispatch:
+      - 'v*' # Löst automatische Releases bei neuen Versions-Tags aus
+  workflow_dispatch: # Ermöglicht manuelles Triggern über GitHub
 
 permissions:
   contents: write
@@ -15,16 +16,17 @@ jobs:
   build:
     name: Build auf ${{ matrix.artifact_name }}
     runs-on: ${{ matrix.os }}
+    # --- Build-Matrix (Plattform-Definitionen) ---
     strategy:
-      fail-fast: false
+      fail-fast: false # Verhindert, dass alle Builds abbrechen, falls ein einzelnes OS fehlschlägt.
       matrix:
         include:
           - os: windows-latest
             artifact_name: Windows
           - os: macos-latest
-            artifact_name: Mac_Silicon
+            artifact_name: Mac_Silicon # Nativer Build für Apple Silicon (M-Chips)
           - os: macos-latest
-            artifact_name: Mac_Intel
+            artifact_name: Mac_Intel   # Emulierter Build für Intel Macs
           - os: ubuntu-latest
             artifact_name: Linux
 
@@ -40,20 +42,25 @@ jobs:
       - name: Abhängigkeiten installieren
         run: |
           python -m pip install --upgrade pip
-          pip install "setuptools<69.0.0" pygame pyinstaller
+          # WICHTIG: 'websockets' hinzugefügt, um den ModuleNotFoundError zur Laufzeit zu beheben!
+          pip install "setuptools<69.0.0" pygame websockets pyinstaller
 
       - name: PyInstaller Build
         shell: bash
         run: |
+          # --- Workaround für macOS Intel (x64) Builds ---
+          # Wir erzwingen hier die Ausführung von Python/Pip unter der Rosetta 2 (x86_64) Emulation
+          # auf dem ARM-Server (macos-latest), da GitHub native Intel-Runner depräkatiert hat.
           if [[ "${{ matrix.artifact_name }}" == "Mac_Intel" ]]; then
             arch -x86_64 python -m pip install --upgrade pip
-            arch -x86_64 pip install "setuptools<69.0.0" pygame pyinstaller --force-reinstall
+            # Auch hier muss 'websockets' zwingend mit installiert werden!
+            arch -x86_64 pip install "setuptools<69.0.0" pygame websockets pyinstaller --force-reinstall
             arch -x86_64 pyinstaller --noconsole -n game main.py
           else
             pyinstaller --noconsole -n game main.py
           fi
           
-          # Ordner vorbereiten
+          # Ordner vorbereiten und statische Assets in das Build-Verzeichnis kopieren
           cp -r assets dist/game/ || true
           cp highsscores.json dist/game/ || true
           
@@ -73,6 +80,7 @@ jobs:
           path: SpaceInvaders-${{ matrix.artifact_name }}.zip
           retention-days: 7
 
+  # --- Automatisches GitHub Release ---
   release:
     name: GitHub Release erstellen
     runs-on: ubuntu-latest
