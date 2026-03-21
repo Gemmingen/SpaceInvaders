@@ -49,20 +49,23 @@ jobs:
         shell: bash
         run: |
           # --- Workaround für macOS Intel (x64) Builds ---
-          # Wir erzwingen hier die Ausführung von Python/Pip unter der Rosetta 2 (x86_64) Emulation
-          # auf dem ARM-Server (macos-latest), da GitHub native Intel-Runner depräkatiert hat.
           if [[ "${{ matrix.artifact_name }}" == "Mac_Intel" ]]; then
             arch -x86_64 python -m pip install --upgrade pip
-            # Auch hier muss 'websockets' zwingend mit installiert werden!
             arch -x86_64 pip install "setuptools<69.0.0" pygame websockets pyinstaller --force-reinstall
             arch -x86_64 pyinstaller --noconsole -n game main.py
           else
             pyinstaller --noconsole -n game main.py
           fi
           
-          # Ordner vorbereiten und statische Assets in das Build-Verzeichnis kopieren
+          # --- FIX: Assets an alle Orte kopieren, wo das Spiel suchen könnte ---
           cp -r assets dist/game/ || true
           cp highsscores.json dist/game/ || true
+          
+          # NEU: Assets in den _internal Ordner spiegeln, da PyInstaller-Skripte oft von dort aus auflösen!
+          if [ -d "dist/game/_internal" ]; then
+            cp -r assets dist/game/_internal/ || true
+            cp highsscores.json dist/game/_internal/ || true
+          fi
           
           # Ausführungsrechte für alle Unix-basierten Systeme (Linux & Mac) sichern
           if [[ "${{ matrix.os }}" != "windows-latest" ]]; then
