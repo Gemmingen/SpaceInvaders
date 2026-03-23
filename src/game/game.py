@@ -1004,7 +1004,7 @@ class Game:
         self.miniboss_group.empty()
         self.enemies.empty()
         self.current_background_layers = self.level_backgrounds[self.level]
-        self.layer_offsets = [INITIAL_SCROLL] * PARALLAX_LAYERS
+        #self.layer_offsets = [INITIAL_SCROLL] * PARALLAX_LAYERS
         self.create_enemy_wave()
         
         self.ufo_timer = int(UFO_SPAWN_TIME * FPS)
@@ -1125,7 +1125,7 @@ class Game:
                             self.planet_y = -self.planets[self.planet_index].get_height()
                             self.planet_sliding = True
                         self.current_background_layers = self.level_backgrounds[(self.planet_index % self.MAX_LEVEL) + 1]
-                        self.layer_offsets = [INITIAL_SCROLL] * PARALLAX_LAYERS
+                        #self.layer_offsets = [INITIAL_SCROLL] * PARALLAX_LAYERS
         else:
             if self.game_mode == "endless" or self.game_mode == "versus":
                 self._endless_wave_spawned = False
