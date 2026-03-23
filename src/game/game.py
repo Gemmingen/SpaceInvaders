@@ -1187,6 +1187,13 @@ class Game:
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_q:
                     pygame.quit()
                     sys.exit()
+
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_m:
+                    self.state = self.STATE_MENU
+                    current_state = self.STATE_MENU
+                    self.p1_done = False  
+                    self.p2_done = False
+                    continue
                 
                 if current_state == self.STATE_MENU:
                     self._play_music(self.music_intro, 0.7)
