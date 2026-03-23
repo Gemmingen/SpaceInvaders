@@ -78,11 +78,11 @@ FIST_FLASH_COLORS = [(255, 255, 255), (255, 0, 0)]  # white ↔ red
 FIST_FLASH_INTERVAL = 5                  # frames per colour before toggling
 
 MINIBOSS_SETTINGS = {
-    1: dict(health=10, speed=1.5),
-    2: dict(health=3, speed=2),
-    3: dict(health=15, speed=2),
-    4: dict(health=15, speed=2),
-    5: dict(health=25, speed=3), # Gebuffter Endboss
+    1: dict(health=7, speed=1.5, score=1000),
+    2: dict(health=3, speed=2, score=2000),
+    3: dict(health=15, speed=2, score=3000),
+    4: dict(health=10, speed=2, score=4000),
+    5: dict(health=25, speed=3, score=5000),
 }
 
 # Background settings
@@ -124,12 +124,12 @@ BACKGROUND_SCROLL_SPEED = BASE_SCROLL_SPEED
 # --- PowerUp & Comet Settings ---
 # Gesamte Drop-Wahrscheinlichkeit liegt bei ca. 22% pro normalem Gegner
 POWERUP_DROP_CHANCES = {
-    "comet": 0.03,        # 3%
+    "comet": 0.01,        # 1%
     "bunker": 0.02,       # 2%
     "hp": 0.02,           # 2%
-    "speed": 0.03,        # 3%
-    "doubleshot": 0.03,   # 3%
-    "trippleshot": 0.03   # 3%
+    "speed": 0.02,        # 2%
+    "doubleshot": 0.02,   # 2%
+    "trippleshot": 0.02   # 2%
 }
 POWERUP_FALL_SPEED = 4
 
