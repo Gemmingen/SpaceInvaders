@@ -228,7 +228,7 @@ class Game:
                     exp = Explosion(b.rect.centerx, b.rect.centery, size=96)
                     self.explosions.add(exp)
                     self.all_sprites.add(exp)
-                    b.kill()
+                    #b.kill()
                     hit_any = True
             if hit_any:
                 for b in list(bunker_group):
@@ -236,7 +236,7 @@ class Game:
                     self.explosions.add(exp)
                     self.all_sprites.add(exp)
                     b.kill()
-                bullet.kill()
+                #bullet.kill()
                 return
 
         hit_bunker = pygame.sprite.spritecollideany(

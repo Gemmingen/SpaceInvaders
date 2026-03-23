@@ -38,7 +38,7 @@ class MainMenu:
         surface.blit(title_surf, title_surf.get_rect(center=(SCREEN_WIDTH // 2, 100)))
         
         # --- Interactive Gamemode Selection Boxes ---
-        options = ["SP STORY", "SP ENDLESS", "MP STORY", "MP ENDLESS", "MP VERSUS"]
+        options = ["1-PLAY STORY", "1-PLAYER ENDLESS", "2-PLAYER STORY", "2-PLAYER ENDLESS", "2-PLAYER VERSUS"]
         box_width = 180
         box_height = 35
         
@@ -90,13 +90,13 @@ class MainMenu:
                     s_surf = self.font.render(txt, True, c)
                     surface.blit(s_surf, s_surf.get_rect(center=(x_pos, y_start + 45 + (i * 22))))
 
-        render_leaderboard("SP STORY", "highscores_sp.json", "sp_story", 320, (255, 255, 255), (255, 215, 0), SCREEN_WIDTH // 4)
-        render_leaderboard("SP ENDLESS", "highscores_sp.json", "sp_endless", 320, (255, 255, 255), (255, 215, 0), (SCREEN_WIDTH * 3) // 4)
+        render_leaderboard("1-PLAYER STORY", "highscores_sp.json", "sp_story", 320, (255, 255, 255), (255, 215, 0), SCREEN_WIDTH // 4)
+        render_leaderboard("1-PLAYER ENDLESS", "highscores_sp.json", "sp_endless", 320, (255, 255, 255), (255, 215, 0), (SCREEN_WIDTH * 3) // 4)
         
-        render_leaderboard("MP STORY", "highscores_mp.json", "mp_story", 480, (255, 255, 255), (0, 200, 255), SCREEN_WIDTH // 4)
-        render_leaderboard("MP ENDLESS", "highscores_mp.json", "mp_endless", 480, (255, 255, 255), (0, 200, 255), (SCREEN_WIDTH * 3) // 4)
+        render_leaderboard("2-PLAYER STORY", "highscores_mp.json", "mp_story", 480, (255, 255, 255), (0, 200, 255), SCREEN_WIDTH // 4)
+        render_leaderboard("2-PLAYER ENDLESS", "highscores_mp.json", "mp_endless", 480, (255, 255, 255), (0, 200, 255), (SCREEN_WIDTH * 3) // 4)
         
-        render_leaderboard("MP VERSUS", "highscores_mp.json", "mp_versus", 640, (255, 255, 255), (255, 50, 50), SCREEN_WIDTH // 2)
+        render_leaderboard("2-PLAYER VERSUS", "highscores_mp.json", "mp_versus", 640, (255, 255, 255), (255, 50, 50), SCREEN_WIDTH // 2)
 
         credits = self.credits_font.render("--- GAME MADE BY ---", True, (255, 215, 0))
         surface.blit(credits, credits.get_rect(center=(SCREEN_WIDTH // 2, 840)))
