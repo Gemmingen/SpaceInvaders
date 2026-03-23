@@ -23,11 +23,11 @@ BULLET_SPEED = 10
 
 # Story Mode Enemy Step Settings
 STORY_ENEMY_BASE_MOVE_DOWN = 10                      # Initialer Schritt nach unten in Level 1
-STORY_ENEMY_MOVE_DOWN_INCREMENT = 6                  # Zuwachs der Schrittgröße pro Level
+STORY_ENEMY_MOVE_DOWN_INCREMENT = 10                 # Zuwachs der Schrittgröße pro Level
 
 # Endless Mode Enemy Step Settings
 ENDLESS_ENEMY_BASE_MOVE_DOWN = 10                    # Initialer Schritt nach unten in Wave 1
-ENDLESS_ENEMY_MOVE_DOWN_INCREMENT = 3                # Zuwachs der Schrittgröße pro Wave 
+ENDLESS_ENEMY_MOVE_DOWN_INCREMENT = 4                # Zuwachs der Schrittgröße pro Wave 
 
 # Endless Mode General Scaling Settings
 ENDLESS_BASE_COLS = 8                                # Startanzahl der Spalten
@@ -39,20 +39,21 @@ ENDLESS_BASE_SHOOT_CHANCE = 0.001                    # Basis-Schusswahrscheinlic
 ENDLESS_SHOOT_CHANCE_INCREMENT = 0.001               # Erhöhung der Schusswahrscheinlichkeit pro Welle                      
 
 # Enemy wave per level – can be tweaked later
-TEST_AMOUNT = 1
+TEST_AMOUNT_COLS = 8
+TEST_AMOUNT_ROWS = 4
 TEST_START_LEVEL = 1
 ENEMY_WAVE_SETTINGS = {
-    1: dict(rows=TEST_AMOUNT, cols=TEST_AMOUNT, speed=ENEMY_SPEED, shoot_chance=ENEMY_SHOOT_CHANCE),
-    2: dict(rows=TEST_AMOUNT, cols=TEST_AMOUNT, speed=ENEMY_SPEED, shoot_chance=ENEMY_SHOOT_CHANCE),
-    3: dict(rows=TEST_AMOUNT, cols=TEST_AMOUNT, speed=ENEMY_SPEED, shoot_chance=ENEMY_SHOOT_CHANCE),
-    4: dict(rows=TEST_AMOUNT, cols=TEST_AMOUNT, speed=ENEMY_SPEED, shoot_chance=ENEMY_SHOOT_CHANCE),
-    5: dict(rows=TEST_AMOUNT, cols=TEST_AMOUNT, speed=ENEMY_SPEED, shoot_chance=ENEMY_SHOOT_CHANCE),
+    1: dict(rows=TEST_AMOUNT_ROWS, cols=TEST_AMOUNT_COLS, speed=ENEMY_SPEED, shoot_chance=ENEMY_SHOOT_CHANCE),
+    2: dict(rows=TEST_AMOUNT_ROWS, cols=TEST_AMOUNT_COLS, speed=ENEMY_SPEED, shoot_chance=ENEMY_SHOOT_CHANCE),
+    3: dict(rows=TEST_AMOUNT_ROWS, cols=TEST_AMOUNT_COLS, speed=ENEMY_SPEED, shoot_chance=ENEMY_SHOOT_CHANCE),
+    4: dict(rows=TEST_AMOUNT_ROWS, cols=TEST_AMOUNT_COLS, speed=ENEMY_SPEED, shoot_chance=ENEMY_SHOOT_CHANCE),
+    5: dict(rows=TEST_AMOUNT_ROWS, cols=TEST_AMOUNT_COLS, speed=ENEMY_SPEED, shoot_chance=ENEMY_SHOOT_CHANCE),
 }
 
 # Mini‑boss per level – health can be changed later
 
 # BossSmall3 split settings
-BOSS3_GLOB_SPLIT_ANGLE_DEGREES = 10          # degrees offset for side bullets (±10°)
+BOSS3_GLOB_SPLIT_ANGLE_DEGREES = 7          # degrees offset for side bullets (±10°)
 BOSS3_GLOB_SPLIT_HEIGHT = SCREEN_HEIGHT // 2  # y‑position where the bullet splits
 BOSS3_POISON_PUDDLE_FRAME_SKIP = 3
 BOSS3_POISON_PUDDLE_ANIMATION_SPEED = 1
@@ -77,11 +78,11 @@ FIST_FLASH_COLORS = [(255, 255, 255), (255, 0, 0)]  # white ↔ red
 FIST_FLASH_INTERVAL = 5                  # frames per colour before toggling
 
 MINIBOSS_SETTINGS = {
-    1: dict(health=3, speed=1.5),
+    1: dict(health=10, speed=1.5),
     2: dict(health=3, speed=2),
-    3: dict(health=3, speed=2),
-    4: dict(health=3, speed=2),
-    5: dict(health=5, speed=3), # Gebuffter Endboss
+    3: dict(health=15, speed=2),
+    4: dict(health=15, speed=2),
+    5: dict(health=25, speed=3), # Gebuffter Endboss
 }
 
 # Background settings
@@ -123,11 +124,11 @@ BACKGROUND_SCROLL_SPEED = BASE_SCROLL_SPEED
 # --- PowerUp & Comet Settings ---
 # Gesamte Drop-Wahrscheinlichkeit liegt bei ca. 22% pro normalem Gegner
 POWERUP_DROP_CHANCES = {
-    "comet": 0.05,        # 5%
+    "comet": 0.03,        # 3%
     "bunker": 0.02,       # 2%
-    "hp": 0.01,           # 2%
-    "speed": 0.03,        # 5%
-    "doubleshot": 0.03,   # 5%
+    "hp": 0.02,           # 2%
+    "speed": 0.03,        # 3%
+    "doubleshot": 0.03,   # 3%
     "trippleshot": 0.03   # 3%
 }
 POWERUP_FALL_SPEED = 4
@@ -139,8 +140,8 @@ TIE_FIGHTER_ROTATION_SPEED = 0.5
 TIE_FIGHTER_SIZE = 128
 
 # Dauer und Stärke der Spieler-Buffs
-POWERUP_SPEED_MULTIPLIER = 1.5   # 50% schneller
-POWERUP_SPEED_DURATION = 5       # in Sekunden
+POWERUP_SPEED_MULTIPLIER = 2   # 100% schneller
+POWERUP_SPEED_DURATION = 7.5       # in Sekunden
 POWERUP_DOUBLESHOT_DURATION = 5  # in Sekunden
 POWERUP_TRIPLESHOT_DURATION = 5  # in Sekunden
 
@@ -227,7 +228,7 @@ BOSS4_FLASH_COLOR_2 = (255, 255, 255)
 BOSS4_START_Y = 300
 BOSS4_CENTER_Y = 350
 BOSS4_MAX_ROUTES = 2
-BOSS4_CHILDREN_COUNT = 6
+BOSS4_CHILDREN_COUNT = 8
 BOSS4_BASE_SPEED = 0.03
 BOSS4_MIN_SPEED = 0.020
 BOSS4_FLIGHT_AMP_X = 350

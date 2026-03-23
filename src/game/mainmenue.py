@@ -38,7 +38,7 @@ class MainMenu:
         surface.blit(title_surf, title_surf.get_rect(center=(SCREEN_WIDTH // 2, 100)))
         
         # --- Interactive Gamemode Selection Boxes ---
-        options = ["1-PLAY STORY", "1-PLAYER ENDLESS", "2-PLAYER STORY", "2-PLAYER ENDLESS", "2-PLAYER VERSUS"]
+        options = ["1-PLAYER STORY", "1-PLAYER ENDLESS", "2-PLAYER STORY", "2-PLAYER ENDLESS", "2-PLAYER VERSUS"]
         box_width = 180
         box_height = 35
         
