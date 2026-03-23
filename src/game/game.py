@@ -90,6 +90,8 @@ class Game:
         self.music_boss_3 = ("assets/music/thirdboss.mp3")
         self.music_boss_4 = ("assets/music/fourthboss.mp3")
         self.music_boss_5 = ("assets/music/endboss.mp3")
+        self.music_victory = ("assets/music/winbackround.mp3")
+        
         
         self.laser_sound = pygame.mixer.Sound("assets/music/lasershot.mp3")
         self.enemy_explosion = pygame.mixer.Sound("assets/music/enemyexplosion.mp3")
@@ -99,11 +101,16 @@ class Game:
         self.boss_spawn_sound = pygame.mixer.Sound("assets/music/bossspawn.mp3")
         self.collect_points_sound  = pygame.mixer.Sound("assets/music/powerupsound.mp3")
         self.victory_voice = pygame.mixer.Sound("assets/music/youwin.mp3")
-        self.music_victory = ("assets/music/winbackround.mp3")
         self.boss_death_sound = pygame.mixer.Sound("assets/music/enemyexplosion.mp3")
+        self.transition_sound = pygame.mixer.Sound("assets/music/transition.mp3")
         self.warning_sound.set_volume(0.4)
         self.boss_death_sound.set_volume(0.4)
-        
+        self.laser_sound.set_volume(0.1)
+        self.enemy_explosion.set_volume(0.1)
+        self.collect_points_sound.set_volume(0.1)
+        self.transition_sound.set_volume(0.2)
+
+
         self.current_track = None
         self.music_playing = False
         self.warning_played = False 
@@ -477,6 +484,7 @@ class Game:
 
     def _run_transition(self):
         if not self.is_transition_active:
+            self.transition_sound.play()
             self.is_transition_active = True
             self.transition_state = "amplify"
             self.leds.send_effect("A", "chase", 0, 255, 255, 255, speed=22, repeat=13, priority=2)
@@ -623,7 +631,7 @@ class Game:
             
         self.boss_healthbar = BossHealthBar(boss)
 
-    def _play_music(self, trak_path, volume = 0.2):
+    def _play_music(self, trak_path, volume = 1):
         if self.current_track != trak_path:
             pygame.mixer.music.load(trak_path)
             pygame.mixer.music.set_volume(volume)
@@ -801,6 +809,7 @@ class Game:
             self.poison_tick_timer = POISON_DAMAGE_DELAY
 
         if player_hit:
+            self.sfx_ufo_damage.play()
             if self.lives > 0:
                 for seg in range(1, 5):
                     self.leds.send_effect("A", "blink", seg, 255, 0, 0, speed=1, repeat=10, priority=2)
