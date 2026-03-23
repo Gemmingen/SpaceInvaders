@@ -832,7 +832,7 @@ class Game:
 
         for boss in list(self.miniboss_group):
             hits = pygame.sprite.spritecollide(boss, self.player_bullets, False)
-            self.score += len(hits) * 100 #Damit die grünen Wixer auch punkte geben 
+            self.score += len(hits) * 100
             for b in hits:
                 hit_explosion = Explosion(boss.rect.centerx, boss.rect.centery, size=48)
                 self.explosions.add(hit_explosion)
