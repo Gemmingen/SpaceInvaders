@@ -81,7 +81,7 @@ MINIBOSS_SETTINGS = {
     1: dict(health=7, speed=1.5, score=1000),
     2: dict(health=3, speed=2, score=2000),
     3: dict(health=15, speed=2, score=3000),
-    4: dict(health=15, speed=2, score=4000),
+    4: dict(health=10, speed=2, score=4000),
     5: dict(health=25, speed=3, score=5000),
 }
 
