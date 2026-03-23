@@ -832,19 +832,35 @@ class Game:
 
         for boss in list(self.miniboss_group):
             hits = pygame.sprite.spritecollide(boss, self.player_bullets, False)
-            self.score += len(hits) * 100
+            
             for b in hits:
                 hit_explosion = Explosion(boss.rect.centerx, boss.rect.centery, size=48)
                 self.explosions.add(hit_explosion)
                 self.boss_death_sound.play()
+                
                 for seg in range(1, 6):
                     self.leds.send_effect("A", "blink", seg, 255, 255, 255, speed=1, repeat=2, priority=3)
+                
                 self.all_sprites.add(hit_explosion)
+                
                 boss.hit()
-                if not boss.alive() and isinstance(boss, BossSmall2):
-                    powerup = PowerUp(boss.rect.centerx, boss.rect.centery, POWERUP_FALL_SPEED, "bunker")
-                    self.powerups.add(powerup)
-                    self.all_sprites.add(powerup)
+                
+                if not boss.alive():
+                    # Sonderregel für die Kinder von Boss 4
+                    if type(boss).__name__ == "BossClone":
+                        self.score += 100
+                    else:
+                        # Es ist ein echter Boss -> Punkte aus der config.py holen
+                        boss_settings = MINIBOSS_SETTINGS.get(self.level, MINIBOSS_SETTINGS[1])
+                        self.score += boss_settings.get("score", 1000)
+                        
+                        # Boss 2 droppt beim Tod ein Bunker-Powerup
+                        if isinstance(boss, BossSmall2):
+                            powerup = PowerUp(boss.rect.centerx, boss.rect.centery, POWERUP_FALL_SPEED, "bunker")
+                            self.powerups.add(powerup)
+                            self.all_sprites.add(powerup)
+                
+                # Bullet Pierce Logik
                 b.pierce -= 1
                 if b.pierce <= 0:
                     b.kill()
