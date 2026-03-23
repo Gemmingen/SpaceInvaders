@@ -850,6 +850,7 @@ class Game:
         for player in self.active_players:
             powerup_hits = pygame.sprite.spritecollide(player, self.powerups, True)
             if powerup_hits:
+                self.collect_points_sound.play()
                 self.leds.send_effect("A", "blink", 1, 0, 255, 255, speed=10, repeat=5, priority=5)
                 for pu in powerup_hits:
                     effect = CollectEffect(pu.rect.centerx, pu.rect.centery)

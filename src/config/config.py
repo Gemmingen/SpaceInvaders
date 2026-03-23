@@ -77,7 +77,7 @@ FIST_FLASH_COLORS = [(255, 255, 255), (255, 0, 0)]  # white ↔ red
 FIST_FLASH_INTERVAL = 5                  # frames per colour before toggling
 
 MINIBOSS_SETTINGS = {
-    1: dict(health=3, speed=2),
+    1: dict(health=3, speed=1.5),
     2: dict(health=3, speed=2),
     3: dict(health=3, speed=2),
     4: dict(health=3, speed=2),
