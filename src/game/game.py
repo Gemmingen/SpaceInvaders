@@ -105,7 +105,7 @@ class Game:
         self.transition_sound = pygame.mixer.Sound("assets/music/transition.mp3")
         self.warning_sound.set_volume(0.4)
         self.boss_death_sound.set_volume(0.4)
-        self.laser_sound.set_volume(0.1)
+        self.laser_sound.set_volume(0.2)
         self.enemy_explosion.set_volume(0.1)
         self.collect_points_sound.set_volume(0.1)
         self.transition_sound.set_volume(0.2)
@@ -631,7 +631,7 @@ class Game:
             
         self.boss_healthbar = BossHealthBar(boss)
 
-    def _play_music(self, trak_path, volume = 1):
+    def _play_music(self, trak_path, volume = 0.8):
         if self.current_track != trak_path:
             pygame.mixer.music.load(trak_path)
             pygame.mixer.music.set_volume(volume)
