@@ -21,15 +21,20 @@ class HeaderBar(pygame.sprite.Sprite):
         scale_factor = target_w / orig_w
         target_h = int(orig_h * scale_factor)
         
-        # --- SCHWARZER HINTERGRUND FÜR DIE PNG-GRAFIK ---
-        # Erstelle eine komplett schwarze Fläche in der Zielgröße
-        self.base_image = pygame.Surface((target_w, target_h))
-        self.base_image.fill((0, 0, 0)) # Mit Schwarz füllen
+       # --- SCHWARZER HINTERGRUND FÜR DIE PNG-GRAFIK ---
+        # 1. Erstelle eine TRANSPARENTE Fläche in der Zielgröße
+        self.base_image = pygame.Surface((target_w, target_h), pygame.SRCALPHA)
         
-        # Skaliere das PNG und blitte es über den schwarzen Hintergrund
+        # 2. Zeichne einen schwarzen Block, der an allen Seiten 6 Pixel kleiner ist
+        offset_x = 6
+        offset_y = 6
+        inner_rect = pygame.Rect(offset_x, offset_y, target_w - (2 * offset_x), target_h - (2 * offset_y))
+        pygame.draw.rect(self.base_image, (0, 0, 0), inner_rect)
+        
+        # 3. Skaliere das PNG und blitte es drüber
         scaled_raw = pygame.transform.scale(raw_image, (target_w, target_h))
         self.base_image.blit(scaled_raw, (0, 0))
-        
+
         self.image = self.base_image.copy()
         
         # Zentriere die Bar oben am Bildschirm
