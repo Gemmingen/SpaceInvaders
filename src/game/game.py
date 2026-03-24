@@ -192,7 +192,8 @@ class Game:
 
         # --- FIX: Initialize planet slide variables needed for the Main Menu ---
         if 0 in self.planets:
-            self.planet_y = -self.planets[0].get_height()
+            # Planet startet jetzt nicht komplett außerhalb, sondern ragt direkt rein
+            self.planet_y = -100 
         else:
             self.planet_y = 0
             
@@ -1406,9 +1407,20 @@ class Game:
                             self.p2_done = False
 
             if current_state == self.STATE_MENU:
+                self.screen.fill((0, 0, 0))
                 self._draw_planet()
-                self.main_menu.draw(self.screen, getattr(self, 'menu_selection', 0))
-                self._present()
+                
+                # Den Hintergrund (Sterne/Planet) auf den echten Monitor skalieren
+                self.display.fill((0, 0, 0))
+                sw_disp, sh_disp = self.display.get_size()
+                scale = min(sw_disp / SCREEN_WIDTH, sh_disp / SCREEN_HEIGHT)
+                nw, nh = int(SCREEN_WIDTH * scale), int(SCREEN_HEIGHT * scale)
+                scaled_surf = pygame.transform.scale(self.game_surface, (nw, nh))
+                self.display.blit(scaled_surf, ((sw_disp - nw) // 2, (sh_disp - nh) // 2))
+                
+                # Das Menü direkt über das VOLLE Display (z.B. 1920x1080) zeichnen!
+                self.main_menu.draw(self.display, getattr(self, 'menu_selection', 0))
+                pygame.display.flip()
 
             elif current_state == self.STATE_PLAYING:
                 keys = pygame.key.get_pressed()
