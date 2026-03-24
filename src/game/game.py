@@ -468,7 +468,7 @@ class Game:
         start_x = (sw - nw) // 2
         start_y = (sh - nh) // 2
         self.display.blit(scaled_surf, (start_x, start_y))
-      
+       
 
         if show_scoreboards:
             self._draw_side_scoreboards(start_x, start_y, sw, sh, nw, nh)
@@ -1760,9 +1760,9 @@ class Game:
         ranks = ["1ST", "2ND", "3RD", "4TH", "5TH"]
         
         # Y-Coordinates for layout
-        y_title = sh // 4 - 50
-        y_mode = sh // 4 - 20
-        start_y_scores = sh // 4 + 30
+        y_title = sh // 2 - 110
+        y_mode = sh // 2 - 80
+        start_y_scores = sh // 2 - 30
         line_spacing = 35
         
         # --- Left Side: Single Player ---
@@ -1804,9 +1804,9 @@ class Game:
             s_surf = font_score.render(score_str, True, color)
             
             # Blit columns using math relative to the center
-            self.display.blit(r_surf, (left_center - 120, start_y_scores + i * line_spacing))
-            self.display.blit(n_surf, (left_center - 60, start_y_scores + i * line_spacing))
-            self.display.blit(s_surf, (left_center + 60, start_y_scores + i * line_spacing))
+            self.display.blit(r_surf, (left_center - 140, start_y_scores + i * line_spacing))
+            self.display.blit(n_surf, (left_center - 80, start_y_scores + i * line_spacing))
+            self.display.blit(s_surf, (left_center + 40, start_y_scores + i * line_spacing))
 
         # --- Right Side: Multiplayer ---
         right_center = start_x + content_w + start_x // 2
@@ -1847,6 +1847,6 @@ class Game:
             s_surf = font_score.render(score_str, True, color)
             
             # Blit columns using math relative to the center
-            self.display.blit(r_surf, (right_center - 120, start_y_scores + i * line_spacing))
-            self.display.blit(n_surf, (right_center - 60, start_y_scores + i * line_spacing))
-            self.display.blit(s_surf, (right_center + 60, start_y_scores + i * line_spacing))
+            self.display.blit(r_surf, (right_center - 140, start_y_scores + i * line_spacing))
+            self.display.blit(n_surf, (right_center - 80, start_y_scores + i * line_spacing))
+            self.display.blit(s_surf, (right_center + 40, start_y_scores + i * line_spacing))
