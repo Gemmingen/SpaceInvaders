@@ -1207,50 +1207,64 @@ class Game:
                 
                 if current_state == self.STATE_MENU:
                     self._play_music(self.music_intro, 0.7)
-                    self.leds.send_effect("A", "pulse", 99, 0, 255, 0, speed=20, repeat=10, priority=1)
+                    
+                    # Maximale Auswahl basierend auf Menü-Tiefe
+                    if self.main_menu.state == "MAIN":
+                        max_sel = 2
+                    elif self.main_menu.state == "SINGLEPLAYER":
+                        max_sel = 3
+                    else: # MULTIPLAYER
+                        max_sel = 4
+
                     if event.type == pygame.KEYDOWN:
-                        
-                        # --- Navigation Logic ---
+                        # --- NAVIGATION ---
                         if event.key in (pygame.K_w, pygame.K_UP):
-                            if self.menu_selection == 2: self.menu_selection = 0
-                            elif self.menu_selection == 3: self.menu_selection = 1
-                            elif self.menu_selection == 4: self.menu_selection = 2
+                            self.menu_selection = (self.menu_selection - 1) % max_sel
                         elif event.key in (pygame.K_s, pygame.K_DOWN):
-                            if self.menu_selection == 0: self.menu_selection = 2
-                            elif self.menu_selection == 1: self.menu_selection = 3
-                            elif self.menu_selection in (2, 3): self.menu_selection = 4
-                        elif event.key in (pygame.K_a, pygame.K_LEFT):
-                            if self.menu_selection == 1: self.menu_selection = 0
-                            elif self.menu_selection == 3: self.menu_selection = 2
-                        elif event.key in (pygame.K_d, pygame.K_RIGHT):
-                            if self.menu_selection == 0: self.menu_selection = 1
-                            elif self.menu_selection == 2: self.menu_selection = 3
-                            
-                        # --- Selection Confirmation ---
-                        elif event.key in (pygame.K_SPACE, pygame.K_KP0):
-                            if self.menu_selection == 0:
-                                self.game_mode, self.num_players = "story", 1
-                                self._reset()
-                                current_state = self.STATE_PLAYING
-                            elif self.menu_selection == 1:
-                                self.game_mode, self.num_players = "endless", 1
-                                self.wave_number = 1
-                                self._reset()
-                                current_state = self.STATE_PLAYING
-                            elif self.menu_selection == 2:
-                                self.game_mode, self.num_players = "story", 2
-                                self._reset()
-                                current_state = self.STATE_PLAYING
-                            elif self.menu_selection == 3:
-                                self.game_mode, self.num_players = "endless", 2
-                                self.wave_number = 1
-                                self._reset()
-                                current_state = self.STATE_PLAYING
-                            elif self.menu_selection == 4:
-                                self.game_mode, self.num_players = "versus", 2
-                                self._reset()
-                                current_state = self.STATE_PLAYING
+                            self.menu_selection = (self.menu_selection + 1) % max_sel
                         
+                        # --- BESTÄTIGUNG ---
+                        elif event.key in (pygame.K_SPACE, pygame.K_RETURN, pygame.K_KP0):
+                            
+                            # 1. Ebene: MAIN
+                            if self.main_menu.state == "MAIN":
+                                if self.menu_selection == 0:
+                                    self.main_menu.state = "SINGLEPLAYER"
+                                    self.menu_selection = 0
+                                elif self.menu_selection == 1:
+                                    self.main_menu.state = "MULTIPLAYER"
+                                    self.menu_selection = 0
+                            
+                            # 2. Ebene: SINGLEPLAYER
+                            elif self.main_menu.state == "SINGLEPLAYER":
+                                if self.menu_selection == 0: # Story
+                                    self.game_mode, self.num_players = "story", 1
+                                    self._reset(); self.state = self.STATE_PLAYING
+                                elif self.menu_selection == 1: # Endless
+                                    self.game_mode, self.num_players = "endless", 1
+                                    self.wave_number = 1
+                                    self._reset(); self.state = self.STATE_PLAYING
+                                elif self.menu_selection == 2: # Back
+                                    self.main_menu.state = "MAIN"
+                                    self.menu_selection = 0
+
+                            # 2. Ebene: MULTIPLAYER
+                            elif self.main_menu.state == "MULTIPLAYER":
+                                if self.menu_selection == 0: # Story Co-op
+                                    self.game_mode, self.num_players = "story", 2
+                                    self._reset(); self.state = self.STATE_PLAYING
+                                elif self.menu_selection == 1: # Endless Co-op
+                                    self.game_mode, self.num_players = "endless", 2
+                                    self.wave_number = 1
+                                    self._reset(); self.state = self.STATE_PLAYING
+                                elif self.menu_selection == 2: # Versus
+                                    self.game_mode, self.num_players = "versus", 2
+                                    self._reset(); self.state = self.STATE_PLAYING
+                                elif self.menu_selection == 3: # Back
+                                    self.main_menu.state = "MAIN"
+                                    self.menu_selection = 4
+
+        
                 elif current_state == self.STATE_PLAYING: 
                     if event.type == pygame.KEYDOWN:
                         if self.game_mode == "versus":
