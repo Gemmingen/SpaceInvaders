@@ -1179,7 +1179,13 @@ class Game:
                         5: self.music_boss_5
                     }
             current_boss_music = boss_tracks.get(self.level, self.music_boss_1)
-            self._play_music(current_boss_music, 0.7)
+            if self.level in [2, 4]:
+                boss_volume = 1.0
+            else:
+                boss_volume = 0.7
+            
+            self._play_music(current_boss_music, boss_volume)
+            
         else:
             self._play_music(self.music_level, 0.7)
 
