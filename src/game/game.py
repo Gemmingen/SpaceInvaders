@@ -1207,6 +1207,7 @@ class Game:
                 
                 if current_state == self.STATE_MENU:
                     self._play_music(self.music_intro, 0.7)
+                    self.leds.send_effect("A", "pulse", 99, 0, 255, 0, speed=20, repeat=10, priority=1)
                     
                     # Maximale Auswahl basierend auf Menü-Tiefe
                     if self.main_menu.state == "MAIN":
