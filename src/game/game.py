@@ -70,6 +70,16 @@ class Game:
         pygame.init()
         pygame.mixer.init()
 
+        # Controller für den AFK-Timer initialisieren ---
+        pygame.joystick.init()
+        self.joysticks = [pygame.joystick.Joystick(i) for i in range(pygame.joystick.get_count())]
+        for joy in self.joysticks:
+            joy.init()
+            
+        self.last_input_time = pygame.time.get_ticks()
+        self.AFK_TIMEOUT_MS = 180000  # 3 Minuten in Millisekunden
+        # --------------------------------------------------------
+
         self.leds = LedController("ws://localhost:8765")
         self.leds.attract_pause()
         self.warning_led_active = False
@@ -109,7 +119,6 @@ class Game:
         self.enemy_explosion.set_volume(0.1)
         self.collect_points_sound.set_volume(0.1)
         self.transition_sound.set_volume(0.2)
-
 
         self.current_track = None
         self.music_playing = False
@@ -206,7 +215,7 @@ class Game:
             'layer_offsets', 'enemy_speed', 'enemy_shoot_chance', 'enemy_direction', 
             'enemy_move_down', 'ufo_timer', 'boss_healthbar', 'game_surface', 'screen', 
             'state', 'is_transition_active', 'transition_state', 'transition_timer',
-            'current_speed_factors', 'transitioning_back_timer'
+            'current_speed_factors', 'transitioning_back_timer', 'warning_played'
         ]
 
     def _save_context(self, b_id):
@@ -228,7 +237,7 @@ class Game:
                     exp = Explosion(b.rect.centerx, b.rect.centery, size=96)
                     self.explosions.add(exp)
                     self.all_sprites.add(exp)
-                    b.kill()
+                    #b.kill()
                     hit_any = True
             if hit_any:
                 for b in list(bunker_group):
@@ -236,7 +245,7 @@ class Game:
                     self.explosions.add(exp)
                     self.all_sprites.add(exp)
                     b.kill()
-                bullet.kill()
+                #bullet.kill()
                 return
 
         hit_bunker = pygame.sprite.spritecollideany(
@@ -832,19 +841,35 @@ class Game:
 
         for boss in list(self.miniboss_group):
             hits = pygame.sprite.spritecollide(boss, self.player_bullets, False)
-            self.score += len(hits) * 100 #Damit die grünen Wixer auch punkte geben 
+            
             for b in hits:
                 hit_explosion = Explosion(boss.rect.centerx, boss.rect.centery, size=48)
                 self.explosions.add(hit_explosion)
                 self.boss_death_sound.play()
+                
                 for seg in range(1, 6):
                     self.leds.send_effect("A", "blink", seg, 255, 255, 255, speed=1, repeat=2, priority=3)
+                
                 self.all_sprites.add(hit_explosion)
+                
                 boss.hit()
-                if not boss.alive() and isinstance(boss, BossSmall2):
-                    powerup = PowerUp(boss.rect.centerx, boss.rect.centery, POWERUP_FALL_SPEED, "bunker")
-                    self.powerups.add(powerup)
-                    self.all_sprites.add(powerup)
+                
+                if not boss.alive():
+                    # Sonderregel für die Kinder von Boss 4
+                    if type(boss).__name__ == "BossClone":
+                        self.score += 100
+                    else:
+                        # Es ist ein echter Boss -> Punkte aus der config.py holen
+                        boss_settings = MINIBOSS_SETTINGS.get(self.level, MINIBOSS_SETTINGS[1])
+                        self.score += boss_settings.get("score", 1000)
+                        
+                        # Boss 2 droppt beim Tod ein Bunker-Powerup
+                        if isinstance(boss, BossSmall2):
+                            powerup = PowerUp(boss.rect.centerx, boss.rect.centery, POWERUP_FALL_SPEED, "bunker")
+                            self.powerups.add(powerup)
+                            self.all_sprites.add(powerup)
+                
+                # Bullet Pierce Logik
                 b.pierce -= 1
                 if b.pierce <= 0:
                     b.kill()
@@ -1004,7 +1029,7 @@ class Game:
         self.miniboss_group.empty()
         self.enemies.empty()
         self.current_background_layers = self.level_backgrounds[self.level]
-        self.layer_offsets = [INITIAL_SCROLL] * PARALLAX_LAYERS
+        #self.layer_offsets = [INITIAL_SCROLL] * PARALLAX_LAYERS
         self.create_enemy_wave()
         
         self.ufo_timer = int(UFO_SPAWN_TIME * FPS)
@@ -1125,7 +1150,7 @@ class Game:
                             self.planet_y = -self.planets[self.planet_index].get_height()
                             self.planet_sliding = True
                         self.current_background_layers = self.level_backgrounds[(self.planet_index % self.MAX_LEVEL) + 1]
-                        self.layer_offsets = [INITIAL_SCROLL] * PARALLAX_LAYERS
+                        #self.layer_offsets = [INITIAL_SCROLL] * PARALLAX_LAYERS
         else:
             if self.game_mode == "endless" or self.game_mode == "versus":
                 self._endless_wave_spawned = False
@@ -1143,12 +1168,7 @@ class Game:
         self.headerbar.update(self.score, self.lives)
         self.headerbar.draw(self.screen)
         
-        for puddle in self.puddle_group:
-            if hasattr(puddle, 'hitbox'):
-                pygame.draw.rect(self.screen, (255, 0, 0), puddle.hitbox, 2)
-            else:
-                pygame.draw.rect(self.screen, (255, 255, 0), puddle.rect, 2)
-                
+        
         if getattr(self, 'boss_healthbar', None):
             self.boss_healthbar.draw(self.screen)
         
@@ -1168,9 +1188,25 @@ class Game:
 
     def run(self):
         self.led_heartbeat_timer = 0
+        self.last_input_time = pygame.time.get_ticks() # AFK Timer beim Loop-Start resetten
 
         while True:
             self.clock.tick(FPS)
+            
+            # --- AFK-Timer Überprüfung ---
+            current_time = pygame.time.get_ticks()
+            
+            # Bei dauerhaft gedrückten Tasten Timer resetten
+            keys = pygame.key.get_pressed()
+            if any(keys):
+                self.last_input_time = current_time
+                
+            # Nach 3 Minuten ohne Input beenden
+            if current_time - self.last_input_time > self.AFK_TIMEOUT_MS:
+                print("AFK-Timer (3 Minuten) abgelaufen. Spiel schließt sich...")
+                pygame.quit()
+                sys.exit()
+            # ----------------------------------
             
             self.led_heartbeat_timer -= 1
             if self.led_heartbeat_timer <= 0:
@@ -1190,6 +1226,12 @@ class Game:
             # --------------------------------------------------
 
             for event in pygame.event.get():
+                
+                # --- AFK-Timer bei Einzel-Events resetten ---
+                if event.type in (pygame.KEYDOWN, pygame.MOUSEBUTTONDOWN, pygame.JOYBUTTONDOWN, pygame.JOYAXISMOTION, pygame.JOYHATMOTION):
+                    self.last_input_time = current_time
+                # -------------------------------------------------
+                
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit()
