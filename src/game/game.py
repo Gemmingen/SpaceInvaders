@@ -70,6 +70,16 @@ class Game:
         pygame.init()
         pygame.mixer.init()
 
+        # Controller für den AFK-Timer initialisieren ---
+        pygame.joystick.init()
+        self.joysticks = [pygame.joystick.Joystick(i) for i in range(pygame.joystick.get_count())]
+        for joy in self.joysticks:
+            joy.init()
+            
+        self.last_input_time = pygame.time.get_ticks()
+        self.AFK_TIMEOUT_MS = 180000  # 3 Minuten in Millisekunden
+        # --------------------------------------------------------
+
         self.leds = LedController("ws://localhost:8765")
         self.leds.attract_pause()
         self.warning_led_active = False
@@ -109,7 +119,6 @@ class Game:
         self.enemy_explosion.set_volume(0.1)
         self.collect_points_sound.set_volume(0.1)
         self.transition_sound.set_volume(0.2)
-
 
         self.current_track = None
         self.music_playing = False
@@ -1184,9 +1193,25 @@ class Game:
 
     def run(self):
         self.led_heartbeat_timer = 0
+        self.last_input_time = pygame.time.get_ticks() # AFK Timer beim Loop-Start resetten
 
         while True:
             self.clock.tick(FPS)
+            
+            # --- AFK-Timer Überprüfung ---
+            current_time = pygame.time.get_ticks()
+            
+            # Bei dauerhaft gedrückten Tasten Timer resetten
+            keys = pygame.key.get_pressed()
+            if any(keys):
+                self.last_input_time = current_time
+                
+            # Nach 3 Minuten ohne Input beenden
+            if current_time - self.last_input_time > self.AFK_TIMEOUT_MS:
+                print("AFK-Timer (3 Minuten) abgelaufen. Spiel schließt sich...")
+                pygame.quit()
+                sys.exit()
+            # ----------------------------------
             
             self.led_heartbeat_timer -= 1
             if self.led_heartbeat_timer <= 0:
@@ -1206,6 +1231,12 @@ class Game:
             # --------------------------------------------------
 
             for event in pygame.event.get():
+                
+                # --- AFK-Timer bei Einzel-Events resetten ---
+                if event.type in (pygame.KEYDOWN, pygame.MOUSEBUTTONDOWN, pygame.JOYBUTTONDOWN, pygame.JOYAXISMOTION, pygame.JOYHATMOTION):
+                    self.last_input_time = current_time
+                # -------------------------------------------------
+                
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit()
