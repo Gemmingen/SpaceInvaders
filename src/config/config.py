@@ -7,7 +7,7 @@ SCREEN_WIDTH = 1080                                  #800 Original size, not for
 SCREEN_HEIGHT = 1080 #1080                           #600 Original size, not for Arcade Version
 FPS = 60
 # Bonus UFO (Mystery Ship) configuration
-UFO_SPAWN_HEIGHT_OPTIONS = [80, 300, 800]           # possible vertical spawn positions for the UFO (in pixels from top)
+UFO_SPAWN_HEIGHT_OPTIONS = [110, 300, 800]           # possible vertical spawn positions for the UFO (in pixels from top)
 UFO_SPEED_OPTIONS = [3, 7, 10]                      # possible speeds for the UFO (pixels per frame)
 UFO_SPAWN_TIME = 15                                 # seconds before a UFO may appear
 UFO_SCORE_OPTIONS = [1200, 1312, 1500, 1600, 1800]  # possible bonus points

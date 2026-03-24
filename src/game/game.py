@@ -192,7 +192,8 @@ class Game:
 
         # --- FIX: Initialize planet slide variables needed for the Main Menu ---
         if 0 in self.planets:
-            self.planet_y = -self.planets[0].get_height()
+            # Planet startet jetzt nicht komplett außerhalb, sondern ragt direkt rein
+            self.planet_y = -100 
         else:
             self.planet_y = 0
             
@@ -1346,13 +1347,19 @@ class Game:
                 if current_state == self.STATE_MENU:
                     self._play_music(self.music_intro, 0.7)
                     self.leds.send_effect("A", "pulse", 99, 0, 255, 0, speed=20, repeat=10, priority=1)
+                    
+                    # Maximale Auswahl basierend auf Menü-Tiefe
+                    if self.main_menu.state == "MAIN":
+                        max_sel = 2
+                    elif self.main_menu.state == "SINGLEPLAYER":
+                        max_sel = 3
+                    else: # MULTIPLAYER
+                        max_sel = 4
+
                     if event.type == pygame.KEYDOWN:
-                        
-                        # --- Navigation Logic ---
+                        # --- NAVIGATION ---
                         if event.key in (pygame.K_w, pygame.K_UP):
-                            if self.menu_selection == 2: self.menu_selection = 0
-                            elif self.menu_selection == 3: self.menu_selection = 1
-                            elif self.menu_selection == 4: self.menu_selection = 2
+                            self.menu_selection = (self.menu_selection - 1) % max_sel
                         elif event.key in (pygame.K_s, pygame.K_DOWN):
                             if self.menu_selection == 0: self.menu_selection = 2
                             elif self.menu_selection == 1: self.menu_selection = 3
@@ -1390,6 +1397,48 @@ class Game:
                                 current_state = self.STATE_PLAYING
                             self.update_cached_highscores()
                         
+                        # --- BESTÄTIGUNG ---
+                        elif event.key in (pygame.K_SPACE, pygame.K_RETURN, pygame.K_KP0):
+                            
+                            # 1. Ebene: MAIN
+                            if self.main_menu.state == "MAIN":
+                                if self.menu_selection == 0:
+                                    self.main_menu.state = "SINGLEPLAYER"
+                                    self.menu_selection = 0
+                                elif self.menu_selection == 1:
+                                    self.main_menu.state = "MULTIPLAYER"
+                                    self.menu_selection = 0
+                            
+                            # 2. Ebene: SINGLEPLAYER
+                            elif self.main_menu.state == "SINGLEPLAYER":
+                                if self.menu_selection == 0: # Story
+                                    self.game_mode, self.num_players = "story", 1
+                                    self._reset(); self.state = self.STATE_PLAYING
+                                elif self.menu_selection == 1: # Endless
+                                    self.game_mode, self.num_players = "endless", 1
+                                    self.wave_number = 1
+                                    self._reset(); self.state = self.STATE_PLAYING
+                                elif self.menu_selection == 2: # Back
+                                    self.main_menu.state = "MAIN"
+                                    self.menu_selection = 0
+
+                            # 2. Ebene: MULTIPLAYER
+                            elif self.main_menu.state == "MULTIPLAYER":
+                                if self.menu_selection == 0: # Story Co-op
+                                    self.game_mode, self.num_players = "story", 2
+                                    self._reset(); self.state = self.STATE_PLAYING
+                                elif self.menu_selection == 1: # Endless Co-op
+                                    self.game_mode, self.num_players = "endless", 2
+                                    self.wave_number = 1
+                                    self._reset(); self.state = self.STATE_PLAYING
+                                elif self.menu_selection == 2: # Versus
+                                    self.game_mode, self.num_players = "versus", 2
+                                    self._reset(); self.state = self.STATE_PLAYING
+                                elif self.menu_selection == 3: # Back
+                                    self.main_menu.state = "MAIN"
+                                    self.menu_selection = 4
+
+        
                 elif current_state == self.STATE_PLAYING: 
                     if event.type == pygame.KEYDOWN:
                         if self.game_mode == "versus":
@@ -1488,9 +1537,20 @@ class Game:
                             self.p2_done = False
 
             if current_state == self.STATE_MENU:
+                self.screen.fill((0, 0, 0))
                 self._draw_planet()
-                self.main_menu.draw(self.screen, getattr(self, 'menu_selection', 0))
-                self._present()
+                
+                # Den Hintergrund (Sterne/Planet) auf den echten Monitor skalieren
+                self.display.fill((0, 0, 0))
+                sw_disp, sh_disp = self.display.get_size()
+                scale = min(sw_disp / SCREEN_WIDTH, sh_disp / SCREEN_HEIGHT)
+                nw, nh = int(SCREEN_WIDTH * scale), int(SCREEN_HEIGHT * scale)
+                scaled_surf = pygame.transform.scale(self.game_surface, (nw, nh))
+                self.display.blit(scaled_surf, ((sw_disp - nw) // 2, (sh_disp - nh) // 2))
+                
+                # Das Menü direkt über das VOLLE Display (z.B. 1920x1080) zeichnen!
+                self.main_menu.draw(self.display, getattr(self, 'menu_selection', 0))
+                pygame.display.flip()
 
             elif current_state == self.STATE_PLAYING:
                 keys = pygame.key.get_pressed()
