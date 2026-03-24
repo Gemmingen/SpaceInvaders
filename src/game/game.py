@@ -200,8 +200,19 @@ class Game:
         self.next_planet_index = None
         self.next_planet_y = 0
         self.next_planet_sliding = False
-        # -----------------------------------------------------------------------
+        # --- LOAD SIDE LINES ------------------------------------------------------
+        raw_left = pygame.image.load("assets/side-left.png").convert_alpha()
+        orig_w_left, orig_h_left = raw_left.get_size()
+        scale_factor_left = SCREEN_HEIGHT / orig_h_left
+        target_w_left = int(orig_w_left * scale_factor_left)
+        self.side_left_img = pygame.transform.scale(raw_left, (target_w_left, SCREEN_HEIGHT))
 
+            # Load right border and scale based on screen height
+        raw_right = pygame.image.load("assets/side-right.png").convert_alpha()
+        orig_w_right, orig_h_right = raw_right.get_size()
+        scale_factor_right = SCREEN_HEIGHT / orig_h_right
+        target_w_right = int(orig_w_right * scale_factor_right)
+        self.side_right_img = pygame.transform.scale(raw_right, (target_w_right, SCREEN_HEIGHT))
         # Define all variables managed by independent boards dynamically for Versus mode
         self.BOARD_VARS = [
             'score', 'level', 'lives', 'wave_number', 'poison_tick_timer', '_endless_wave_spawned',
@@ -217,6 +228,9 @@ class Game:
             'state', 'is_transition_active', 'transition_state', 'transition_timer',
             'current_speed_factors', 'transitioning_back_timer', 'warning_played'
         ]
+        self.cached_sp_scores = []
+        self.cached_mp_scores = []
+        self.update_cached_highscores()
 
     def _save_context(self, b_id):
         self.boards[b_id] = {var: getattr(self, var) for var in self.BOARD_VARS if hasattr(self, var)}
@@ -443,36 +457,94 @@ class Game:
         self.transitioning_back_timer = 0
         self.state = self.STATE_PLAYING
 
-    def _present(self):
+    def _present(self, show_scoreboards=False):
         self.display.fill((0, 0, 0))
         sw, sh = self.display.get_size()
         scale = min(sw / SCREEN_WIDTH, sh / SCREEN_HEIGHT)
         nw, nh = int(SCREEN_WIDTH * scale), int(SCREEN_HEIGHT * scale)
         scaled_surf = pygame.transform.scale(self.game_surface, (nw, nh))
         self.display.blit(scaled_surf, ((sw - nw) // 2, (sh - nh) // 2))
+        start_x = (sw - nw) // 2
+        start_y = (sh - nh) // 2
+        self.display.blit(scaled_surf, (start_x, start_y))
+      
+
+        if show_scoreboards:
+            self._draw_side_scoreboards(start_x, start_y, sw, sh, nw, nh)
+            self._draw_side_borders(start_x, start_y, nw, scale)
+        
         pygame.display.flip()
 
     def _present_versus(self):
         self.display.fill((0, 0, 0))
         sw, sh = self.display.get_size()
         
-        scale = min((sw / 2) / SCREEN_WIDTH, sh / SCREEN_HEIGHT)
-        nw, nh = int(SCREEN_WIDTH * scale), int(SCREEN_HEIGHT * scale)
+        # 1. Get raw dimensions
+        raw_bg_w = SCREEN_WIDTH
+        raw_L_w = self.side_left_img.get_width() if getattr(self, 'side_left_img', None) else 0
+        raw_R_w = self.side_right_img.get_width() if getattr(self, 'side_right_img', None) else 0
         
+        # 2. Calculate the scale factor by factoring in the border widths
+        # We need two full setups (Left Border + Game + Right Border) to fit inside the screen
+        raw_player_setup_w = raw_L_w + raw_bg_w + raw_R_w
+        total_raw_w = raw_player_setup_w * 2
+        
+        # New scale calculation
+        scale = min(sw / total_raw_w, sh / SCREEN_HEIGHT)
+        
+        # 3. Apply the scale factor
+        scaled_L_w = int(raw_L_w * scale)
+        scaled_R_w = int(raw_R_w * scale)
+        nw = int(raw_bg_w * scale)
+        nh = int(SCREEN_HEIGHT * scale)
+        
+        # Actual total rendered width (to center properly on the monitor)
+        total_rendered_w = 2 * (scaled_L_w + nw + scaled_R_w)
+        
+        start_x = (sw - total_rendered_w) // 2
+        start_y = (sh - nh) // 2
+        
+        # 4. Scale Game Surfaces
         surf1 = self.boards[1]['game_surface']
         surf2 = self.boards[2]['game_surface']
-        
         scaled_p1 = pygame.transform.scale(surf1, (nw, nh))
         scaled_p2 = pygame.transform.scale(surf2, (nw, nh))
         
-        total_w = nw * 2
-        start_x = (sw - total_w) // 2
-        start_y = (sh - nh) // 2
+        # 5. Scale Border Images
+        if raw_L_w > 0:
+            scaled_h_left = int(self.side_left_img.get_height() * scale)
+            final_left = pygame.transform.scale(self.side_left_img, (scaled_L_w, scaled_h_left))
+        else:
+            final_left = None
+            
+        if raw_R_w > 0:
+            scaled_h_right = int(self.side_right_img.get_height() * scale)
+            final_right = pygame.transform.scale(self.side_right_img, (scaled_R_w, scaled_h_right))
+        else:
+            final_right = None
+
+        # --- Draw Player 1 Layout (Left to Right) ---
+        p1_left_x = start_x
+        p1_game_x = p1_left_x + scaled_L_w
+        p1_right_x = p1_game_x + nw + 0
         
-        self.display.blit(scaled_p1, (start_x, start_y))
-        self.display.blit(scaled_p2, (start_x + nw, start_y))
+        if final_left: 
+            self.display.blit(final_left, (p1_left_x, start_y))
+        self.display.blit(scaled_p1, (p1_game_x, start_y))
+        if final_right: 
+            self.display.blit(final_right, (p1_right_x, start_y))
         
-        pygame.draw.line(self.display, (255, 255, 255), (start_x + nw, start_y), (start_x + nw, start_y + nh), 4)
+        # --- Draw Player 2 Layout (Left to Right) ---
+        p2_left_x = p1_right_x + scaled_R_w - 10
+        p2_game_x = p2_left_x + scaled_L_w
+        p2_right_x = p2_game_x + nw
+        
+        if final_left: 
+            self.display.blit(final_left, (p2_left_x, start_y))
+        self.display.blit(scaled_p2, (p2_game_x, start_y))
+        if final_right: 
+            self.display.blit(final_right, (p2_right_x, start_y))
+        
         pygame.display.flip()
 
     def _spawn_bonus_item(self):
@@ -992,6 +1064,29 @@ class Game:
                     next_rect.top = int(self.next_planet_y)
                     self.screen.blit(next_planet_img, next_rect)
 
+    def _draw_side_borders(self, start_x, start_y, game_width, display_scale):
+        """Draws the left and right border overlays outside the game screen."""
+        if self.side_left_img:
+            # Scale the image to match the monitor's scale factor
+            scaled_w = int(self.side_left_img.get_width() * display_scale)
+            scaled_h = int(self.side_left_img.get_height() * display_scale)
+            final_left = pygame.transform.scale(self.side_left_img, (scaled_w, scaled_h))
+            
+            # Position so its right edge touches the left side of the game
+            left_x = start_x - scaled_w
+            self.display.blit(final_left, (left_x, start_y))
+            
+        if self.side_right_img:
+            # Scale the image to match the monitor's scale factor
+            scaled_w = int(self.side_right_img.get_width() * display_scale)
+            scaled_h = int(self.side_right_img.get_height() * display_scale)
+            final_right = pygame.transform.scale(self.side_right_img, (scaled_w, scaled_h))
+            
+            # Position directly at the right edge of the game
+            right_x = start_x + game_width
+            self.display.blit(final_right, (right_x, start_y))
+
+
     def _draw_end_screen(self):
         is_victory = (self.state == self.STATE_VICTORY)
         
@@ -1061,7 +1156,7 @@ class Game:
         self.bunkers.draw(self.screen)
         self.all_sprites.draw(self.screen)
         self.headerbar.draw(self.screen)
-        
+       
         font = pygame.font.Font("assets/headerbar/PressStart2P-Regular.ttf", 30)
         over_surf = font.render("GAME OVER", True, (255, 0, 0))
         self.screen.blit(over_surf, over_surf.get_rect(center=(SCREEN_WIDTH//2, SCREEN_HEIGHT//2)))
@@ -1185,6 +1280,7 @@ class Game:
                     self.screen.blit(bar.warning_icon, (warning_x, warning_y))
         else:
             self.warning_played = False
+   
 
     def run(self):
         self.led_heartbeat_timer = 0
@@ -1292,6 +1388,7 @@ class Game:
                                 self.game_mode, self.num_players = "versus", 2
                                 self._reset()
                                 current_state = self.STATE_PLAYING
+                            self.update_cached_highscores()
                         
                 elif current_state == self.STATE_PLAYING: 
                     if event.type == pygame.KEYDOWN:
@@ -1411,7 +1508,7 @@ class Game:
                     self._present_versus()
                 else:
                     self._update_gameplay(keys)
-                    self._present()
+                    self._present(show_scoreboards=True)
 
             elif current_state == self.STATE_LEVEL_CLEARED:
                 for group in [self.player_bullets, self.enemy_bullets, self.powerups, self.comets, self.ufo_group]:
@@ -1485,8 +1582,8 @@ class Game:
                 self.headerbar.update(self.score, self.lives)
                 self.headerbar.draw(self.screen)
                 self._draw_hud() 
-                self._present()
-            
+                self._present(show_scoreboards=True)
+                self._draw_side_borders()
             else: 
                 if self.game_mode == "versus" and getattr(self, '_versus_end_surface_created', False) == False:
                     self.game_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -1579,3 +1676,143 @@ class Game:
             json.dump(data, f, indent=4)
         
         print(f"Erfolg! Gespeichert in: {filename}")
+
+        self.update_cached_highscores()
+
+    def update_cached_highscores(self):
+        """Reads highscores from disk and caches them to avoid lag during rendering."""
+        base_path = os.path.dirname(os.path.abspath(__file__))
+        root_path = os.path.dirname(os.path.dirname(base_path))
+        sp_filename = os.path.join(root_path, "highscores_sp.json")
+        mp_filename = os.path.join(root_path, "highscores_mp.json")
+        
+        sp_key = "sp_" + self.game_mode
+        mp_key = "mp_versus" if self.game_mode == "versus" else "mp_" + self.game_mode
+            
+        self.cached_sp_scores = []
+        self.cached_mp_scores = []
+        
+        if os.path.exists(sp_filename):
+            try:
+                with open(sp_filename, "r") as f:
+                    data = json.load(f)
+                    self.cached_sp_scores = data.get(sp_key, [])
+            except Exception:
+                pass
+                
+        if os.path.exists(mp_filename):
+            try:
+                with open(mp_filename, "r") as f:
+                    data = json.load(f)
+                    self.cached_mp_scores = data.get(mp_key, [])
+            except Exception:
+                pass
+
+    def _draw_side_scoreboards(self, start_x, start_y, sw, sh, content_w, content_h):
+        """Draws the scoreboards in the black bars in an authentic arcade style."""
+        if start_x < 160:  # Don't draw if the black bars are too thin
+            return
+            
+        font_title = pygame.font.Font("assets/headerbar/PressStart2P-Regular.ttf", 16)
+        font_headers = pygame.font.Font("assets/headerbar/PressStart2P-Regular.ttf", 12)
+        font_score = pygame.font.Font("assets/headerbar/PressStart2P-Regular.ttf", 10) 
+        
+        # Arcade Colors
+        COLOR_TITLE = (0, 255, 255)     # Cyan
+        COLOR_HEADER = (255, 215, 0)    # Gold
+        COLOR_SCORE = (255, 255, 255)   # White
+        COLOR_RANK_1 = (255, 0, 0)      # Red for 1st place
+        
+        ranks = ["1ST", "2ND", "3RD", "4TH", "5TH"]
+        
+        # Y-Coordinates for layout
+        y_title = sh // 4 - 50
+        y_mode = sh // 4 - 20
+        start_y_scores = sh // 4 + 30
+        line_spacing = 35
+        
+        # --- Left Side: Single Player ---
+        left_center = start_x // 2
+        
+        # Titles
+        title_left = font_title.render("1-PLAYER", True, COLOR_HEADER)
+        self.display.blit(title_left, title_left.get_rect(center=(left_center, y_title)))
+        
+        mode_left = font_headers.render(f"({self.game_mode.upper()})", True, COLOR_HEADER)
+        self.display.blit(mode_left, mode_left.get_rect(center=(left_center, y_mode)))
+        
+        # Highscores Left
+        for i in range(5):
+            rank_text = ranks[i]
+            if i < len(self.cached_sp_scores):
+                name = self.cached_sp_scores[i].get('name', '---')[:10] # Cap length to keep it clean
+                score_val = str(self.cached_sp_scores[i].get('score', 0))
+                
+                # Check if it's endless mode and the wave data exists
+                if self.game_mode == "endless" and 'wave' in self.cached_sp_scores[i]:
+                    wave_val = self.cached_sp_scores[i]['wave']
+                    score = f"{score_val} (W{wave_val})"
+                else:
+                    score = score_val
+            else:
+                name = "---"
+                score = "0"
+                
+            # Formatting strings to fixed widths for grid alignment
+            name_str = f"{name:<10}"
+            score_str = f"{score:>10}" # Increased width to fit wave text
+            
+            color = COLOR_HEADER if i == 0 else COLOR_SCORE
+            
+            # Render text surfaces
+            r_surf = font_score.render(rank_text, True, color)
+            n_surf = font_score.render(name_str, True, color)
+            s_surf = font_score.render(score_str, True, color)
+            
+            # Blit columns using math relative to the center
+            self.display.blit(r_surf, (left_center - 120, start_y_scores + i * line_spacing))
+            self.display.blit(n_surf, (left_center - 60, start_y_scores + i * line_spacing))
+            self.display.blit(s_surf, (left_center + 60, start_y_scores + i * line_spacing))
+
+        # --- Right Side: Multiplayer ---
+        right_center = start_x + content_w + start_x // 2
+        
+        # Titles
+        title_right = font_title.render("2-PLAYER", True, COLOR_TITLE)
+        self.display.blit(title_right, title_right.get_rect(center=(right_center, y_title)))
+        
+        mode_right = font_headers.render(f"({self.game_mode.upper()})", True, COLOR_TITLE)
+        self.display.blit(mode_right, mode_right.get_rect(center=(right_center, y_mode)))
+        
+        # Highscores Right
+        for i in range(5):
+            rank_text = ranks[i]
+            if i < len(self.cached_mp_scores):
+                name = self.cached_mp_scores[i].get('name', '---')[:10]
+                score_val = str(self.cached_mp_scores[i].get('score', 0))
+                
+                # Check if it's endless mode and the wave data exists
+                if self.game_mode == "endless" and 'wave' in self.cached_mp_scores[i]:
+                    wave_val = self.cached_mp_scores[i]['wave']
+                    score = f"{score_val} W{wave_val}"
+                else:
+                    score = score_val
+            else:
+                name = "---"
+                score = "0"
+                
+            # Formatting strings to fixed widths for grid alignment
+            name_str = f"{name:<10}"
+            score_str = f"{score:>10}" # Increased width to fit wave text
+            
+            color = COLOR_TITLE if i == 0 else COLOR_SCORE
+            
+            # Render text surfaces
+            r_surf = font_score.render(rank_text, True, color)
+            n_surf = font_score.render(name_str, True, color)
+            s_surf = font_score.render(score_str, True, color)
+            
+            # Blit columns using math relative to the center
+            self.display.blit(r_surf, (right_center - 120, start_y_scores + i * line_spacing))
+            self.display.blit(n_surf, (right_center - 60, start_y_scores + i * line_spacing))
+            self.display.blit(s_surf, (right_center + 60, start_y_scores + i * line_spacing))
