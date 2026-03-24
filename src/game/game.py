@@ -1370,33 +1370,7 @@ class Game:
                         elif event.key in (pygame.K_d, pygame.K_RIGHT):
                             if self.menu_selection == 0: self.menu_selection = 1
                             elif self.menu_selection == 2: self.menu_selection = 3
-                            
-                        # --- Selection Confirmation ---
-                        elif event.key in (pygame.K_SPACE, pygame.K_KP0):
-                            if self.menu_selection == 0:
-                                self.game_mode, self.num_players = "story", 1
-                                self._reset()
-                                current_state = self.STATE_PLAYING
-                            elif self.menu_selection == 1:
-                                self.game_mode, self.num_players = "endless", 1
-                                self.wave_number = 1
-                                self._reset()
-                                current_state = self.STATE_PLAYING
-                            elif self.menu_selection == 2:
-                                self.game_mode, self.num_players = "story", 2
-                                self._reset()
-                                current_state = self.STATE_PLAYING
-                            elif self.menu_selection == 3:
-                                self.game_mode, self.num_players = "endless", 2
-                                self.wave_number = 1
-                                self._reset()
-                                current_state = self.STATE_PLAYING
-                            elif self.menu_selection == 4:
-                                self.game_mode, self.num_players = "versus", 2
-                                self._reset()
-                                current_state = self.STATE_PLAYING
                             self.update_cached_highscores()
-                        
                         # --- BESTÄTIGUNG ---
                         elif event.key in (pygame.K_SPACE, pygame.K_RETURN, pygame.K_KP0):
                             
