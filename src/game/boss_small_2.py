@@ -24,7 +24,7 @@ from src.config.config import (
     SCREEN_WIDTH, SCREEN_HEIGHT, FPS, BOSS2_MOVE_DURATION, BOSS2_FLASH_DURATION,
     BOSS2_ORB_ARC_DURATION, BOSS2_ORB_Y_PERCENT, BOSS2_CHARGE_FRAMES,
     BOSS2_LASER_X_OFFSET, BOSS2_LASER_COUNT, BOSS2_LASER_SPAWN_INTERVAL,
-    MINIBOSS_SPAWN_FRAMES, MINIBOSS_SPAWNER_SIZE, MINIBOSS_SPAWNER_ROT_SPEED
+    MINIBOSS_SPAWN_FRAMES, MINIBOSS_SPAWNER_SIZE, MINIBOSS_SPAWNER_ROT_SPEED, BOSS2_LASER_SPEED_INCREMENT, BOSS2_LASER_MAX_SPEED, BOSS2_LASER_SPEED, BOSS2_LASER_SPAWN_INTERVAL_DECREMENT, BOSS2_LASER_MIN_SPAWN_INTERVAL
 )
 from src.game.laser_line import SideLaser
 import random
@@ -76,6 +76,7 @@ class BossSmall2(MiniBossBase):
         self.move_timer = BOSS2_MOVE_DURATION * FPS
         self.flash_timer = 0
         self.orb_spawn_timer = 0
+        
         # laser handling
         self.laser_spawn_timer = 0
         self.laser_count = 0
@@ -83,6 +84,13 @@ class BossSmall2(MiniBossBase):
         self.explosion_timer = 0
         self.side_lasers_spawned = False
         self.invincible = False
+
+        # --- Speed & Interval Scaling Tracking ---
+        self.attack_cycle_count = 0 
+        from src.config.config import BOSS2_LASER_SPEED
+        self.current_laser_speed = BOSS2_LASER_SPEED
+        self.current_laser_spawn_interval = BOSS2_LASER_SPAWN_INTERVAL
+        # -----------------------------------------
 
         # Sprite groups for orbs and lasers
         self.orbs = pygame.sprite.Group()
@@ -142,7 +150,7 @@ class BossSmall2(MiniBossBase):
         player_x = self._player.rect.centerx if self._player else SCREEN_WIDTH // 2
         half_orb_width = left_orb.rect.width // 2
         laser_y = int(SCREEN_HEIGHT * BOSS2_ORB_Y_PERCENT)
-        # Apply the optional horizontal offset for visual alignment
+        
         # No horizontal offset – laser should start exactly at the orb edges
         laser = LaserLine(
             laser_y,
@@ -151,6 +159,11 @@ class BossSmall2(MiniBossBase):
             player_x,
             orb_half_width=half_orb_width,
         )
+        
+        # --- NEW: Apply the dynamically scaled speed override ---
+        laser.speed_override = self.current_laser_speed
+        # --------------------------------------------------------
+
         # Add laser to groups for drawing / collision. Segments are added globally in ``update``.
         self.laser_lines.add(laser)
         if self._all_sprites:
@@ -159,6 +172,7 @@ class BossSmall2(MiniBossBase):
             for orb in (left_orb, right_orb):
                 self._all_sprites.remove(orb)
                 self._all_sprites.add(orb)
+                
         # ------------------------------------------------------------
         # Spawn side lasers (one centered on each orb) – only once per attack
         # ------------------------------------------------------------
@@ -171,13 +185,6 @@ class BossSmall2(MiniBossBase):
             if self._all_sprites:
                 self._all_sprites.add(left_side, right_side)
             self.side_lasers_spawned = True
-        # The parent LaserLine is deliberately NOT added to the enemy_bullets group.
-        # Only its visual segments are added later in the update() method. This prevents the
-        # tiny placeholder rect of the LaserLine from being killed on a player hit, which would
-        # freeze the beam and leave its segments stranded on screen.
-        # (We keep the block commented out for reference.)
-        # if self._enemy_bullets:
-        #     self._enemy_bullets.add(laser)
 
     def cleanup_orbs(self, spawn_only=False):
         """Create an explosion at each orb position.
@@ -338,14 +345,14 @@ class BossSmall2(MiniBossBase):
         # Spawn the initial laser line
         self.spawn_laser_line()
         self.laser_count = 1
-        # Set timer for the next laser
-        self.laser_spawn_timer = BOSS2_LASER_SPAWN_INTERVAL * FPS
+        # Set timer for the next laser using the dynamic interval
+        self.laser_spawn_timer = int(self.current_laser_spawn_interval * FPS)
         # Move to barrage handling state
         self.attack_substate = self.ATTACK_LASER_BARRAGE
 
     def _update_laser_barrage_state(self):
         """Handle spawning of multiple lasers and wait for all to clear.
-        Fires a new laser every ``BOSS2_LASER_SPAWN_INTERVAL`` seconds until
+        Fires a new laser based on the dynamic spawn interval until
         ``BOSS2_LASER_COUNT`` lasers have been created. After the last laser is
         spawned, we wait until the ``laser_lines`` group is empty before moving
         on to the orb‑shake phase.
@@ -356,15 +363,16 @@ class BossSmall2(MiniBossBase):
             if self.laser_spawn_timer <= 0:
                 self.spawn_laser_line()
                 self.laser_count += 1
-                # Reset timer for the next laser (if any left)
-                self.laser_spawn_timer = BOSS2_LASER_SPAWN_INTERVAL * FPS
+                # Reset timer for the next laser using the dynamic interval
+                self.laser_spawn_timer = int(self.current_laser_spawn_interval * FPS)
+                
         # After the required number of lasers have been fired, wait for them to disappear
         if self.laser_count >= BOSS2_LASER_COUNT:
             # Check if any main LaserLine (with gap) remains; side lasers are ignored
             main_lasers_remaining = any(isinstance(l, LaserLine) for l in self.laser_lines)
             if not main_lasers_remaining:
                 self.attack_substate = self.ATTACK_ORB_SHAKE
-                self.orb_shake_timer = FPS  # 1‑second shake before explosion
+                self.orb_shake_timer = FPS  # 1‑second shake before explosionion
 
 
     def _update_orb_shake_state(self):
@@ -416,6 +424,23 @@ class BossSmall2(MiniBossBase):
 
     # Laser barrage state handled in _update_laser_barrage_state (no separate fired state)
     def _update_cleanup_state(self):
+        # --- Scale Laser Speed and Spawn Interval for the next phase ---
+        self.attack_cycle_count += 1
+        from src.config.config import BOSS2_LASER_SPEED
+        
+        # Increase downward laser speed
+        self.current_laser_speed = min(
+            BOSS2_LASER_MAX_SPEED, 
+            BOSS2_LASER_SPEED + (self.attack_cycle_count * BOSS2_LASER_SPEED_INCREMENT)
+        )
+        
+        # Decrease spawn interval so they fire more rapidly
+        self.current_laser_spawn_interval = max(
+            BOSS2_LASER_MIN_SPAWN_INTERVAL,
+            self.current_laser_spawn_interval - BOSS2_LASER_SPAWN_INTERVAL_DECREMENT
+        )
+        # ---------------------------------------------------------------
+
         # Reset to MOVE state for the next cycle
         self.state = self.STATE_MOVE
         self.move_timer = BOSS2_MOVE_DURATION * FPS
@@ -429,9 +454,6 @@ class BossSmall2(MiniBossBase):
         self.orb_shake_started = False
         self.orb_shake_timer = 0
         self.explosion_timer = 0
-        # Remove any remaining lasers (including stationary side lasers)
-      
-
     # ------------------------------------------------------------------
     # Utility methods used by collision detection in the main game loop
     # ------------------------------------------------------------------

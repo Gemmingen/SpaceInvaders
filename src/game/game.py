@@ -31,7 +31,7 @@ from src.config.config import (
     ENDLESS_ENEMY_BASE_MOVE_DOWN, ENDLESS_ENEMY_MOVE_DOWN_INCREMENT,
     ENDLESS_BASE_COLS, ENDLESS_BASE_ROWS, ENDLESS_MAX_ROWS,
     ENDLESS_ROW_INCREMENT_WAVES, ENDLESS_SPEED_INCREMENT,
-    ENDLESS_BASE_SHOOT_CHANCE, ENDLESS_SHOOT_CHANCE_INCREMENT
+    ENDLESS_BASE_SHOOT_CHANCE, ENDLESS_SHOOT_CHANCE_INCREMENT, MINIBOSS_COOP_HEALTH_MULTIPLIER
 )
 from src.game.player import Player, PlayerBoost
 from src.game.enemy import Enemy
@@ -698,7 +698,14 @@ class Game:
         }
         boss_cls = boss_map.get(self.level, BossSmall1)
         settings = MINIBOSS_SETTINGS.get(self.level, MINIBOSS_SETTINGS[1])
-        boss = boss_cls(health=settings.get("health", 3), speed=settings.get("speed", 2))
+        
+        base_health = settings.get("health", 3)
+        if self.game_mode == "story" and self.num_players == 2:
+            if MINIBOSS_SETTINGS.get(self.level != 2):
+                base_health = int(base_health * MINIBOSS_COOP_HEALTH_MULTIPLIER)
+            
+        # FIX: Pass 'base_health' instead of 'settings.get("health", 3)'
+        boss = boss_cls(health=base_health, speed=settings.get("speed", 2))
         
         extra = getattr(boss, "extra_settings", None)
         if isinstance(extra, dict):
@@ -1617,7 +1624,7 @@ class Game:
                 self.headerbar.draw(self.screen)
                 self._draw_hud() 
                 self._present(show_scoreboards=True)
-                self._draw_side_borders()
+                
             else: 
                 if self.game_mode == "versus" and getattr(self, '_versus_end_surface_created', False) == False:
                     self.game_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))

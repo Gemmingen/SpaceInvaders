@@ -51,6 +51,15 @@ ENEMY_WAVE_SETTINGS = {
 }
 
 # Mini‑boss per level – health can be changed later
+# --- Add to the Mini-boss section ---
+MINIBOSS_COOP_HEALTH_MULTIPLIER = 2.0  # Boss health multiplier for 2-player story mode
+
+# --- Update BossSmall2 (Level 2) Attack Pattern Settings ---
+BOSS2_LASER_SPEED = 5
+BOSS2_LASER_SPEED_INCREMENT = 5      # How much faster the laser moves after each attack cycle
+BOSS2_LASER_MAX_SPEED = 10            # Maximum speed cap for the laser
+BOSS2_LASER_SPAWN_INTERVAL_DECREMENT = 0.2 # Decreases the spawn interval by 0.15s each phase
+BOSS2_LASER_MIN_SPAWN_INTERVAL = 0.9       # Minimum delay between lasers (cap)
 
 # BossSmall3 split settings
 BOSS3_GLOB_SPLIT_ANGLE_DEGREES = 7          # degrees offset for side bullets (±10°)
@@ -165,13 +174,13 @@ BOSS2_SIDE_LASER_SPEED = BOSS2_LASER_SPEED  # same downward speed as the main la
 BOSS2_SIDE_LASER_PAUSE_FRAMES = BOSS2_CHARGE_FRAMES  # pause before moving, same as main laser
 BOSS2_SIDE_LASER_OFFSET = 0  # horizontal offset when centering on orb (0 = exact centre)
 BOSS2_GAP_WIDTH_MULTIPLIER = 3.0
-BOSS2_GAP_RANDOM_RANGE = 100
+BOSS2_GAP_RANDOM_RANGE = 150
 # Horizontal offset to shift the entire laser line to the right (positive moves right)
 BOSS2_LASER_X_OFFSET = 50
 # Optional extra margin between laser and orb edges (pixels). Adjust for visual spacing.
 BOSS2_LASER_ORB_MARGIN = 4
 # Laser build‑up and pause configuration for BossSmall2
-BOSS2_LASER_BUILD_INTERVAL = 0.1  # seconds per growth step (adds one sprite width each step)
+BOSS2_LASER_BUILD_INTERVAL = 0.05  # seconds per growth step (adds one sprite width each step)
 # Tiny pause after the laser is fully built before it starts moving downward
 BOSS2_LASER_PAUSE_FRAMES = int(FPS * 0.05)  # ~3 frames at 60 FPS (≈0.05 s)
 
