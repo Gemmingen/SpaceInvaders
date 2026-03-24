@@ -1360,16 +1360,15 @@ class Game:
                         # --- NAVIGATION ---
                         if event.key in (pygame.K_w, pygame.K_UP):
                             self.menu_selection = (self.menu_selection - 1) % max_sel
+                            
                         elif event.key in (pygame.K_s, pygame.K_DOWN):
-                            if self.menu_selection == 0: self.menu_selection = 2
-                            elif self.menu_selection == 1: self.menu_selection = 3
-                            elif self.menu_selection in (2, 3): self.menu_selection = 4
-                        elif event.key in (pygame.K_a, pygame.K_LEFT):
-                            if self.menu_selection == 1: self.menu_selection = 0
-                            elif self.menu_selection == 3: self.menu_selection = 2
-                        elif event.key in (pygame.K_d, pygame.K_RIGHT):
-                            if self.menu_selection == 0: self.menu_selection = 1
-                            elif self.menu_selection == 2: self.menu_selection = 3
+                            self.menu_selection = (self.menu_selection + 1) % max_sel
+                        # elif event.key in (pygame.K_a, pygame.K_LEFT):
+                        #     if self.menu_selection == 1: self.menu_selection = 0
+                        #     elif self.menu_selection == 3: self.menu_selection = 2
+                        # elif event.key in (pygame.K_d, pygame.K_RIGHT):
+                        #     if self.menu_selection == 0: self.menu_selection = 1
+                        #     elif self.menu_selection == 2: self.menu_selection = 3
                             self.update_cached_highscores()
                         # --- BESTÄTIGUNG ---
                         elif event.key in (pygame.K_SPACE, pygame.K_RETURN, pygame.K_KP0):
