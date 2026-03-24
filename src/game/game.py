@@ -215,7 +215,7 @@ class Game:
             'layer_offsets', 'enemy_speed', 'enemy_shoot_chance', 'enemy_direction', 
             'enemy_move_down', 'ufo_timer', 'boss_healthbar', 'game_surface', 'screen', 
             'state', 'is_transition_active', 'transition_state', 'transition_timer',
-            'current_speed_factors', 'transitioning_back_timer'
+            'current_speed_factors', 'transitioning_back_timer', 'warning_played'
         ]
 
     def _save_context(self, b_id):
@@ -1168,12 +1168,7 @@ class Game:
         self.headerbar.update(self.score, self.lives)
         self.headerbar.draw(self.screen)
         
-        for puddle in self.puddle_group:
-            if hasattr(puddle, 'hitbox'):
-                pygame.draw.rect(self.screen, (255, 0, 0), puddle.hitbox, 2)
-            else:
-                pygame.draw.rect(self.screen, (255, 255, 0), puddle.rect, 2)
-                
+        
         if getattr(self, 'boss_healthbar', None):
             self.boss_healthbar.draw(self.screen)
         
