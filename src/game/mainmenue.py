@@ -5,7 +5,7 @@ import os
 class MainMenu:
     """
     Klasse zur Darstellung und Verwaltung des Hauptmenüs.
-    Steuert die verschiedenen Menüzustände (Main, Singleplayer, Multiplayer)
+    Steuert die verschiedenen Menüzustände (Main, Singleplayer, Multiplayer, Controls)
     sowie das Rendern von Buttons, Titeln und plattformübergreifenden Highscore-Listen.
     """
     def __init__(self, font):
@@ -28,6 +28,12 @@ class MainMenu:
         # Startzustand und initiale Button-Auswahl
         self.state = "MAIN"
         self.selection = 0
+
+        # Lade das Controls Bild
+        try:
+            self.controls_img = pygame.image.load("assets/Controls.png").convert_alpha()
+        except Exception:
+            self.controls_img = None
 
         # Erstellung eines halbtransparenten Overlays, um den Hintergrund abzudunkeln
         self.overlay = pygame.Surface((1920, 1080), pygame.SRCALPHA) 
@@ -73,7 +79,7 @@ class MainMenu:
         if self.state == "MAIN":
             # Hauptmenü: Zeigt alle Leaderboards und die Hauptkategorien
             self._draw_main_leaderboards(surface, sw)
-            self._draw_pure_buttons(surface, ["SINGLEPLAYER", "MULTIPLAYER"], 400, sw, width=450, height=75)
+            self._draw_pure_buttons(surface, ["SINGLEPLAYER", "MULTIPLAYER", "CONTROLS"], 400, sw, width=450, height=75)
             
         elif self.state == "SINGLEPLAYER":
             # Untermenü: Singleplayer (Story, Endless, Zurück)
@@ -89,6 +95,21 @@ class MainMenu:
             surface.blit(sub_title, sub_title.get_rect(center=(sw // 2, 220)))
             self._draw_pure_buttons(surface, ["STORY (CO-OP)", "ENDLESS (CO-OP)", "VERSUS", "BACK"], 320, sw, width=500, height=65)
             self._draw_mp_leaderboards(surface, sw)
+            
+        elif self.state == "CONTROLS":
+            # Untermenü: Controls (Bild + Zurück)
+            sub_title = self.sub_title_font.render("CONTROLS", True, (255, 255, 255))
+            surface.blit(sub_title, sub_title.get_rect(center=(sw // 2, 180)))
+            
+            # Draw the controls image if available, else render fallback spacing
+            if self.controls_img:
+                img_rect = self.controls_img.get_rect(center=(sw // 2, sh // 2))
+                surface.blit(self.controls_img, img_rect)
+                btn_y = img_rect.bottom + 40
+            else:
+                btn_y = sh // 2 + 100
+                
+            self._draw_pure_buttons(surface, ["BACK"], btn_y, sw, width=450, height=65)
 
         # Credits werden immer ganz unten angezeigt, unabhängig vom Status
         self._draw_credits(surface, sw, sh)

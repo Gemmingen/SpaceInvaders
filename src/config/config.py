@@ -56,7 +56,7 @@ MINIBOSS_COOP_HEALTH_MULTIPLIER = 2.0  # Boss health multiplier for 2-player sto
 
 # --- Update BossSmall2 (Level 2) Attack Pattern Settings ---
 BOSS2_LASER_SPEED = 5
-BOSS2_LASER_SPEED_INCREMENT = 5      # How much faster the laser moves after each attack cycle
+BOSS2_LASER_SPEED_INCREMENT = 3      # How much faster the laser moves after each attack cycle
 BOSS2_LASER_MAX_SPEED = 10            # Maximum speed cap for the laser
 BOSS2_LASER_SPAWN_INTERVAL_DECREMENT = 0.2 # Decreases the spawn interval by 0.15s each phase
 BOSS2_LASER_MIN_SPAWN_INTERVAL = 0.9       # Minimum delay between lasers (cap)

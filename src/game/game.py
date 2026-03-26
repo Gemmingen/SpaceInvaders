@@ -1359,12 +1359,15 @@ class Game:
                     self.leds.send_effect("A", "pulse", 99, 0, 255, 0, speed=20, repeat=10, priority=1)
                     
                     # Maximale Auswahl basierend auf Menü-Tiefe
+                    # Maximale Auswahl basierend auf Menü-Tiefe
                     if self.main_menu.state == "MAIN":
-                        max_sel = 2
+                        max_sel = 3
                     elif self.main_menu.state == "SINGLEPLAYER":
                         max_sel = 3
-                    else: # MULTIPLAYER
+                    elif self.main_menu.state == "MULTIPLAYER":
                         max_sel = 4
+                    elif self.main_menu.state == "CONTROLS":
+                        max_sel = 1
 
                     if event.type == pygame.KEYDOWN:
                         # --- NAVIGATION ---
@@ -1384,7 +1387,6 @@ class Game:
                         # --- BESTÄTIGUNG ---
                         elif event.key in (pygame.K_SPACE, pygame.K_RETURN, pygame.K_KP0):
                             
-                            # 1. Ebene: MAIN
                             if self.main_menu.state == "MAIN":
                                 if self.menu_selection == 0:
                                     self.main_menu.state = "SINGLEPLAYER"
@@ -1392,6 +1394,15 @@ class Game:
                                 elif self.menu_selection == 1:
                                     self.main_menu.state = "MULTIPLAYER"
                                     self.menu_selection = 0
+                                elif self.menu_selection == 2:
+                                    self.main_menu.state = "CONTROLS"
+                                    self.menu_selection = 0
+                                    
+                            # 2. Ebene: CONTROLS
+                            elif self.main_menu.state == "CONTROLS":
+                                if self.menu_selection == 0: # Back
+                                    self.main_menu.state = "MAIN"
+                                    self.menu_selection = 2
                             
                             # 2. Ebene: SINGLEPLAYER
                             elif self.main_menu.state == "SINGLEPLAYER":
