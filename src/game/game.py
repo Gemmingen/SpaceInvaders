@@ -1008,11 +1008,8 @@ class Game:
                     self.explosions.add(explosion)
                     self.all_sprites.add(explosion)
 
-    def _draw_hud(self):
-        score_surf = self.font.render(f"Score: {self.score}", True, (255, 255, 255))
-        lives_surf = self.font.render(f"Lives: {self.lives}", True, (255, 255, 255))
-        self.screen.blit(score_surf, (10, 10))
-        self.screen.blit(lives_surf, (SCREEN_WIDTH - lives_surf.get_width() - 10, 10))
+    def _draw_hud(self): #Legacy Function, dont remove
+        return
 
     def _draw_planet(self):
         planet_img = self.planets.get(self.planet_index)
@@ -1756,13 +1753,26 @@ class Game:
                 pass
 
     def _draw_side_scoreboards(self, start_x, start_y, sw, sh, content_w, content_h):
-        """Draws the scoreboards in the black bars in an authentic arcade style."""
-        if start_x < 160:  # Don't draw if the black bars are too thin
+        """Draws the scoreboards in the black bars in an authentic arcade style, scaling dynamically."""
+        # 1. Establish a baseline scale relative to a "standard" window size (e.g., 320px sidebar, 720px height)
+        reference_w = 320.0
+        reference_h = 720.0
+        
+        # 2. Find the scaling factor, using min() to ensure it scales uniformly without distortion
+        scale = min(start_x / reference_w, sh / reference_h)
+        
+        # Don't draw if the black bars are too thin to fit legible text
+        if start_x < 100 or scale < 0.3:  
             return
             
-        font_title = pygame.font.Font("assets/headerbar/PressStart2P-Regular.ttf", 16)
-        font_headers = pygame.font.Font("assets/headerbar/PressStart2P-Regular.ttf", 12)
-        font_score = pygame.font.Font("assets/headerbar/PressStart2P-Regular.ttf", 10) 
+        # 3. Scale font sizes dynamically (with a minimum size clamp so it doesn't crash or disappear)
+        title_size = max(6, int(16 * scale))
+        header_size = max(6, int(12 * scale))
+        score_size = max(6, int(10 * scale))
+        
+        font_title = pygame.font.Font("assets/headerbar/PressStart2P-Regular.ttf", title_size)
+        font_headers = pygame.font.Font("assets/headerbar/PressStart2P-Regular.ttf", header_size)
+        font_score = pygame.font.Font("assets/headerbar/PressStart2P-Regular.ttf", score_size) 
         
         # Arcade Colors
         COLOR_TITLE = (0, 255, 255)     # Cyan
@@ -1772,11 +1782,17 @@ class Game:
         
         ranks = ["1ST", "2ND", "3RD", "4TH", "5TH"]
         
-        # Y-Coordinates for layout
-        y_title = sh // 2 - 110
-        y_mode = sh // 2 - 80
-        start_y_scores = sh // 2 - 30
-        line_spacing = 35
+        # 4. Scale Y-Coordinates for vertical layout
+        y_title = sh // 2 - int(110 * scale)
+        y_mode = sh // 2 - int(80 * scale)
+        start_y_scores = sh // 2 - int(30 * scale)
+        line_spacing = int(25 * scale)
+        
+        # 5. Calculate proportional X-Offsets based on the available width (start_x)
+        # This guarantees the columns always stay strictly within the sidebar bounds
+        off_rank = -int(start_x * 0.42)
+        off_name = -int(start_x * 0.22)
+        off_score = int(start_x * 0.05)
         
         # --- Left Side: Single Player ---
         left_center = start_x // 2
@@ -1792,10 +1808,9 @@ class Game:
         for i in range(5):
             rank_text = ranks[i]
             if i < len(self.cached_sp_scores):
-                name = self.cached_sp_scores[i].get('name', '---')[:10] # Cap length to keep it clean
+                name = self.cached_sp_scores[i].get('name', '---')[:10]
                 score_val = str(self.cached_sp_scores[i].get('score', 0))
                 
-                # Check if it's endless mode and the wave data exists
                 if self.game_mode == "endless" and 'wave' in self.cached_sp_scores[i]:
                     wave_val = self.cached_sp_scores[i]['wave']
                     score = f"{score_val} (W{wave_val})"
@@ -1805,21 +1820,19 @@ class Game:
                 name = "---"
                 score = "0"
                 
-            # Formatting strings to fixed widths for grid alignment
             name_str = f"{name:<10}"
-            score_str = f"{score:>10}" # Increased width to fit wave text
+            score_str = f"{score:>10}"
             
             color = COLOR_HEADER if i == 0 else COLOR_SCORE
             
-            # Render text surfaces
             r_surf = font_score.render(rank_text, True, color)
             n_surf = font_score.render(name_str, True, color)
             s_surf = font_score.render(score_str, True, color)
             
-            # Blit columns using math relative to the center
-            self.display.blit(r_surf, (left_center - 140, start_y_scores + i * line_spacing))
-            self.display.blit(n_surf, (left_center - 80, start_y_scores + i * line_spacing))
-            self.display.blit(s_surf, (left_center + 40, start_y_scores + i * line_spacing))
+            # Blit columns using the new proportional offsets
+            self.display.blit(r_surf, (left_center + off_rank, start_y_scores + i * line_spacing))
+            self.display.blit(n_surf, (left_center + off_name, start_y_scores + i * line_spacing))
+            self.display.blit(s_surf, (left_center + off_score, start_y_scores + i * line_spacing))
 
         # --- Right Side: Multiplayer ---
         right_center = start_x + content_w + start_x // 2
@@ -1838,7 +1851,6 @@ class Game:
                 name = self.cached_mp_scores[i].get('name', '---')[:10]
                 score_val = str(self.cached_mp_scores[i].get('score', 0))
                 
-                # Check if it's endless mode and the wave data exists
                 if self.game_mode == "endless" and 'wave' in self.cached_mp_scores[i]:
                     wave_val = self.cached_mp_scores[i]['wave']
                     score = f"{score_val} W{wave_val}"
@@ -1848,18 +1860,16 @@ class Game:
                 name = "---"
                 score = "0"
                 
-            # Formatting strings to fixed widths for grid alignment
             name_str = f"{name:<10}"
-            score_str = f"{score:>10}" # Increased width to fit wave text
+            score_str = f"{score:>10}"
             
             color = COLOR_TITLE if i == 0 else COLOR_SCORE
             
-            # Render text surfaces
             r_surf = font_score.render(rank_text, True, color)
             n_surf = font_score.render(name_str, True, color)
             s_surf = font_score.render(score_str, True, color)
             
-            # Blit columns using math relative to the center
-            self.display.blit(r_surf, (right_center - 140, start_y_scores + i * line_spacing))
-            self.display.blit(n_surf, (right_center - 80, start_y_scores + i * line_spacing))
-            self.display.blit(s_surf, (right_center + 40, start_y_scores + i * line_spacing))
+            # Blit columns using the new proportional offsets
+            self.display.blit(r_surf, (right_center + off_rank + 10, start_y_scores + i * line_spacing))
+            self.display.blit(n_surf, (right_center + off_name + 10, start_y_scores + i * line_spacing))
+            self.display.blit(s_surf, (right_center + off_score + 10, start_y_scores + i * line_spacing))
