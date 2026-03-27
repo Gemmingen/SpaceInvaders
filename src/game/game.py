@@ -794,7 +794,7 @@ class Game:
         if hits:
             self.enemy_explosion.play()
             for seg in range(1, 5):
-                self.leds.send_effect("A", "blink", seg, 200, 255, 0, speed=1, repeat=10, priority=2)
+                self.leds.send_effect("A", "blink", seg, 255, 100, 0, speed=1, repeat=10, priority=2)
                 
             for enemy, bullets in hits.items():
                 explosion = Explosion(enemy.rect.centerx, enemy.rect.centery)
@@ -820,8 +820,8 @@ class Game:
         
         bonushits = pygame.sprite.groupcollide(self.ufo_group, self.player_bullets, True, False)
         if bonushits:
-            for seg in range(1, 6):
-                self.leds.send_effect("A", "blink", seg, 255, 0, 0, speed=2, repeat=2, priority=4)
+            for seg in range(0, 6):
+                self.leds.send_effect("A", "blink", seg, 255, 0, 0, speed=2, repeat=5, priority=3)
             for ufo, bullets in bonushits.items():
                 self.score += random.choice(UFO_SCORE_OPTIONS)
                 explosion = Explosion(ufo.rect.centerx, ufo.rect.centery, size=48)
@@ -904,7 +904,7 @@ class Game:
                     self.leds.send_effect("A", "blink", seg, 255, 0, 0, speed=1, repeat=10, priority=2)
             else:
                 self.game_over.play()
-                self.leds.send_effect("A", "wipe", 99, 255, 0, 0, speed=50, repeat=1, priority=4)
+                self.leds.send_effect("A", "wipe", 99, 255, 0, 0, speed=50, repeat=1, priority=3)
                 
                 for player in self.active_players:
                     explosion = Explosion(player.rect.centerx, player.rect.centery)
@@ -965,7 +965,7 @@ class Game:
             powerup_hits = pygame.sprite.spritecollide(player, self.powerups, True)
             if powerup_hits:
                 self.collect_points_sound.play()
-                self.leds.send_effect("A", "blink", 1, 0, 255, 255, speed=10, repeat=5, priority=5)
+                self.leds.send_effect("A", "blink", 1, 0, 255, 255, speed=10, repeat=5, priority=2)
                 for pu in powerup_hits:
                     effect = CollectEffect(pu.rect.centerx, pu.rect.centery)
                     self.explosions.add(effect)
@@ -1137,8 +1137,8 @@ class Game:
         self.level_cleared_timer = 0
         self.state = self.STATE_PLAYING
         self.leds.send_effect("A", "pulse", 99, 0, 255, 0, speed=50, repeat=0, priority=1)
-        
-        self.transitioning_back_timer = 2 * FPS 
+
+        self.transitioning_back_timer = 2 * FPS
 
     def increase_level(self):
         if self.mini_boss_spawned:
@@ -1596,7 +1596,7 @@ class Game:
                         effect = CollectEffect(item.rect.centerx, item.rect.centery)
                         self.explosions.add(effect)
                         self.all_sprites.add(effect)
-                        self.leds.send_effect("A", "blink", 1, 255, 255, 0, speed=10, repeat=3, priority=5)
+                        self.leds.send_effect("A", "blink", 1, 0, 0, 255, speed=10, repeat=3, priority=2)
                 
                 if self.transition_state == "amplify":
                     target_y = SCREEN_HEIGHT * TRANSITION_PLAYER_Y_AMPLIFY_PCT
