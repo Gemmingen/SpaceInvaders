@@ -353,6 +353,8 @@ class Game:
             self.boards = None
             self._reset_board(None)
 
+        self.update_cached_highscores()
+
     def _reset_board(self, b_id):
         self.score = 0
         self.level = TEST_START_LEVEL
@@ -1503,7 +1505,7 @@ class Game:
                                     if len(self.player1_name) > 0:
                                         self.p1_done = True
                                 else:
-                                    if len(self.player1_name) < 12: 
+                                    if len(self.player1_name) < 8: 
                                         self.player1_name += char
                                         
                         if self.num_players == 2 and not self.p2_done:
@@ -1521,7 +1523,7 @@ class Game:
                                     if len(self.player2_name) > 0:
                                         self.p2_done = True
                                 else:
-                                    if len(self.player2_name) < 12: 
+                                    if len(self.player2_name) < 8: 
                                         self.player2_name += char
 
                         if (self.num_players == 1 and self.p1_done) or (self.num_players == 2 and self.p1_done and self.p2_done):
@@ -1735,7 +1737,7 @@ class Game:
         self.update_cached_highscores()
 
     def update_cached_highscores(self):
-        """Reads highscores from disk and caches them to avoid lag during rendering."""
+        """Reads highscores from disk, sorts them by score descending, and caches them to avoid lag during rendering."""
         base_path = os.path.dirname(os.path.abspath(__file__))
         root_path = os.path.dirname(os.path.dirname(base_path))
         sp_filename = os.path.join(root_path, "highscores_sp.json")
@@ -1751,7 +1753,10 @@ class Game:
             try:
                 with open(sp_filename, "r") as f:
                     data = json.load(f)
-                    self.cached_sp_scores = data.get(sp_key, [])
+                    scores = data.get(sp_key, [])
+                    # Force sort descending by score to ensure correct ranking layout
+                    scores.sort(key=lambda x: x.get("score", 0), reverse=True)
+                    self.cached_sp_scores = scores
             except Exception:
                 pass
                 
@@ -1759,7 +1764,10 @@ class Game:
             try:
                 with open(mp_filename, "r") as f:
                     data = json.load(f)
-                    self.cached_mp_scores = data.get(mp_key, [])
+                    scores = data.get(mp_key, [])
+                    # Force sort descending by score to ensure correct ranking layout
+                    scores.sort(key=lambda x: x.get("score", 0), reverse=True)
+                    self.cached_mp_scores = scores
             except Exception:
                 pass
 
@@ -1786,11 +1794,10 @@ class Game:
         font_score = pygame.font.Font("assets/headerbar/PressStart2P-Regular.ttf", score_size) 
         
         # Arcade Colors
-        COLOR_TITLE = (0, 255, 255)     # Cyan
-        COLOR_HEADER = (255, 215, 0)    # Gold
+        COLOR_TITLE = (255, 255, 255)     # Cyan
+        COLOR_HEADER = (189, 168, 53)    # Gold
         COLOR_SCORE = (255, 255, 255)   # White
-        COLOR_RANK_1 = (255, 0, 0)      # Red for 1st place
-        
+        COLOR_SP = (192, 192, 192)                      #Silver 
         ranks = ["1ST", "2ND", "3RD", "4TH", "5TH"]
         
         # 4. Scale Y-Coordinates for vertical layout
@@ -1802,17 +1809,26 @@ class Game:
         # 5. Calculate proportional X-Offsets based on the available width (start_x)
         # This guarantees the columns always stay strictly within the sidebar bounds
         off_rank = -int(start_x * 0.42)
-        off_name = -int(start_x * 0.22)
-        off_score = int(start_x * 0.05)
+        off_name = -int(start_x * 0.33)   # Name starts at 17% of sidebar width
+        off_score = int(start_x * 0.18)   # Score starts at 68% of sidebar width
+        
+        # --- Safety width thresholds based on the new layout spacing ---
+        max_rank_w = int(start_x * 0.09)   # 10% width for short strings like "1ST"
+        max_name_w = int(start_x * 0.48)   # Expanded to 48% width specifically for long team names!
+        max_score_w = int(start_x * 0.30)  # 30% width for scores and wave text
         
         # --- Left Side: Single Player ---
         left_center = start_x // 2
         
         # Titles
-        title_left = font_title.render("1-PLAYER", True, COLOR_HEADER)
+        title_left = font_title.render("1-PLAYER", True, COLOR_SP)
+        if title_left.get_width() > start_x - 20:
+            title_left = pygame.transform.scale(title_left, (start_x - 20, int(title_left.get_height() * ((start_x - 20) / title_left.get_width()))))
         self.display.blit(title_left, title_left.get_rect(center=(left_center, y_title)))
         
-        mode_left = font_headers.render(f"({self.game_mode.upper()})", True, COLOR_HEADER)
+        mode_left = font_headers.render(f"({self.game_mode.upper()})", True, COLOR_SP)
+        if mode_left.get_width() > start_x - 20:
+            mode_left = pygame.transform.scale(mode_left, (start_x - 20, int(mode_left.get_height() * ((start_x - 20) / mode_left.get_width()))))
         self.display.blit(mode_left, mode_left.get_rect(center=(left_center, y_mode)))
         
         # Highscores Left
@@ -1834,11 +1850,19 @@ class Game:
             name_str = f"{name:<10}"
             score_str = f"{score:>10}"
             
-            color = COLOR_HEADER if i == 0 else COLOR_SCORE
+            color = COLOR_SP if i == 0 else COLOR_SCORE
             
-            r_surf = font_score.render(rank_text, True, color)
+            r_surf = font_score.render(rank_text, True, COLOR_HEADER)
             n_surf = font_score.render(name_str, True, color)
             s_surf = font_score.render(score_str, True, color)
+            
+            # Auto-downscale individual components if they surpass column safety margins
+            if r_surf.get_width() > max_rank_w:
+                r_surf = pygame.transform.scale(r_surf, (max_rank_w, int(r_surf.get_height() * (max_rank_w / r_surf.get_width()))))
+            if n_surf.get_width() > max_name_w:
+                n_surf = pygame.transform.scale(n_surf, (max_name_w, int(n_surf.get_height() * (max_name_w / n_surf.get_width()))))
+            if s_surf.get_width() > max_score_w:
+                s_surf = pygame.transform.scale(s_surf, (max_score_w, int(s_surf.get_height() * (max_score_w / s_surf.get_width()))))
             
             # Blit columns using the new proportional offsets
             self.display.blit(r_surf, (left_center + off_rank, start_y_scores + i * line_spacing))
@@ -1850,21 +1874,25 @@ class Game:
         
         # Titles
         title_right = font_title.render("2-PLAYER", True, COLOR_TITLE)
+        if title_right.get_width() > start_x - 20:
+            title_right = pygame.transform.scale(title_right, (start_x - 20, int(title_right.get_height() * ((start_x - 20) / title_right.get_width()))))
         self.display.blit(title_right, title_right.get_rect(center=(right_center, y_title)))
         
         mode_right = font_headers.render(f"({self.game_mode.upper()})", True, COLOR_TITLE)
+        if mode_right.get_width() > start_x - 20:
+            mode_right = pygame.transform.scale(mode_right, (start_x - 20, int(mode_right.get_height() * ((start_x - 20) / mode_right.get_width()))))
         self.display.blit(mode_right, mode_right.get_rect(center=(right_center, y_mode)))
         
         # Highscores Right
         for i in range(5):
             rank_text = ranks[i]
             if i < len(self.cached_mp_scores):
-                name = self.cached_mp_scores[i].get('name', '---')[:10]
+                name = self.cached_mp_scores[i].get('name', '---')[:20]
                 score_val = str(self.cached_mp_scores[i].get('score', 0))
                 
-                if self.game_mode == "endless" and 'wave' in self.cached_mp_scores[i]:
+                if self.game_mode in ("endless", "versus") and 'wave' in self.cached_mp_scores[i]:
                     wave_val = self.cached_mp_scores[i]['wave']
-                    score = f"{score_val} W{wave_val}"
+                    score = f"{score_val} (W{wave_val})"
                 else:
                     score = score_val
             else:
@@ -1876,9 +1904,17 @@ class Game:
             
             color = COLOR_TITLE if i == 0 else COLOR_SCORE
             
-            r_surf = font_score.render(rank_text, True, color)
+            r_surf = font_score.render(rank_text, True, COLOR_HEADER)
             n_surf = font_score.render(name_str, True, color)
             s_surf = font_score.render(score_str, True, color)
+            
+            # Auto-downscale individual components if they surpass column safety margins
+            if r_surf.get_width() > max_rank_w:
+                r_surf = pygame.transform.scale(r_surf, (max_rank_w, int(r_surf.get_height() * (max_rank_w / r_surf.get_width()))))
+            if n_surf.get_width() > max_name_w:
+                n_surf = pygame.transform.scale(n_surf, (max_name_w, int(n_surf.get_height() * (max_name_w / n_surf.get_width()))))
+            if s_surf.get_width() > max_score_w:
+                s_surf = pygame.transform.scale(s_surf, (max_score_w, int(s_surf.get_height() * (max_score_w / s_surf.get_width()))))
             
             # Blit columns using the new proportional offsets
             self.display.blit(r_surf, (right_center + off_rank + 10, start_y_scores + i * line_spacing))

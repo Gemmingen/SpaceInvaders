@@ -42,10 +42,10 @@ class EndScreen:
         cursor = "_" if cursor_visible else " "
         
         if num_players == 1:
-            self._draw_keyboard(surface, p1_name + (cursor if not p1_done else ""), sel_p1, p1_done, SCREEN_WIDTH // 2, "P1 (WASD/SPACE)")
+            self._draw_keyboard(surface, p1_name + (cursor if not p1_done else ""), sel_p1, p1_done, SCREEN_WIDTH // 2, "P1")
         else:
-            self._draw_keyboard(surface, p1_name + (cursor if not p1_done else ""), sel_p1, p1_done, SCREEN_WIDTH // 4, "P1 (WASD/SPACE)")
-            self._draw_keyboard(surface, p2_name + (cursor if not p2_done else ""), sel_p2, p2_done, (SCREEN_WIDTH * 3) // 4, "P2 (ARROWS/NUM0)")
+            self._draw_keyboard(surface, p1_name + (cursor if not p1_done else ""), sel_p1, p1_done, SCREEN_WIDTH // 4, "P1")
+            self._draw_keyboard(surface, p2_name + (cursor if not p2_done else ""), sel_p2, p2_done, (SCREEN_WIDTH * 3) // 4, "P2")
 
         footer_y = SCREEN_HEIGHT - 60
         r_surf = self.font.render("[R] RESTART", True, (120, 120, 120))
