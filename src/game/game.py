@@ -81,7 +81,7 @@ class Game:
         # --------------------------------------------------------
 
         self.leds = LedController("ws://localhost:8765")
-        self.leds.attract_pause()
+        self.leds.attract_resume()
         self.warning_led_active = False
         pygame.mouse.set_visible(False)
 
@@ -267,6 +267,7 @@ class Game:
             bullet, bunker_group, pygame.sprite.collide_mask
         )
         if hit_bunker:
+            self.leds.effect_si_bunker()
             if isinstance(bullet, Fist) or isinstance(bullet, PoisonGlob):
                 offset_x1 = random.randint(-FIST_EXPLOSION_OFFSET_LARGE, FIST_EXPLOSION_OFFSET_LARGE)
                 offset_y1 = random.randint(-FIST_EXPLOSION_OFFSET_LARGE, FIST_EXPLOSION_OFFSET_LARGE)
@@ -330,7 +331,8 @@ class Game:
             self.all_sprites.add(respawn_effect)
 
     def _reset(self):
-        self.leds.send_effect("A", "pulse", 99, 0, 255, 0, speed=50, repeat=0, priority=1)
+        self.leds.attract_pause()
+        self.leds.effect_sys_start_si()
         self.warning_played = False
         self.warning_led_active = False
 
@@ -571,7 +573,7 @@ class Game:
             self.transition_sound.play()
             self.is_transition_active = True
             self.transition_state = "amplify"
-            self.leds.send_effect("A", "chase", 0, 255, 255, 255, speed=22, repeat=13, priority=2)
+            self.leds.effect_si_transition()
             self.current_speed_factors = list(PARALLAX_SPEED_FACTORS)
             self.decel_normal_frames = 0
             return
@@ -688,6 +690,7 @@ class Game:
         ufo = UFO()
         self.ufo_group.add(ufo)
         self.all_sprites.add(ufo)
+        self.leds.effect_si_ufo_appear()
 
     def _spawn_miniboss(self):
         
@@ -795,8 +798,11 @@ class Game:
         hits = pygame.sprite.groupcollide(self.enemies, self.player_bullets, True, False)
         if hits:
             self.enemy_explosion.play()
+
+            self.leds.effect_si_alien()
             for seg in range(1, 5):
                 self.leds.send_effect("A", "blink", seg, 255, 100, 0, speed=1, repeat=10, priority=2)
+
                 
             for enemy, bullets in hits.items():
                 explosion = Explosion(enemy.rect.centerx, enemy.rect.centery)
@@ -822,6 +828,8 @@ class Game:
         
         bonushits = pygame.sprite.groupcollide(self.ufo_group, self.player_bullets, True, False)
         if bonushits:
+
+            self.leds.effect_si_ufo_hit()
             for seg in range(0, 6):
                 self.leds.send_effect("A", "blink", seg, 255, 0, 0, speed=2, repeat=5, priority=3)
             for ufo, bullets in bonushits.items():
@@ -902,11 +910,13 @@ class Game:
         if player_hit:
             self.sfx_ufo_damage.play()
             if self.lives > 0:
-                for seg in range(1, 5):
-                    self.leds.send_effect("A", "blink", seg, 255, 0, 0, speed=1, repeat=10, priority=2)
+                   self.leds.effect_si_death()
             else:
                 self.game_over.play()
+                self.leds.effect_si_gameover()
+
                 self.leds.send_effect("A", "wipe", 99, 255, 0, 0, speed=50, repeat=1, priority=3)
+
                 
                 for player in self.active_players:
                     explosion = Explosion(player.rect.centerx, player.rect.centery)
@@ -924,13 +934,12 @@ class Game:
         for boss in list(self.miniboss_group):
             hits = pygame.sprite.spritecollide(boss, self.player_bullets, False)
             
+
             for b in hits:
                 hit_explosion = Explosion(boss.rect.centerx, boss.rect.centery, size=48)
                 self.explosions.add(hit_explosion)
                 self.boss_death_sound.play()
                 
-                for seg in range(1, 6):
-                    self.leds.send_effect("A", "blink", seg, 255, 255, 255, speed=1, repeat=2, priority=3)
                 
                 self.all_sprites.add(hit_explosion)
                 
@@ -967,7 +976,9 @@ class Game:
             powerup_hits = pygame.sprite.spritecollide(player, self.powerups, True)
             if powerup_hits:
                 self.collect_points_sound.play()
+
                 self.leds.send_effect("A", "blink", 1, 0, 255, 255, speed=10, repeat=5, priority=2)
+
                 for pu in powerup_hits:
                     effect = CollectEffect(pu.rect.centerx, pu.rect.centery)
                     self.explosions.add(effect)
@@ -1119,7 +1130,7 @@ class Game:
             pygame.mixer.music.stop()
             self._play_music(self.music_victory, 0.7) 
             self.victory_voice.play()
-            self.leds.send_effect("A", "blink", 99, 255, 255, 0, speed=5, repeat=10, priority=3)
+            self.leds.effect_si_wave()
             self.state = self.STATE_VICTORY
             return
             
@@ -1138,6 +1149,10 @@ class Game:
         self.player_shots = 0
         self.level_cleared_timer = 0
         self.state = self.STATE_PLAYING
+        self.leds.effect_si_wave()
+        
+        self.transitioning_back_timer = 2 * FPS 
+
         self.leds.send_effect("A", "pulse", 99, 0, 255, 0, speed=50, repeat=0, priority=1)
 
         self.transitioning_back_timer = 2 * FPS
@@ -1179,7 +1194,7 @@ class Game:
                     }
             current_boss_music = boss_tracks.get(self.level, self.music_boss_1)
             if self.level in [2, 4]:
-                boss_volume = 1.0
+                boss_volume = 1.5
             else:
                 boss_volume = 0.7
             
@@ -1251,6 +1266,7 @@ class Game:
                     self.create_enemy_wave()
                     self.score += 500
                     self._endless_wave_spawned = True
+                    self.leds.effect_si_wave()
                     
                     if self.wave_number % 5 == 0:
                         self.planet_index = (self.planet_index + 1) % self.MAX_LEVEL
@@ -1317,10 +1333,6 @@ class Game:
                 sys.exit()
             # ----------------------------------
             
-            self.led_heartbeat_timer -= 1
-            if self.led_heartbeat_timer <= 0:
-                self.leds.send_effect("A", "pulse", 99, 0, 255, 0, speed=50, repeat=0, priority=1)
-                self.led_heartbeat_timer = 1
                 
             # --- Bestimme den globalen Zustand sicher ---
             current_state = self.state
@@ -1352,13 +1364,13 @@ class Game:
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_m:
                     self.state = self.STATE_MENU
                     current_state = self.STATE_MENU
+                    self.leds.attract_resume()
                     self.p1_done = False  
                     self.p2_done = False
                     continue
                 
                 if current_state == self.STATE_MENU:
                     self._play_music(self.music_intro, 0.7)
-                    self.leds.send_effect("A", "pulse", 99, 0, 255, 0, speed=20, repeat=10, priority=1)
                     
                     # Maximale Auswahl basierend auf Menü-Tiefe
                     # Maximale Auswahl basierend auf Menü-Tiefe
@@ -1530,6 +1542,7 @@ class Game:
                             self.save_highscore()
                             self.state = self.STATE_MENU 
                             current_state = self.STATE_MENU
+                            self.leds.attract_resume()
                             self.p1_done = False
                             self.p2_done = False
 
@@ -1598,7 +1611,11 @@ class Game:
                         effect = CollectEffect(item.rect.centerx, item.rect.centery)
                         self.explosions.add(effect)
                         self.all_sprites.add(effect)
+
+                        self.leds.effect_si_bonusitem()
+
                         self.leds.send_effect("A", "blink", 1, 0, 0, 255, speed=10, repeat=3, priority=2)
+
                 
                 if self.transition_state == "amplify":
                     target_y = SCREEN_HEIGHT * TRANSITION_PLAYER_Y_AMPLIFY_PCT
