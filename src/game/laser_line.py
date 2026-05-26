@@ -82,12 +82,6 @@ class LaserLine(pygame.sprite.Sprite):
         self._target_left_end = self.gap_x - self.gap_width // 2
         self._target_right_start = self.gap_x + self.gap_width // 2
 
-        # Total length of each side
-        total_left_len = max(0, self._target_left_end - self.left_edge)
-        total_right_len = max(0, self.right_edge - self._target_right_start)
-
-        # No segment‑by‑segment building needed – we create full sides instantly
-
         # Group holding the visible segments
         self.segments = pygame.sprite.Group()
 
@@ -95,6 +89,10 @@ class LaserLine(pygame.sprite.Sprite):
         self._pause_counter = BOSS2_CHARGE_FRAMES   # frames to wait before moving (1 second at 60 FPS)
         self.speed = 0                # Downward speed (set after pause finishes)
         self.damage = 1  # LaserLine deals 1 damage to the player (consistent with other projectiles)
+        
+        # --- NEW: Allow speed to be overridden by the Boss ---
+        self.speed_override = None
+        # -----------------------------------------------------
 
         # Create full‑width left and right laser segments immediately
         left_width = max(0, self._target_left_end - self.left_edge)
@@ -106,8 +104,7 @@ class LaserLine(pygame.sprite.Sprite):
             right_seg = LaserSegment(self._target_right_start, y_pos, width=int(right_width))
             self.segments.add(right_seg)
 
-        # Invisible placeholder sprite – required because the game adds the LaserLine
-        # itself to sprite groups for collision handling.
+        # Invisible placeholder sprite
         self.image = pygame.Surface((1, 1), pygame.SRCALPHA)
         self.rect = self.image.get_rect(topleft=(self.left_edge, y_pos))
 
@@ -137,7 +134,12 @@ class LaserLine(pygame.sprite.Sprite):
 
         # Pause finished – start moving the laser downward
         if self.speed == 0:
-            self.speed = BOSS2_LASER_SPEED
+            # --- NEW: Use override if set, otherwise fallback to default ---
+            if self.speed_override is not None:
+                self.speed = self.speed_override
+            else:
+                self.speed = BOSS2_LASER_SPEED
+            # ---------------------------------------------------------------
 
         # -------------------------------------------------------------- #
         # 3️⃣ Normal downward movement after the laser is fully built
