@@ -1314,8 +1314,8 @@ class Game:
     def run(self):
         self.led_heartbeat_timer = 0
         self.last_input_time = pygame.time.get_ticks() # AFK Timer beim Loop-Start resetten
-
-        while True:
+        running = True 
+        while running:
             self.clock.tick(FPS)
             
             # --- AFK-Timer Überprüfung ---
@@ -1329,8 +1329,8 @@ class Game:
             # Nach 3 Minuten ohne Input beenden
             if current_time - self.last_input_time > self.AFK_TIMEOUT_MS:
                 print("AFK-Timer (3 Minuten) abgelaufen. Spiel schließt sich...")
-                pygame.quit()
-                sys.exit()
+                running = False
+                continue
             # ----------------------------------
             
                 
@@ -1354,12 +1354,14 @@ class Game:
                 # -------------------------------------------------
                 
                 if event.type == pygame.QUIT:
-                    pygame.quit()
-                    sys.exit()
+                    running = False
+                  
+                    break
                 
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_q:
-                    pygame.quit()
-                    sys.exit()
+                    running = False
+                    
+                    break
 
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_m:
                     self.state = self.STATE_MENU
@@ -1687,7 +1689,8 @@ class Game:
                     self._draw_end_screen()
                 self.explosions.draw(self.screen)
                 self._present()
-
+        pygame.quit()
+        
     def save_highscore(self):
         if self.game_mode == "versus":
             filename_base = "highscores_mp.json"
@@ -1811,10 +1814,10 @@ class Game:
         font_score = pygame.font.Font("assets/headerbar/PressStart2P-Regular.ttf", score_size) 
         
         # Arcade Colors
-        COLOR_TITLE = (255, 255, 255)     # Cyan
-        COLOR_HEADER = (189, 168, 53)    # Gold
+        COLOR_TITLE = (0, 255, 255)     # Cyan
+        COLOR_HEADER = (255, 215, 0)    # Gold
         COLOR_SCORE = (255, 255, 255)   # White
-        COLOR_SP = (192, 192, 192)                      #Silver 
+        
         ranks = ["1ST", "2ND", "3RD", "4TH", "5TH"]
         
         # 4. Scale Y-Coordinates for vertical layout
@@ -1823,27 +1826,34 @@ class Game:
         start_y_scores = sh // 2 - int(30 * scale)
         line_spacing = int(25 * scale)
         
-        # 5. Calculate proportional X-Offsets based on the available width (start_x)
-        # This guarantees the columns always stay strictly within the sidebar bounds
-        off_rank = -int(start_x * 0.42)
-        off_name = -int(start_x * 0.33)   # Name starts at 17% of sidebar width
-        off_score = int(start_x * 0.18)   # Score starts at 68% of sidebar width
-        
-        # --- Safety width thresholds based on the new layout spacing ---
-        max_rank_w = int(start_x * 0.09)   # 10% width for short strings like "1ST"
-        max_name_w = int(start_x * 0.48)   # Expanded to 48% width specifically for long team names!
-        max_score_w = int(start_x * 0.30)  # 30% width for scores and wave text
-        
-        # --- Left Side: Single Player ---
+        # 5. Separate layout definitions for Singleplayer (Compact) vs Multiplayer (Spacious)
+        # --- LEFT SIDE: COMPACT SINGLEPLAYER LAYOUT ---
         left_center = start_x // 2
+        off_rank_sp = -int(start_x * 0.32)  
+        off_name_sp = -int(start_x * 0.16)  
+        off_score_sp = int(start_x * 0.12)  
         
-        # Titles
-        title_left = font_title.render("1-PLAYER", True, COLOR_SP)
+        max_rank_w_sp = int(start_x * 0.12)
+        max_name_w_sp = int(start_x * 0.26) # Compacted tracking space for 1-Player names
+        max_score_w_sp = int(start_x * 0.22)
+        
+        # --- RIGHT SIDE: SPACIOUS MULTIPLAYER LAYOUT (AS IS) ---
+        right_center = start_x + content_w + start_x // 2
+        off_rank_mp = -int(start_x * 0.42)   
+        off_name_mp = -int(start_x * 0.33)   
+        off_score_mp = int(start_x * 0.20)   
+        
+        max_rank_w_mp = int(start_x * 0.10)   
+        max_name_w_mp = int(start_x * 0.48) # Kept wide specifically for long team names!
+        max_score_w_mp = int(start_x * 0.30)  
+     
+        # --- Left Side: Single Player ---
+        title_left = font_title.render("1-PLAYER", True, COLOR_HEADER)
         if title_left.get_width() > start_x - 20:
             title_left = pygame.transform.scale(title_left, (start_x - 20, int(title_left.get_height() * ((start_x - 20) / title_left.get_width()))))
         self.display.blit(title_left, title_left.get_rect(center=(left_center, y_title)))
         
-        mode_left = font_headers.render(f"({self.game_mode.upper()})", True, COLOR_SP)
+        mode_left = font_headers.render(f"({self.game_mode.upper()})", True, COLOR_HEADER)
         if mode_left.get_width() > start_x - 20:
             mode_left = pygame.transform.scale(mode_left, (start_x - 20, int(mode_left.get_height() * ((start_x - 20) / mode_left.get_width()))))
         self.display.blit(mode_left, mode_left.get_rect(center=(left_center, y_mode)))
@@ -1867,29 +1877,25 @@ class Game:
             name_str = f"{name:<10}"
             score_str = f"{score:>10}"
             
-            color = COLOR_SP if i == 0 else COLOR_SCORE
+            color = COLOR_HEADER if i == 0 else COLOR_SCORE
             
-            r_surf = font_score.render(rank_text, True, COLOR_HEADER)
+            r_surf = font_score.render(rank_text, True, color)
             n_surf = font_score.render(name_str, True, color)
             s_surf = font_score.render(score_str, True, color)
             
-            # Auto-downscale individual components if they surpass column safety margins
-            if r_surf.get_width() > max_rank_w:
-                r_surf = pygame.transform.scale(r_surf, (max_rank_w, int(r_surf.get_height() * (max_rank_w / r_surf.get_width()))))
-            if n_surf.get_width() > max_name_w:
-                n_surf = pygame.transform.scale(n_surf, (max_name_w, int(n_surf.get_height() * (max_name_w / n_surf.get_width()))))
-            if s_surf.get_width() > max_score_w:
-                s_surf = pygame.transform.scale(s_surf, (max_score_w, int(s_surf.get_height() * (max_score_w / s_surf.get_width()))))
+            # Dynamic scaling using compact singleplayer thresholds
+            if r_surf.get_width() > max_rank_w_sp:
+                r_surf = pygame.transform.scale(r_surf, (max_rank_w_sp, int(r_surf.get_height() * (max_rank_w_sp / r_surf.get_width()))))
+            if n_surf.get_width() > max_name_w_sp:
+                n_surf = pygame.transform.scale(n_surf, (max_name_w_sp, int(n_surf.get_height() * (max_name_w_sp / n_surf.get_width()))))
+            if s_surf.get_width() > max_score_w_sp:
+                s_surf = pygame.transform.scale(s_surf, (max_score_w_sp, int(s_surf.get_height() * (max_score_w_sp / s_surf.get_width()))))
             
-            # Blit columns using the new proportional offsets
-            self.display.blit(r_surf, (left_center + off_rank, start_y_scores + i * line_spacing))
-            self.display.blit(n_surf, (left_center + off_name, start_y_scores + i * line_spacing))
-            self.display.blit(s_surf, (left_center + off_score, start_y_scores + i * line_spacing))
+            self.display.blit(r_surf, (left_center + off_rank_sp, start_y_scores + i * line_spacing))
+            self.display.blit(n_surf, (left_center + off_name_sp, start_y_scores + i * line_spacing))
+            self.display.blit(s_surf, (left_center + off_score_sp, start_y_scores + i * line_spacing))
 
         # --- Right Side: Multiplayer ---
-        right_center = start_x + content_w + start_x // 2
-        
-        # Titles
         title_right = font_title.render("2-PLAYER", True, COLOR_TITLE)
         if title_right.get_width() > start_x - 20:
             title_right = pygame.transform.scale(title_right, (start_x - 20, int(title_right.get_height() * ((start_x - 20) / title_right.get_width()))))
@@ -1921,19 +1927,18 @@ class Game:
             
             color = COLOR_TITLE if i == 0 else COLOR_SCORE
             
-            r_surf = font_score.render(rank_text, True, COLOR_HEADER)
+            r_surf = font_score.render(rank_text, True, color)
             n_surf = font_score.render(name_str, True, color)
             s_surf = font_score.render(score_str, True, color)
             
-            # Auto-downscale individual components if they surpass column safety margins
-            if r_surf.get_width() > max_rank_w:
-                r_surf = pygame.transform.scale(r_surf, (max_rank_w, int(r_surf.get_height() * (max_rank_w / r_surf.get_width()))))
-            if n_surf.get_width() > max_name_w:
-                n_surf = pygame.transform.scale(n_surf, (max_name_w, int(n_surf.get_height() * (max_name_w / n_surf.get_width()))))
-            if s_surf.get_width() > max_score_w:
-                s_surf = pygame.transform.scale(s_surf, (max_score_w, int(s_surf.get_height() * (max_score_w / s_surf.get_width()))))
+            # Dynamic scaling using spacious multiplayer thresholds
+            if r_surf.get_width() > max_rank_w_mp:
+                r_surf = pygame.transform.scale(r_surf, (max_rank_w_mp, int(r_surf.get_height() * (max_rank_w_mp / r_surf.get_width()))))
+            if n_surf.get_width() > max_name_w_mp:
+                n_surf = pygame.transform.scale(n_surf, (max_name_w_mp, int(n_surf.get_height() * (max_name_w_mp / n_surf.get_width()))))
+            if s_surf.get_width() > max_score_w_mp:
+                s_surf = pygame.transform.scale(s_surf, (max_score_w_mp, int(s_surf.get_height() * (max_score_w_mp / s_surf.get_width()))))
             
-            # Blit columns using the new proportional offsets
-            self.display.blit(r_surf, (right_center + off_rank + 10, start_y_scores + i * line_spacing))
-            self.display.blit(n_surf, (right_center + off_name + 10, start_y_scores + i * line_spacing))
-            self.display.blit(s_surf, (right_center + off_score + 10, start_y_scores + i * line_spacing))
+            self.display.blit(r_surf, (right_center + off_rank_mp, start_y_scores + i * line_spacing))
+            self.display.blit(n_surf, (right_center + off_name_mp, start_y_scores + i * line_spacing))
+            self.display.blit(s_surf, (right_center + off_score_mp, start_y_scores + i * line_spacing))
