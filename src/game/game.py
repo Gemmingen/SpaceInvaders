@@ -566,7 +566,6 @@ class Game:
         self.bonus_items.add(item)
         self.all_sprites.add(item)
 
-    
     def _run_transition(self):
         if not self.is_transition_active:
             self.transition_sound.play()
@@ -607,20 +606,13 @@ class Game:
             if all(abs(f - AMPLIFY_MAX_FACTOR) < 1e-5 for f in self.current_speed_factors):
                 self.current_background_layers = self.transition_background
                 self.transition_state = "hold"
-                
-                # --- ANPASSUNG: Berechnet die Haltezeit passend zu den 3.8s der LEDs ---
-                # 3.0 Sekunden reine Flugzeit im Tunnel (Rest wird für Beschleunigung/Bremsen gebraucht)
-                self.transition_timer = int(3.0 * FPS) 
-                self.total_hold_duration = self.transition_timer # Merken für Item-Spawns
-                return
+                self.transition_timer = TRANSITION_HOLD_FRAMES
+            return
 
         if self.transition_state == "hold":
-            # --- ANPASSUNG: Dynamische Item-Spawns basierend auf der neuen Länge ---
-            # Erstes Item erscheint relativ früh im Warp-Tunnel
-            if self.transition_timer == self.total_hold_duration - 15:
+            if self.transition_timer == TRANSITION_HOLD_FRAMES - 10:
                 self._spawn_bonus_item()
-            # Zweites Item erscheint genau in der Mitte des Tunnels
-            if self.transition_timer == self.total_hold_duration // 2:
+            if self.transition_timer == TRANSITION_HOLD_FRAMES - 90:
                 self._spawn_bonus_item()
                 
             self.transition_timer -= 1
@@ -634,7 +626,6 @@ class Game:
             )
             if all(abs(f - THRESHOLD_FACTOR) < 1e-5 for f in self.current_speed_factors):
                 self.transition_state = "decel_to_normal"
-                self.transition_timer = 160
             return
 
         if self.transition_state == "decel_to_normal":
@@ -669,16 +660,12 @@ class Game:
                     
             self.current_speed_factors = new_factors
 
-            # ─── HIER WIRD DIE TRANSITION BEENDET ───
             if all_reached:
                 self._spawn_miniboss()
                 self.mini_boss_spawned = True
                 self.is_transition_active = False
                 self.transition_state = None
                 self.state = self.STATE_PLAYING
-                
-                # FIX: LEDs genau in diesem Frame ausschalten!
-                self.leds.effect_si_transition_clear() 
                 
                 if self.next_planet_sliding and self.next_planet_index is not None:
                     self.planet_index = self.next_planet_index

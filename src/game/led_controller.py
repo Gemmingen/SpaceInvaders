@@ -186,7 +186,4 @@ class LedController:
             self.send_effect(chain="A", effect_type="wipe", segment=99, r=255, g=0, b=0, speed=30, repeat=1, priority=4, event_key="player_death", auto_clear_duration=0.8)
 
     def effect_si_transition(self):
-        self.send_effect(chain="A", effect_type="wipe", segment=99, r=255, g=255, b=255, speed=20, repeat=0, priority=4, event_key="warp_transition")
-    def effect_si_transition_clear(self):
-        # Schaltet den Warp-Effekt sofort und sauber ab (Schwarz)
-        self.send_effect(chain="A", effect_type="fill", segment=99, r=0, g=0, b=0, priority=4, event_key="warp_transition")
+        self.send_effect(chain="A", effect_type="pulse", segment=99, r=150, g=230, b=255, speed=5, repeat=20, priority=4, event_key="warp_transition",auto_clear_duration=2.5)
