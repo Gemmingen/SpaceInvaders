@@ -212,7 +212,7 @@ class MainMenu:
         else:
             # Iteriere durch die Einträge und rendere sie als Liste (z.B. "1.NAME-1000")
             for i, entry in enumerate(scores):
-                name = entry.get('name', '???')[:8] # Name auf maximal 8 Zeichen begrenzen
+                name = entry.get('name', '???')[:19] # Name auf maximal 8 Zeichen begrenzen
                 points = entry.get('score', 0)
                 txt = f"{i+1}.{name}-{points}"
                 s_surf = font.render(txt, True, (255, 255, 255))
