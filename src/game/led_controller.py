@@ -22,6 +22,7 @@ class LedController:
             "ufo_appear": 0.5,
             "ufo_hit": 0.3,
             "menu_nav": 0.05,
+            "warp_transition": 4.0,
             # Fallbacks für rohe Effekttypen
             "sparkle": 0.05,
             "pulse": 0.05,
@@ -159,17 +160,12 @@ class LedController:
     def effect_si_death(self):
         self.send_effect(chain="A", effect_type="blink", segment=99, r=255, g=0, b=0, speed=150, repeat=2, priority=4, event_key="player_death", auto_clear_duration=0.5)
 
-    def effect_si_gameover(self):
-        self.send_effect(chain="A", effect_type="fill", segment=99, r=255, g=0, b=0, speed=100, repeat=1, priority=5, event_key="game_over")
 
     def effect_si_powerup(self):
         self.send_effect(chain="A", effect_type="blink", segment=1, r=0, g=255, b=255, speed=10, repeat=5, priority=5, event_key="powerup_collect", auto_clear_duration=0.4)
 
     def effect_si_bonusitem(self):  
         self.send_effect(chain="A", effect_type="blink", segment=1, r=255, g=255, b=0, speed=10, repeat=3, priority=5, event_key="bonus_collect", auto_clear_duration=0.4)
-
-    def effect_si_transition(self):
-        self.send_effect(chain="A", effect_type="chase", segment=0, r=255, g=255, b=255, speed=22, repeat=13, priority=4, event_key="warp_transition", auto_clear_duration=1.8)
 
     def effect_menu_nav(self):
         self.send_effect(chain="A", effect_type="pulse", segment=1, r=255, g=215, b=0, speed=150, repeat=1,priority=3, event_key="menu_nav", auto_clear_duration=0.1)
@@ -186,3 +182,11 @@ class LedController:
         color = boss_colors.get(level, {"r": 255, "g": 255, "b": 255})
     
         self.send_effect(chain="A", effect_type="blink", segment=99, r=color["r"], g=color["g"], b=color["b"],speed=130,repeat=1, priority=4, event_key="boss_hit", auto_clear_duration=0.15)
+    def effect_si_gameover(self):
+            self.send_effect(chain="A", effect_type="wipe", segment=99, r=255, g=0, b=0, speed=30, repeat=1, priority=4, event_key="player_death", auto_clear_duration=0.8)
+
+    def effect_si_transition(self):
+        self.send_effect(chain="A", effect_type="wipe", segment=99, r=255, g=255, b=255, speed=20, repeat=0, priority=4, event_key="warp_transition")
+    def effect_si_transition_clear(self):
+        # Schaltet den Warp-Effekt sofort und sauber ab (Schwarz)
+        self.send_effect(chain="A", effect_type="fill", segment=99, r=0, g=0, b=0, priority=4, event_key="warp_transition")
