@@ -13,10 +13,18 @@ class LedController:
         self._thread = threading.Thread(target=self._run_loop, daemon=True)
         self._thread.start()
 
-        # Cooldowns in Sekunden pro Effekttyp
+        # --- FIX: Event-basierte Cooldowns (in Sekunden) ---
+        # Gibt den Animationen genug Zeit, ihre Frames zu zeigen, ohne unterbrochen zu werden
         self._cooldowns = {
+            "boss_hit": 0.08,
+            "alien_hit": 0.18,   
+            "bunker_hit": 0.15,  
+            "ufo_appear": 0.5,
+            "ufo_hit": 0.3,
+            "menu_nav": 0.05,
+            # Fallbacks für rohe Effekttypen
             "sparkle": 0.05,
-            "pulse": 0.1,
+            "pulse": 0.05,
             "wipe": 0.2,
             "blink": 0.05,
             "chase": 0.1,
@@ -45,12 +53,14 @@ class LedController:
                 self._connected_event.clear()
                 await asyncio.sleep(2)
 
-    def send_effect(self, chain, effect_type, segment, r, g, b, speed=100, length=5, repeat=1, dir=1, priority=2, event_key=None):
-        """Sendet einen Effekt mit verbessertem, event-basiertem Spam-Schutz."""
+    def send_effect(self, chain, effect_type, segment, r, g, b, speed=100, length=5, repeat=1, dir=1, priority=2, event_key=None, auto_clear_duration=0.0):
+        """Sendet einen Effekt mit intelligentem, Event-spezifischem Spam-Schutz."""
         current_time = time.time()
         
         cooldown_key = event_key if event_key else effect_type
-        cd = self._cooldowns.get(effect_type, 0)
+        
+        # Erst nach Event-Key-Spezifischem Cooldown suchen, sonst Fallback auf Effect-Type
+        cd = self._cooldowns.get(cooldown_key, self._cooldowns.get(effect_type, 0))
         
         if cd > 0 and (current_time - self._last_sent.get(cooldown_key, 0) < cd):
             return
@@ -71,6 +81,39 @@ class LedController:
         }
         self._safe_send(json.dumps(payload))
 
+        # Nach Ablauf der Animation ein "Clear" (Schwarz) senden
+        if auto_clear_duration > 0.0 and cooldown_key:
+            self._loop.call_soon_threadsafe(
+                lambda: asyncio.create_task(
+                    self._async_delayed_clear(cooldown_key, auto_clear_duration, chain, segment, priority)
+                )
+            )
+
+    async def _async_delayed_clear(self, event_key, duration, chain, segment, priority):
+        """Wartet, bis die Animation sicher vorbei ist, und schaltet ab (falls kein neuer Hit kam)."""
+        trigger_time = self._last_sent.get(event_key, 0)
+        await asyncio.sleep(duration)
+        
+        # Nur abschalten, wenn in der Zwischenzeit kein neuerer Hit registriert wurde
+        if self._last_sent.get(event_key, 0) == trigger_time:
+            clear_payload = {
+                "cmd": "effect", 
+                "chain": chain, 
+                "type": "fill",
+                "segment": segment, 
+                "color": {"r": 0, "g": 0, "b": 0}, # AUS (Schwarz)
+                "speed": 100, 
+                "length": 1, 
+                "repeat": 1, 
+                "dir": 1,        
+                "priority": priority,
+            }
+            try:
+                if self._ws:
+                    await self._ws.send(json.dumps(clear_payload))
+            except Exception:
+                pass
+
     def attract_pause(self):
         self._safe_send('{"cmd":"attract","state":"pause"}')
 
@@ -90,37 +133,56 @@ class LedController:
             except Exception as e:
                 print(f"[LED-Controller] Threadsafe-Fehler beim Queueing: {e}")
 
-    # ─── SPACE INVADERS EVENTS (Prioritäten auf 4+ erhöht) ───
+    # ─── SPACE INVADERS EVENTS MIT INTELLIGENTEN AUTO-CLEAR TIMINGS ───
 
     def effect_sys_start_si(self):
-        self.send_effect(chain="A", effect_type="wipe", segment=99, r=0, g=255, b=0, speed=20, repeat=1, priority=4, event_key="sys_start")
+        self.send_effect(chain="A", effect_type="wipe", segment=99, r=0, g=255, b=0, speed=20, repeat=1, priority=4, event_key="sys_start", auto_clear_duration=0.5)
 
     def effect_si_alien(self):
-        self.send_effect(chain="A", effect_type="sparkle", segment=99, r=0, g=255, b=0, speed=50, repeat=5, priority=4, event_key="alien_hit")
+        # 5 Repeats brauchen Zeit. Wir geben dem Effekt 0.45s zum Auslaufen.
+        # Wenn du wild rumballerst, schaltet es sich erst 0.45s nach dem LETZTEN getöteten Alien aus.
+        self.send_effect(chain="A", effect_type="sparkle", segment=99, r=0, g=255, b=0, speed=50, repeat=5, priority=4, event_key="alien_hit", auto_clear_duration=0.45)
 
     def effect_si_ufo_appear(self):
-        self.send_effect(chain="A", effect_type="chase", segment=0, r=0, g=255, b=255, speed=30, length=6, repeat=3, priority=4, event_key="ufo_appear")
+        self.send_effect(chain="A", effect_type="chase", segment=0, r=0, g=255, b=255, speed=30, length=6, repeat=3, priority=4, event_key="ufo_appear", auto_clear_duration=0.8)
 
     def effect_si_ufo_hit(self):
-        self.send_effect(chain="A", effect_type="sparkle", segment=0, r=0, g=255, b=255, speed=50, repeat=8, priority=4, event_key="ufo_hit")
+        self.send_effect(chain="A", effect_type="sparkle", segment=0, r=0, g=255, b=255, speed=50, repeat=8, priority=4, event_key="ufo_hit", auto_clear_duration=0.4)
 
     def effect_si_bunker(self):
-        self.send_effect(chain="A", effect_type="pulse", segment=5, r=255, g=140, b=0, speed=40, repeat=2, priority=4, event_key="bunker_hit")
+        # Erhöhte Dauer (0.32s), damit der Pulse-Effekt komplett beendet ist, bevor Schwarz gesendet wird.
+        self.send_effect(chain="A", effect_type="pulse", segment=5, r=255, g=140, b=0, speed=70, repeat=1, priority=4, event_key="bunker_hit", auto_clear_duration=0.32)
 
     def effect_si_wave(self):
-        self.send_effect(chain="A", effect_type="wipe", segment=99, r=0, g=255, b=0, speed=30, repeat=1, priority=4, event_key="next_wave")
+        self.send_effect(chain="A", effect_type="wipe", segment=99, r=0, g=255, b=0, speed=30, repeat=1, priority=4, event_key="next_wave", auto_clear_duration=0.5)
 
     def effect_si_death(self):
-        self.send_effect(chain="A", effect_type="blink", segment=99, r=255, g=0, b=0, speed=150, repeat=2, priority=4, event_key="player_death")
+        self.send_effect(chain="A", effect_type="blink", segment=99, r=255, g=0, b=0, speed=150, repeat=2, priority=4, event_key="player_death", auto_clear_duration=0.5)
 
     def effect_si_gameover(self):
         self.send_effect(chain="A", effect_type="fill", segment=99, r=255, g=0, b=0, speed=100, repeat=1, priority=5, event_key="game_over")
 
     def effect_si_powerup(self):
-        self.send_effect(chain="A", effect_type="blink", segment=1, r=0, g=255, b=255, speed=10, repeat=5, priority=5, event_key="powerup_collect")
+        self.send_effect(chain="A", effect_type="blink", segment=1, r=0, g=255, b=255, speed=10, repeat=5, priority=5, event_key="powerup_collect", auto_clear_duration=0.4)
 
-    def effect_si_bonusitem(self):  # FIX: Das angehängte 'a' wurde entfernt
-        self.send_effect(chain="A", effect_type="blink", segment=1, r=255, g=255, b=0, speed=10, repeat=3, priority=5, event_key="bonus_collect")
+    def effect_si_bonusitem(self):  
+        self.send_effect(chain="A", effect_type="blink", segment=1, r=255, g=255, b=0, speed=10, repeat=3, priority=5, event_key="bonus_collect", auto_clear_duration=0.4)
 
     def effect_si_transition(self):
-        self.send_effect(chain="A", effect_type="chase", segment=0, r=255, g=255, b=255, speed=22, repeat=13, priority=4, event_key="warp_transition")
+        self.send_effect(chain="A", effect_type="chase", segment=0, r=255, g=255, b=255, speed=22, repeat=13, priority=4, event_key="warp_transition", auto_clear_duration=1.8)
+
+    def effect_menu_nav(self):
+        self.send_effect(chain="A", effect_type="pulse", segment=1, r=255, g=215, b=0, speed=150, repeat=1,priority=3, event_key="menu_nav", auto_clear_duration=0.1)
+
+    # --- 2. Als neue Methode in die LedController-Klasse einfügen: ---
+    def effect_si_boss_hit(self, level):
+        boss_colors = {
+            1: {"r": 255, "g": 110, "b": 0},   # Boss 1: Orange
+            2: {"r": 130, "g": 130, "b": 130}, # Boss 2: Grau
+            3: {"r": 0,   "g": 100, "b": 0},   # Boss 3: Dunkelgrün
+            4: {"r": 0,   "g": 255, "b": 50},  # Boss 4: Hellgrün
+            5: {"r": 160, "g": 0,   "b": 255}  # Boss 5: Lila
+        }
+        color = boss_colors.get(level, {"r": 255, "g": 255, "b": 255})
+    
+        self.send_effect(chain="A", effect_type="blink", segment=99, r=color["r"], g=color["g"], b=color["b"],speed=130,repeat=1, priority=4, event_key="boss_hit", auto_clear_duration=0.15)

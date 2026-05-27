@@ -797,13 +797,11 @@ class Game:
         if hits:
             self.enemy_explosion.play()
 
-            self.leds.effect_si_alien()
-            for seg in range(1, 5):
-                self.leds.send_effect("A", "blink", seg, 255, 100, 0, speed=1, repeat=10, priority=2)
 
                 
             for enemy, bullets in hits.items():
                 explosion = Explosion(enemy.rect.centerx, enemy.rect.centery)
+                self.leds.effect_si_alien()
                 self.explosions.add(explosion)
                 self.all_sprites.add(explosion)
                 
@@ -934,14 +932,18 @@ class Game:
             
 
             for b in hits:
-                hit_explosion = Explosion(boss.rect.centerx, boss.rect.centery, size=48)
-                self.explosions.add(hit_explosion)
-                self.boss_death_sound.play()
-                
-                
-                self.all_sprites.add(hit_explosion)
+                old_health = getattr(boss, 'health', None)
                 
                 boss.hit()
+                
+                if old_health is not None and getattr(boss, 'health', 0) < old_health:
+                    self.leds.effect_si_boss_hit(self.level)
+            
+                    hit_explosion = Explosion(boss.rect.centerx, boss.rect.centery, size=48)
+                    self.explosions.add(hit_explosion)
+                    self.all_sprites.add(hit_explosion)
+                    self.boss_death_sound.play()
+                    self.leds.effect_si_boss_hit(self.level)
                 
                 if not boss.alive():
                     # Sonderregel für die Kinder von Boss 4
@@ -1352,10 +1354,14 @@ class Game:
                 # -------------------------------------------------
                 
                 if event.type == pygame.QUIT:
+                    self.leds.attract_resume()   
+                    pygame.time.wait(100)
                     pygame.quit()
                     sys.exit()
                 
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_q:
+                    self.leds.attract_resume()      # 1. LED-Modus anwerfen
+                    pygame.time.wait(100)
                     pygame.quit()
                     sys.exit()
 
@@ -1386,9 +1392,11 @@ class Game:
                         self.update_cached_highscores()
                         if event.key in (pygame.K_w, pygame.K_UP):
                             self.menu_selection = (self.menu_selection - 1) % max_sel
+                            self.leds.effect_menu_nav()
                             
                         elif event.key in (pygame.K_s, pygame.K_DOWN):
                             self.menu_selection = (self.menu_selection + 1) % max_sel
+                            self.leds.effect_menu_nav()
                         # elif event.key in (pygame.K_a, pygame.K_LEFT):
                         #     if self.menu_selection == 1: self.menu_selection = 0
                         #     elif self.menu_selection == 3: self.menu_selection = 2
