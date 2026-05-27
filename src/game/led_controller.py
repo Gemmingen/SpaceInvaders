@@ -137,38 +137,38 @@ class LedController:
     # ─── SPACE INVADERS EVENTS MIT INTELLIGENTEN AUTO-CLEAR TIMINGS ───
 
     def effect_sys_start_si(self):
-        self.send_effect(chain="A", effect_type="wipe", segment=99, r=0, g=255, b=0, speed=20, repeat=1, priority=4, event_key="sys_start", auto_clear_duration=0.5)
+        self.send_effect(chain="A", effect_type="wipe", segment=99, r=0, g=255, b=0, speed=20, repeat=1, priority=2, event_key="sys_start", auto_clear_duration=0.5)
 
     def effect_si_alien(self):
         # 5 Repeats brauchen Zeit. Wir geben dem Effekt 0.45s zum Auslaufen.
         # Wenn du wild rumballerst, schaltet es sich erst 0.45s nach dem LETZTEN getöteten Alien aus.
-        self.send_effect(chain="A", effect_type="sparkle", segment=99, r=0, g=255, b=0, speed=50, repeat=5, priority=4, event_key="alien_hit", auto_clear_duration=0.45)
+        self.send_effect(chain="A", effect_type="sparkle", segment=99, r=0, g=255, b=0, speed=50, repeat=5, priority=2, event_key="alien_hit")
 
     def effect_si_ufo_appear(self):
-        self.send_effect(chain="A", effect_type="chase", segment=0, r=0, g=255, b=255, speed=30, length=6, repeat=3, priority=4, event_key="ufo_appear", auto_clear_duration=0.8)
+        self.send_effect(chain="A", effect_type="chase", segment=0, r=0, g=255, b=255, speed=30, length=6, repeat=3, priority=2, event_key="ufo_appear", auto_clear_duration=0.8)
 
     def effect_si_ufo_hit(self):
-        self.send_effect(chain="A", effect_type="sparkle", segment=0, r=0, g=255, b=255, speed=50, repeat=8, priority=4, event_key="ufo_hit", auto_clear_duration=0.4)
+        self.send_effect(chain="A", effect_type="sparkle", segment=0, r=0, g=255, b=255, speed=50, repeat=8, priority=2, event_key="ufo_hit", auto_clear_duration=0.4)
 
     def effect_si_bunker(self):
         # Erhöhte Dauer (0.32s), damit der Pulse-Effekt komplett beendet ist, bevor Schwarz gesendet wird.
-        self.send_effect(chain="A", effect_type="pulse", segment=5, r=255, g=140, b=0, speed=70, repeat=1, priority=4, event_key="bunker_hit", auto_clear_duration=0.32)
+        self.send_effect(chain="A", effect_type="pulse", segment=5, r=255, g=140, b=0, speed=70, repeat=1, priority=2, event_key="bunker_hit", auto_clear_duration=0.32)
 
     def effect_si_wave(self):
-        self.send_effect(chain="A", effect_type="wipe", segment=99, r=0, g=255, b=0, speed=30, repeat=1, priority=4, event_key="next_wave", auto_clear_duration=0.5)
+        self.send_effect(chain="A", effect_type="wipe", segment=99, r=0, g=255, b=0, speed=30, repeat=1, priority=2, event_key="next_wave", auto_clear_duration=0.5)
 
     def effect_si_death(self):
-        self.send_effect(chain="A", effect_type="blink", segment=99, r=255, g=0, b=0, speed=150, repeat=2, priority=4, event_key="player_death", auto_clear_duration=0.5)
+        self.send_effect(chain="A", effect_type="blink", segment=99, r=255, g=0, b=0, speed=150, repeat=2, priority=2, event_key="player_death", auto_clear_duration=0.5)
 
 
     def effect_si_powerup(self):
-        self.send_effect(chain="A", effect_type="blink", segment=1, r=0, g=255, b=255, speed=10, repeat=5, priority=5, event_key="powerup_collect", auto_clear_duration=0.4)
+        self.send_effect(chain="A", effect_type="blink", segment=1, r=0, g=255, b=255, speed=10, repeat=5, priority=2, event_key="powerup_collect", auto_clear_duration=0.4)
 
     def effect_si_bonusitem(self):  
-        self.send_effect(chain="A", effect_type="blink", segment=1, r=255, g=255, b=0, speed=10, repeat=3, priority=5, event_key="bonus_collect", auto_clear_duration=0.4)
+        self.send_effect(chain="A", effect_type="blink", segment=1, r=255, g=255, b=0, speed=10, repeat=3, priority=2, event_key="bonus_collect")
 
     def effect_menu_nav(self):
-        self.send_effect(chain="A", effect_type="pulse", segment=1, r=255, g=215, b=0, speed=150, repeat=1,priority=3, event_key="menu_nav", auto_clear_duration=0.1)
+        self.send_effect(chain="A", effect_type="pulse", segment=1, r=255, g=215, b=0, speed=150, repeat=1,priority=2, event_key="menu_nav", auto_clear_duration=0.1)
 
     # --- 2. Als neue Methode in die LedController-Klasse einfügen: ---
     def effect_si_boss_hit(self, level):
@@ -181,9 +181,12 @@ class LedController:
         }
         color = boss_colors.get(level, {"r": 255, "g": 255, "b": 255})
     
-        self.send_effect(chain="A", effect_type="blink", segment=99, r=color["r"], g=color["g"], b=color["b"],speed=130,repeat=1, priority=4, event_key="boss_hit", auto_clear_duration=0.15)
+        self.send_effect(chain="A", effect_type="blink", segment=99, r=color["r"], g=color["g"], b=color["b"],speed=130,repeat=1, priority=2, event_key="boss_hit", auto_clear_duration=0.15)
     def effect_si_gameover(self):
-            self.send_effect(chain="A", effect_type="wipe", segment=99, r=255, g=0, b=0, speed=30, repeat=1, priority=4, event_key="player_death", auto_clear_duration=0.8)
+            self.send_effect(chain="A", effect_type="wipe", segment=99, r=255, g=0, b=0, speed=30, repeat=1, priority=2, event_key="player_death", auto_clear_duration=0.8)
 
     def effect_si_transition(self):
-        self.send_effect(chain="A", effect_type="pulse", segment=99, r=150, g=230, b=255, speed=5, repeat=20, priority=4, event_key="warp_transition",auto_clear_duration=2.5)
+        self.send_effect(chain="A", effect_type="wipe", segment=99, r=255, g=255, b=255, speed=20, repeat=16, priority=2, event_key="warp_transition")
+    def effect_si_transition_clear(self):
+        # Schaltet den Warp-Effekt sofort und sauber ab (Schwarz)
+        self.send_effect(chain="A", effect_type="fill", segment=99, r=0, g=0, b=0, priority=2, event_key="warp_transition")
