@@ -1,26 +1,67 @@
-# Visual Studio
-.vs/
-[Bb]in/
-[Dd]ebug/
-[Oo]bj/
-[Rr]elease/
+# ===========================
+# Python
+# ===========================
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+
+# Virtual Environments
+.venv/
+venv/
+env/
+ENV/
+
+# Distribution / Packaging
+build/
+dist/
+*.egg-info/
+*.egg
+*.whl
+
+# ===========================
+# Testing
+# ===========================
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ===========================
+# PyInstaller
+# ===========================
+# *.spec files are usually committed intentionally — uncomment to ignore:
+# *.spec
+
+# ===========================
+# IDEs & Editors
+# ===========================
+.idea/
+.vscode/
 *.suo
 *.user
-*.userosscache
-*.sln.docstates
-bin/
-obj/
-# Rider
-.idea/
 
-# User-specific files
-*.rsuser
-*.venv
-*.pytest_cache
-__pycache__
-./__pycache__
-*/__pycache__
-**/__pycache__
-*src/game/__pycache__/
-*src/config/__pycache__/
-*spaceinvaders/__pycache__
+# ===========================
+# macOS
+# ===========================
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# ===========================
+# Windows
+# ===========================
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ===========================
+# Game Data (local)
+# ===========================
+# Local highscores are tracked in git.
+# Uncomment the lines below to exclude them:
+# highscores_sp.json
+# highscores_mp.json

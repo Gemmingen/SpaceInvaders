@@ -1,79 +1,148 @@
-======================================================================
-SPACE INVADERS
-A classic Space Invaders game completely rebuilt in Python/Pygame,
-expanded with multiple game modes, boss fights, power-ups, and
-local multiplayer support!
+# Space Invaders
 
-Designed for standard PC play as well as Arcade Cabinet integration.
+A classic Space Invaders game completely rebuilt in **Python/Pygame** — expanded with multiple
+game modes, dynamic boss fights, power-ups, and local multiplayer support.
 
-[ GAME FEATURES ]
-Multiple Game Modes:
+Designed for standard PC play as well as **Arcade Cabinet integration**.
 
-Story Mode (1-2 Players): Fight through 5 distinct levels, each
-ending with a unique mini-boss or the final EndBoss.
+---
 
-Endless Survival (1-2 Players): Waves scale infinitely in
-difficulty. Try to survive as long as possible!
+## Features
 
-Versus Mode (2 Players): Compete against a friend on a split
-screen to see who can survive the longest and score the most.
+### Game Modes
 
-Dynamic Boss Fights:
+| Mode | Players | Description |
+|------|---------|-------------|
+| **Story Mode** | 1–2 | 5 distinct levels, each ending with a unique mini-boss or the final EndBoss |
+| **Endless Survival** | 1–2 | Infinite waves with scaling difficulty — survive as long as possible |
+| **Versus Mode** | 2 | Split-screen competition — who can score the most? |
 
-5 Unique Bosses featuring complex mechanics like poison puddles,
-laser grids, charging fists, and cloning abilities.
+### Boss Fights
 
-Power-Ups & Bonuses:
+5 unique bosses, each with their own attack pattern:
 
-Drops include: Comet Strikes, Bunker Repairs, Extra HP, Speed
-Boosts, Double Shot, and Triple Shot.
+- Charging fist attacks
+- Laser grids with orbiting projectiles
+- Poison puddle hazards with splitting projectiles
+- Cloning / spawning mechanic
+- Final EndBoss with complex multi-phase behavior
 
-Mystery UFOs spawn periodically for massive bonus points!
+### Power-Ups
 
-Modern Retro Enhancements:
+Comet Strike · Bunker Repair · Extra HP · Speed Boost · Double Shot · Triple Shot
 
-Destructible bunkers that deteriorate as they take damage.
+### Further Highlights
 
-Local Highscore tracking for both single-player and multiplayer.
+- Destructible bunkers that degrade visually with damage
+- Mystery UFOs that spawn periodically for bonus points
+- Local highscore tracking for single-player and multiplayer
+- Parallax scrolling backgrounds and cinematic level transitions
+- Arcade LED integration via WebSockets (`ws://localhost:8765`)
 
-Parallax scrolling backgrounds and cinematic level transitions.
+---
 
-Arcade LED integration via WebSockets (ws://localhost:8765).
+## Controls
 
-[ CONTROLS ]
-Menu Navigation:
-[W] / [S] or [UP] / [DOWN]     -- Navigate Options
-[SPACE] or [NUMPAD 0]          -- Select Option
-[R]                            -- Reset / Back to Menu
-[Q]                            -- Quit Game
+### Menu Navigation
 
-Player 1 (Left Side):
-[A] / [D]                      -- Move Left / Right
-[SPACE]                        -- Shoot
+| Key | Action |
+|-----|--------|
+| `W` / `S` or `↑` / `↓` | Navigate options |
+| `SPACE` or `NUMPAD 0` | Confirm / Select |
+| `R` | Back to menu |
+| `Q` | Quit |
 
-Player 2 (Right Side):
-[LEFT ARROW] / [RIGHT ARROW]   -- Move Left / Right
-[NUMPAD 0]                     -- Shoot
+### In-Game
 
-[ INSTALLATION & SETUP ]
-Ensure you have Python 3 installed on your system.
+| | Player 1 | Player 2 |
+|--|----------|----------|
+| **Move** | `A` / `D` | `←` / `→` |
+| **Shoot** | `SPACE` | `NUMPAD 0` |
 
-Install the required dependencies:
-$ pip install -r requirements.txt
+---
 
-(Note: This will install pygame==2.6.1 and websockets==16.0)
+## Installation
 
-Run the game:
-$ python main.py
+Requires **Python 3.12+**.
 
-[ SYSTEM REQUIREMENTS ]
-Python 3.12+ (Recommended based on project structure)
+```bash
+pip install -r requirements.txt
+python main.py
+```
 
-Keyboard required (Local Co-op requires a shared keyboard or
-arcade controller mapping)
+Dependencies: `pygame==2.6.1`, `websockets==16.0`
 
-Screen Resolution: Runs natively at 1080x1080 (Arcade format)
-and scales to fit full screen.
+---
 
-======================================================================
+## System Requirements
+
+- Python 3.12 or newer
+- Screen resolution: 1080×1080 (scales to fullscreen)
+- Keyboard required (local co-op uses a shared keyboard or arcade controller mapping)
+
+---
+
+## Project Structure
+
+```
+SpaceInvaders/
+├── main.py                  # Entry point
+├── requirements.txt
+├── src/
+│   ├── config/
+│   │   └── config.py        # Central game configuration
+│   ├── game/                # All game modules
+│   │   ├── game.py          # Main game loop & state management
+│   │   ├── player.py
+│   │   ├── enemy.py
+│   │   ├── boss_*.py        # Mini-boss implementations
+│   │   ├── endboss.py
+│   │   ├── powerup.py
+│   │   ├── led_controller.py
+│   │   └── ...
+│   └── utils/
+│       └── helpers.py
+├── assets/                  # Sprites, backgrounds, music (424 files)
+├── tests/                   # Pytest test suite
+└── .github/workflows/       # CI/CD pipeline
+```
+
+---
+
+## Testing
+
+```bash
+pytest
+```
+
+Tests run headless (no display required) using SDL's dummy video driver. Coverage includes
+bosses, bunkers, power-ups, UFO mechanics, multiplayer, and the main menu.
+
+---
+
+## Building
+
+Multi-platform executables are built with **PyInstaller** via GitHub Actions on every push
+to `main`. Releases are published automatically when a version tag is pushed.
+
+| Platform | Runner |
+|----------|--------|
+| Windows | windows-latest |
+| macOS (Apple Silicon) | macos-latest |
+| macOS (Intel) | macos-13 |
+| Linux | ubuntu-latest |
+
+---
+
+## Tech Stack
+
+| Library | Purpose |
+|---------|---------|
+| [Pygame 2.6.1](https://www.pygame.org/) | Game engine & rendering |
+| [websockets 16.0](https://websockets.readthedocs.io/) | Arcade LED integration |
+| [pytest](https://pytest.org/) | Automated testing |
+| [PyInstaller](https://pyinstaller.org/) | Cross-platform executable packaging |
+
+---
+
 Have fun defending the galaxy!
