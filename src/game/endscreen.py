@@ -49,7 +49,7 @@ class EndScreen:
 
         footer_y = SCREEN_HEIGHT - 60
         r_surf = self.font.render("[R] RESTART", True, (120, 120, 120))
-        q_surf = self.font.render("[Q] QUIT", True, (120, 120, 120))
+        q_surf = self.font.render("[Backspace] QUIT", True, (120, 120, 120))
         surface.blit(r_surf, (80, footer_y))
         surface.blit(q_surf, (SCREEN_WIDTH - 80 - q_surf.get_width(), footer_y))
 

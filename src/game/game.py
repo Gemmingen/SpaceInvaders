@@ -1374,7 +1374,7 @@ class Game:
                     pygame.quit()
                     sys.exit()
                 
-                if event.type == pygame.KEYDOWN and event.key == pygame.K_q:
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_BACKSPACE:
                     self.leds.attract_resume()      # 1. LED-Modus anwerfen
                     pygame.time.wait(100)
                     pygame.quit()
@@ -1500,7 +1500,7 @@ class Game:
                                     self.player_bullets.add(bullet)
                                     self.all_sprites.add(bullet)
                                     self.player_shots += 1
-                            if event.key == pygame.K_KP0 and self.num_players == 2 and getattr(self, 'player2', None) and self.player2.alive():
+                            if event.key == pygame.K_RETURN and self.num_players == 2 and getattr(self, 'player2', None) and self.player2.alive():
                                 bullet = self.player2.shoot()
                                 if bullet:
                                     self.laser_sound.play()

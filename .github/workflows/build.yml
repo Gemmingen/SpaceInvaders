@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - 'feature/**' # Feature-Branches lösen einen Linux-Pre-Release-Build aus
     tags:
       - 'v*' # Löst automatische Releases bei neuen Versions-Tags aus
   workflow_dispatch: # Ermöglicht manuelles Triggern über GitHub
@@ -16,6 +17,8 @@ jobs:
   build:
     name: Build auf ${{ matrix.artifact_name }}
     runs-on: ${{ matrix.os }}
+    # Läuft nur auf main, Tags oder manuell – NICHT auf Feature-Branches
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
     # --- Build-Matrix (Plattform-Definitionen) ---
     strategy:
       fail-fast: false # Verhindert, dass alle Builds abbrechen, falls ein einzelnes OS fehlschlägt.
@@ -27,8 +30,6 @@ jobs:
             artifact_name: Mac_Silicon # Nativer Build für Apple Silicon (M-Chips)
           - os: macos-latest
             artifact_name: Mac_Intel   # Emulierter Build für Intel Macs
-          - os: ubuntu-latest
-            artifact_name: Linux
 
     steps:
       - name: Code auschecken
@@ -82,6 +83,73 @@ jobs:
           name: SpaceInvaders-${{ matrix.artifact_name }}
           path: SpaceInvaders-${{ matrix.artifact_name }}.zip
           retention-days: 7
+
+  # --- Linux Build für Feature-Branches (Pre-Release) ---
+  build-linux-prerelease:
+    name: Build auf Linux (Pre-Release)
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/heads/feature/')
+
+    steps:
+      - name: Code auschecken
+        uses: actions/checkout@v4
+
+      - name: Python installieren
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Abhängigkeiten installieren
+        run: |
+          python -m pip install --upgrade pip
+          pip install "setuptools<69.0.0" pygame websockets pyinstaller
+
+      - name: PyInstaller Build
+        shell: bash
+        run: |
+          pyinstaller --noconsole -n game main.py
+          cp -r assets dist/game/ || true
+          cp highsscores.json dist/game/ || true
+          if [ -d "dist/game/_internal" ]; then
+            cp -r assets dist/game/_internal/ || true
+            cp highsscores.json dist/game/_internal/ || true
+          fi
+          chmod +x dist/game/game || true
+
+      - name: Archivieren (ZIP erstellen)
+        shell: bash
+        run: python -c "import shutil; shutil.make_archive('SpaceInvaders-Linux', 'zip', 'dist/game')"
+
+      - name: Test-Artifact hochladen
+        uses: actions/upload-artifact@v4
+        with:
+          name: SpaceInvaders-Linux
+          path: SpaceInvaders-Linux.zip
+          retention-days: 7
+
+  # --- Automatisches GitHub Pre-Release (Feature-Branches) ---
+  prerelease:
+    name: GitHub Pre-Release erstellen
+    runs-on: ubuntu-latest
+    needs: build-linux-prerelease
+    if: startsWith(github.ref, 'refs/heads/feature/')
+    permissions:
+      contents: write
+    steps:
+      - name: Artifact herunterladen
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: Pre-Release erstellen und Asset hochladen
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**/*.zip
+          prerelease: true
+          tag_name: pre-${{ github.ref_name }}-${{ github.run_number }}
+          name: "Pre-Release ${{ github.ref_name }} #${{ github.run_number }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # --- Automatisches GitHub Release ---
   release:

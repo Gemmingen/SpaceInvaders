@@ -103,8 +103,14 @@ class MainMenu:
             
             # Draw the controls image if available, else render fallback spacing
             if self.controls_img:
-                img_rect = self.controls_img.get_rect(center=(sw // 2, sh // 2))
-                surface.blit(self.controls_img, img_rect)
+                max_w = int(sw * 0.90)
+                max_h = int(sh * 0.90)
+                img = self.controls_img
+                iw, ih = img.get_size()
+                scale = min(max_w / iw, max_h / ih)
+                img = pygame.transform.smoothscale(img, (int(iw * scale), int(ih * scale)))
+                img_rect = img.get_rect(center=(sw // 2, sh // 2))
+                surface.blit(img, img_rect)
                 btn_y = img_rect.bottom + 40
             else:
                 btn_y = sh // 2 + 100
